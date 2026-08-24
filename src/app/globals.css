@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink-950 text-content font-sans antialiased;
+    /* Nunca negro plano: fade cálido desde arriba. */
+    background-image: theme("backgroundImage.warm-fade");
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-brand text-ink-950;
+  }
+
+  /* El foco se marca con borde naranja + glow, nunca con el anillo azul del sistema. */
+  :focus-visible {
+    @apply outline-none ring-1 ring-brand shadow-focus;
+  }
+
+  /* Los números de precio y stock no deben bailar entre estados. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbar en la paleta oscura (WebKit + Firefox). */
+  * {
+    scrollbar-color: theme("colors.ink.700") transparent;
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.ink.700");
+    border: 2px solid theme("colors.ink.950");
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.line.strong");
+  }
+
+  /* El bloqueo de scroll del drawer/modal no debe mover el layout. */
+  body[data-scroll-locked] {
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  /* Geometría angular — los tres recortes del design system. */
+  .clip-slash {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  }
+  .clip-slash-sm {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  }
+  .clip-slash-lg {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
+  }
+  .clip-shield {
+    clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);
+  }
+  .clip-corner {
+    clip-path: polygon(0 0, 100% 0, 100% 88%, 88% 100%, 0 100%);
+  }
+  .clip-hero {
+    clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+  }
+  .clip-pin {
+    clip-path: polygon(50% 100%, 0 42%, 0 0, 100% 0, 100% 42%);
+  }
+
+  /* Velocidad: los títulos y el wordmark van inclinados, el texto corrido jamás. */
+  .skew-fast {
+    transform: skewX(-7deg);
+  }
+  .skew-fast-8 {
+    transform: skewX(-8deg);
+  }
+  .skew-fast-6 {
+    transform: skewX(-6deg);
+  }
+  .skew-fast-9 {
+    transform: skewX(-9deg);
+  }
+
+  /* Label de 11px con tracking ancho, el patrón de metadato de todo el sitio. */
+  .label-xs {
+    @apply text-[11px] font-extrabold uppercase tracking-[0.16em];
+  }
+
+  .container-shop {
+    @apply mx-auto w-full max-w-[1360px] px-5 sm:px-8;
+  }
+
+  /* Grilla del mapa de ubicación. */
+  .bg-map {
+    background-color: #101312;
+    background-image: theme("backgroundImage.grid-map");
+    background-size: 26px 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

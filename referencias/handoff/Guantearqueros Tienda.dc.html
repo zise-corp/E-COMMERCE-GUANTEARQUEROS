@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #0A0A0A; color: #F5F3F0; font-family: Manrope, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  a { color: #FA2A00; text-decoration: none; }
+  a:hover { color: #FF6A3D; }
+  ::selection { background: #FA2A00; color: #0A0A0A; }
+  input, select, textarea, button { font-family: inherit; }
+  @keyframes gq-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes gq-spin { to { transform: rotate(360deg); } }
+  @keyframes gq-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes gq-slide { from { transform: translateX(100%); } to { transform: none; } }
+  @keyframes gq-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: #0A0A0A; background-image: radial-gradient(120% 80% at 50% -10%, #17120F 0%, #0A0A0A 55%); display: flex; flex-direction: column;">
+
+  <header style="position: sticky; top: 0; z-index: 40; background: rgba(10,10,10,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid #262625;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 24px; height: 74px; display: flex; align-items: center; gap: 24px;">
+      <div onClick="{{ goHome }}" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex: none;">
+        <div style="width: 34px; height: 40px; background: linear-gradient(160deg, #FA2A00, #C81F00); clip-path: polygon(0 0, 100% 0, 100% 64%, 50% 100%, 0 64%); display: flex; align-items: flex-start; justify-content: center; padding-top: 5px;">
+          <span style="font-family: Anton, sans-serif; font-size: 20px; color: #0A0A0A; transform: skewX(-8deg);">G</span>
+        </div>
+        <div style="font-family: Anton, sans-serif; font-size: 22px; letter-spacing: 0.01em; transform: skewX(-8deg); line-height: 1;">
+          <span style="color: #FA2A00;">GUANTE</span><span style="color: #F5F3F0;">ARQUEROS</span>
+        </div>
+      </div>
+      <nav style="display: flex; align-items: center; gap: 14px; flex: 1 1 auto; min-width: 0; flex-wrap: wrap; row-gap: 2px;">
+        <sc-for list="{{ navCats }}" as="c" hint-placeholder-count="5">
+          <div onClick="{{ c.open }}" style="font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 6px 0; border-bottom: 2px solid transparent; white-space: nowrap;" style-hover="color: #FA2A00; border-bottom-color: #FA2A00;">{{ c.name }}</div>
+        </sc-for>
+        <div onClick="{{ openDrei }}" style="display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 6px 0; border-bottom: 2px solid transparent; white-space: nowrap;" style-hover="color: #4E8FCB; border-bottom-color: #4E8FCB;">
+          <span style="width: 7px; height: 7px; background: #4E8FCB; display: block;"></span>DREI
+        </div>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 10px; flex: none;">
+        <div style="display: flex; align-items: center; justify-content: center; background: #131312; border: 1px solid #262625; width: 40px; height: 40px; cursor: pointer;" style-hover="border-color: #FA2A00; color: #FA2A00;">
+          <span style="color: #6E6B67; font-size: 16px;">⌕</span>
+        </div>
+        <div onClick="{{ openCart }}" style="display: flex; align-items: center; gap: 10px; background: #FA2A00; color: #0A0A0A; padding: 11px 16px; cursor: pointer; font-weight: 800; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase;" style-hover="background: #FF5A2B;">
+          CARRITO<span style="background: #0A0A0A; color: #FA2A00; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">{{ cartCount }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <sc-if value="{{ campaignOn }}" hint-placeholder-val="{{ true }}">
+    <div style="height: 42px; overflow: hidden; background: repeating-linear-gradient(115deg, #FA2A00 0 26px, #0A0A0A 26px 52px); display: flex; align-items: center; border-bottom: 1px solid #262625;">
+      <div style="display: flex; width: 200%; animation: gq-marquee 26s linear infinite;">
+        <sc-for list="{{ marquee }}" as="m" hint-placeholder-count="8">
+          <div style="display: flex; align-items: center; gap: 14px; padding: 0 22px; white-space: nowrap;">
+            <span style="font-family: Anton, sans-serif; font-size: 17px; letter-spacing: 0.06em; color: #F5F3F0; background: #0A0A0A; padding: 4px 10px; transform: skewX(-8deg);">{{ m.text }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <main style="flex: 1;">
+
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <section style="max-width: 1360px; margin: 0 auto; padding: 72px 32px 40px; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center;">
+          <div style="animation: gq-rise .5s ease both;">
+            <div style="display: inline-flex; align-items: center; gap: 10px; border: 1px solid #FA2A00; color: #FA2A00; font-size: 11.5px; font-weight: 800; letter-spacing: 0.18em; padding: 7px 12px; text-transform: uppercase;">Temporada 2026 · Bolivia</div>
+            <h1 style="font-family: Anton, sans-serif; font-size: 108px; line-height: 0.86; margin: 22px 0 0; letter-spacing: -0.01em; transform: skewX(-7deg); text-transform: uppercase;">
+              <span style="display: block; color: #F5F3F0;">Acá no</span>
+              <span style="display: block; color: #FA2A00; text-shadow: 0 0 44px rgba(250,42,0,0.45);">pasa nada.</span>
+            </h1>
+            <p style="max-width: 460px; margin: 26px 0 0; font-size: 16.5px; line-height: 1.6; color: #A8A5A0; text-wrap: pretty;">Guantes de arquero originales, indumentaria DREI Athletic y accesorios. Envíos a todo el país, retiro en Cochabamba el mismo día.</p>
+            <div style="display: flex; gap: 12px; margin-top: 32px;">
+              <div onClick="{{ openGuantes }}" style="background: #FA2A00; color: #0A0A0A; font-weight: 800; font-size: 13.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 17px 30px; cursor: pointer; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); box-shadow: 0 0 0 rgba(250,42,0,0);" style-hover="background: #FF5A2B; box-shadow: 0 12px 40px rgba(250,42,0,0.35);">Ver guantes</div>
+              <div onClick="{{ openDrei }}" style="border: 1px solid #3A3A38; color: #F5F3F0; font-weight: 800; font-size: 13.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 17px 30px; cursor: pointer;" style-hover="border-color: #4E8FCB; color: #4E8FCB;">DREI Athletic</div>
+            </div>
+            <div style="display: flex; gap: 34px; margin-top: 46px; border-top: 1px solid #262625; padding-top: 22px;">
+              <div><div style="font-family: Anton, sans-serif; font-size: 30px; color: #F5F3F0;">6</div><div style="font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Marcas</div></div>
+              <div><div style="font-family: Anton, sans-serif; font-size: 30px; color: #F5F3F0;">24h</div><div style="font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Cochabamba</div></div>
+              <div><div style="font-family: Anton, sans-serif; font-size: 30px; color: #F5F3F0;">9</div><div style="font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Departamentos</div></div>
+            </div>
+          </div>
+          <div style="position: relative;">
+            <div style="position: absolute; inset: 8% 6%; background: radial-gradient(circle, rgba(250,42,0,0.5), transparent 68%); filter: blur(40px);"></div>
+            <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%); border: 1px solid #262625;">
+              <img src="{{ heroImg }}" alt="Guantes de arquero" style="width: 100%; height: 100%; object-fit: cover; filter: contrast(1.08) saturate(1.05);" />
+              <div style="position: absolute; inset: 0; background: linear-gradient(200deg, rgba(10,10,10,0) 35%, rgba(10,10,10,0.85) 100%);"></div>
+              <div style="position: absolute; left: 0; bottom: 26px; background: #E10600; color: #fff; font-family: Anton, sans-serif; font-size: 20px; letter-spacing: 0.04em; padding: 9px 20px 9px 26px; transform: skewX(-8deg);">HASTA 30% OFF</div>
+            </div>
+          </div>
+        </section>
+
+        <section style="max-width: 1360px; margin: 0 auto; padding: 44px 32px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #262625; padding-bottom: 14px; margin-bottom: 26px;">
+            <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 0; text-transform: uppercase; transform: skewX(-7deg); letter-spacing: 0.01em;">Categorías</h2>
+            <span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">5 líneas activas</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+            <sc-for list="{{ catCards }}" as="c" hint-placeholder-count="5">
+              <div onClick="{{ c.open }}" style="position: relative; height: 260px; overflow: hidden; cursor: pointer; border: 1px solid #262625; clip-path: polygon(0 0, 100% 0, 100% 88%, 88% 100%, 0 100%);" style-hover="border-color: #FA2A00;">
+                <img src="{{ c.img }}" alt="{{ c.name }}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.55;" />
+                <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,10,10,0.95) 8%, rgba(10,10,10,0.15) 70%);"></div>
+                <div style="position: absolute; left: 16px; right: 16px; bottom: 16px;">
+                  <div style="font-family: Anton, sans-serif; font-size: 24px; text-transform: uppercase; transform: skewX(-7deg); color: #F5F3F0;">{{ c.name }}</div>
+                  <div style="font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #FA2A00; margin-top: 4px;">{{ c.count }} productos</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="border-top: 1px solid #262625; border-bottom: 1px solid #262625; background: #0D0D0C;">
+          <div style="max-width: 1360px; margin: 0 auto; padding: 26px 32px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+            <sc-for list="{{ brands }}" as="b" hint-placeholder-count="6">
+              <div style="font-family: Anton, sans-serif; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; color: #4A4845; transform: skewX(-7deg); cursor: default;" style-hover="color: #F5F3F0;">{{ b.name }}</div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="max-width: 1360px; margin: 0 auto; padding: 56px 32px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #262625; padding-bottom: 14px; margin-bottom: 26px;">
+            <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 0; text-transform: uppercase; transform: skewX(-7deg);">Destacados</h2>
+            <div onClick="{{ openGuantes }}" style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #FA2A00; cursor: pointer;">Ver todo →</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+            <sc-for list="{{ featured }}" as="p" hint-placeholder-count="4">
+              <div onClick="{{ p.open }}" style="border: 1px solid #262625; background: #101010; cursor: pointer; display: flex; flex-direction: column;" style-hover="border-color: #FA2A00; box-shadow: 0 16px 50px rgba(0,0,0,0.6);">
+                <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; background: #0A0A0A;">
+                  <img src="{{ p.img }}" alt="{{ p.name }}" style="width: 100%; height: 100%; object-fit: cover;" />
+                  <sc-if value="{{ p.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                    <div style="position: absolute; top: 0; left: 0; background: #E10600; color: #fff; font-family: Anton, sans-serif; font-size: 15px; padding: 5px 14px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);">-{{ p.off }}%</div>
+                  </sc-if>
+                  <sc-if value="{{ p.lowStock }}" hint-placeholder-val="{{ true }}">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(225,6,0,0.92); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; text-align: center; padding: 6px;">Últimas {{ p.stock }} unidades</div>
+                  </sc-if>
+                </div>
+                <div style="padding: 16px; display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">{{ p.brand }}</div>
+                  <div style="font-size: 15px; font-weight: 700; line-height: 1.3; flex: 1;">{{ p.name }}</div>
+                  <div style="display: flex; align-items: baseline; gap: 10px;">
+                    <span style="font-family: Anton, sans-serif; font-size: 26px; color: #FA2A00;">{{ p.price }}</span>
+                    <sc-if value="{{ p.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                      <span style="font-size: 13px; color: #6E6B67; text-decoration: line-through;">{{ p.oldPrice }}</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="max-width: 1360px; margin: 0 auto 64px; padding: 0 32px;">
+          <div style="position: relative; overflow: hidden; border: 1px solid #234666; background: linear-gradient(100deg, #10233A 0%, #0D0D0C 62%); display: grid; grid-template-columns: 1fr 0.8fr; align-items: center;">
+            <div style="padding: 48px;">
+              <div style="display: inline-flex; align-items: center; gap: 8px; background: #1B3A5C; color: #BFD8EE; font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; padding: 6px 12px;">Sub-marca</div>
+              <div style="font-family: Anton, sans-serif; font-size: 56px; line-height: 0.92; margin-top: 18px; text-transform: uppercase; transform: skewX(-9deg); color: #F5F3F0;">DREI Athletic</div>
+              <p style="max-width: 420px; color: #9FB4C6; font-size: 15.5px; line-height: 1.6; margin: 16px 0 26px;">Uniformes personalizados, camisetas de arquero, calzas y poleras. Producción propia en Bolivia.</p>
+              <div onClick="{{ openDrei }}" style="display: inline-block; border: 1px solid #4E8FCB; color: #BFD8EE; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; padding: 15px 26px; cursor: pointer;" style-hover="background: #1B3A5C;">Ver indumentaria</div>
+            </div>
+            <div style="height: 330px; overflow: hidden;">
+              <img src="{{ dreiImg }}" alt="Indumentaria DREI" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;" />
+            </div>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCategory }}" hint-placeholder-val="{{ true }}">
+      <section style="max-width: 1360px; margin: 0 auto; padding: 34px 32px 72px;">
+        <div style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6E6B67; margin-bottom: 14px;"><span onClick="{{ goHome }}" style="cursor: pointer;">Inicio</span> / <span style="color: #FA2A00;">{{ cat }}</span></div>
+        <div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid #262625; padding-bottom: 18px; margin-bottom: 28px;">
+          <h1 style="font-family: Anton, sans-serif; font-size: 60px; margin: 0; text-transform: uppercase; transform: skewX(-7deg);">{{ cat }}</h1>
+          <div style="font-size: 12.5px; color: #A8A5A0;">{{ listCount }} resultados</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 258px 1fr; gap: 32px; align-items: start;">
+          <aside style="border: 1px solid #262625; background: #0D0D0C; position: sticky; top: 132px;">
+            <div style="padding: 16px 18px; border-bottom: 1px solid #262625; font-family: Anton, sans-serif; font-size: 17px; letter-spacing: 0.06em; text-transform: uppercase;">Filtros</div>
+            <div style="padding: 18px; border-bottom: 1px solid #262625;">
+              <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 12px;">Marca</div>
+              <div style="display: flex; flex-direction: column; gap: 9px;">
+                <sc-for list="{{ brandFilters }}" as="b" hint-placeholder-count="6">
+                  <div onClick="{{ b.toggle }}" style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px;">
+                    <span style="width: 15px; height: 15px; border: 1px solid #3A3A38; display: block; background: {{ b.box }};"></span>{{ b.name }}
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding: 18px; border-bottom: 1px solid #262625;">
+              <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 12px;">Talla</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                <sc-for list="{{ sizeFilters }}" as="s" hint-placeholder-count="6">
+                  <div onClick="{{ s.toggle }}" style="min-width: 40px; text-align: center; padding: 9px 0; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid {{ s.border }}; color: {{ s.color }}; background: {{ s.bg }};">{{ s.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding: 18px;">
+              <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 12px;">Precio máximo</div>
+              <input type="range" min="100" max="900" step="10" value="{{ maxPrice }}" onChange="{{ setMaxPrice }}" style="width: 100%; accent-color: #FA2A00;" />
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #A8A5A0; margin-top: 8px;"><span>Bs 100</span><span style="color: #FA2A00; font-weight: 700;">Bs {{ maxPrice }}</span></div>
+            </div>
+          </aside>
+          <div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+              <sc-for list="{{ list }}" as="p" hint-placeholder-count="6">
+                <div onClick="{{ p.open }}" style="border: 1px solid #262625; background: #101010; cursor: pointer; display: flex; flex-direction: column;" style-hover="border-color: #FA2A00; box-shadow: 0 16px 50px rgba(0,0,0,0.6);">
+                  <div style="position: relative; aspect-ratio: 4/3; overflow: hidden; background: #0A0A0A;">
+                    <img src="{{ p.img }}" alt="{{ p.name }}" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <sc-if value="{{ p.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                      <div style="position: absolute; top: 0; left: 0; background: #E10600; color: #fff; font-family: Anton, sans-serif; font-size: 15px; padding: 5px 14px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);">-{{ p.off }}%</div>
+                    </sc-if>
+                    <sc-if value="{{ p.isDrei }}" hint-placeholder-val="{{ true }}">
+                      <div style="position: absolute; top: 10px; right: 10px; background: #1B3A5C; color: #BFD8EE; font-size: 10px; font-weight: 800; letter-spacing: 0.16em; padding: 5px 9px;">DREI</div>
+                    </sc-if>
+                  </div>
+                  <div style="padding: 16px; display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                    <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">{{ p.brand }}</div>
+                    <div style="font-size: 15.5px; font-weight: 700; line-height: 1.3; flex: 1;">{{ p.name }}</div>
+                    <div style="display: flex; align-items: baseline; gap: 10px;">
+                      <span style="font-family: Anton, sans-serif; font-size: 26px; color: #FA2A00;">{{ p.price }}</span>
+                      <sc-if value="{{ p.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                        <span style="font-size: 13px; color: #6E6B67; text-decoration: line-through;">{{ p.oldPrice }}</span>
+                      </sc-if>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="border: 1px dashed #3A3A38; padding: 60px; text-align: center; color: #6E6B67; font-size: 14px;">Ningún producto coincide con los filtros.</div>
+            </sc-if>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isProduct }}" hint-placeholder-val="{{ false }}">
+      <section style="max-width: 1360px; margin: 0 auto; padding: 34px 32px 80px;">
+        <div style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6E6B67; margin-bottom: 22px;"><span onClick="{{ goHome }}" style="cursor: pointer;">Inicio</span> / <span onClick="{{ backToCat }}" style="cursor: pointer;">{{ pdp.category }}</span> / <span style="color: #FA2A00;">{{ pdp.name }}</span></div>
+        <div style="display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: start;">
+          <div>
+            <div style="position: relative; aspect-ratio: 1/1; overflow: hidden; border: 1px solid #262625; background: #0D0D0C;">
+              <img src="{{ pdpImage }}" alt="{{ pdp.name }}" style="width: 100%; height: 100%; object-fit: cover; animation: gq-rise .35s ease both;" />
+              <sc-if value="{{ pdp.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                <div style="position: absolute; top: 0; left: 0; background: #E10600; color: #fff; font-family: Anton, sans-serif; font-size: 22px; padding: 8px 22px 8px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);">-{{ pdp.off }}%</div>
+              </sc-if>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
+              <sc-for list="{{ pdpThumbs }}" as="t" hint-placeholder-count="4">
+                <div onClick="{{ t.pick }}" style="aspect-ratio: 1/1; overflow: hidden; cursor: pointer; border: 1px solid {{ t.border }};">
+                  <img src="{{ t.img }}" alt="vista" style="width: 100%; height: 100%; object-fit: cover; opacity: {{ t.opacity }};" />
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 11.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #FA2A00; font-weight: 800;">{{ pdp.brand }}</span>
+              <span style="width: 4px; height: 4px; background: #3A3A38; display: block;"></span>
+              <span style="font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">SKU {{ pdp.sku }}</span>
+            </div>
+            <h1 style="font-family: Anton, sans-serif; font-size: 52px; line-height: 0.94; margin: 14px 0 0; text-transform: uppercase; transform: skewX(-6deg);">{{ pdp.name }}</h1>
+            <div style="display: flex; align-items: flex-end; gap: 14px; margin: 24px 0 0;">
+              <span style="font-family: Anton, sans-serif; font-size: 56px; color: #FA2A00; line-height: 1;">{{ pdp.price }}</span>
+              <sc-if value="{{ pdp.hasDiscount }}" hint-placeholder-val="{{ true }}">
+                <span style="font-size: 20px; color: #6E6B67; text-decoration: line-through; padding-bottom: 8px;">{{ pdp.oldPrice }}</span>
+              </sc-if>
+            </div>
+            <sc-if value="{{ pdpLowStock }}" hint-placeholder-val="{{ true }}">
+              <div style="display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; border-left: 3px solid #E10600; background: rgba(225,6,0,0.1); padding: 10px 14px;">
+                <span style="width: 8px; height: 8px; background: #E10600; display: block; animation: gq-pulse 1.1s ease-in-out infinite;"></span>
+                <span style="font-size: 12.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #FF6E68;">Stock bajo · quedan {{ pdp.stock }}</span>
+              </div>
+            </sc-if>
+            <p style="font-size: 15.5px; line-height: 1.65; color: #A8A5A0; margin: 22px 0 0; text-wrap: pretty;">{{ pdp.desc }}</p>
+
+            <div style="margin-top: 28px;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px;">
+                <span style="font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">{{ pdp.sizeLabel }}</span>
+                <span style="font-size: 12px; color: #FA2A00; cursor: pointer;">Guía de tallas</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <sc-for list="{{ pdpSizes }}" as="s" hint-placeholder-count="5">
+                  <div onClick="{{ s.pick }}" style="min-width: 54px; text-align: center; padding: 13px 0; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid {{ s.border }}; background: {{ s.bg }}; color: {{ s.color }};">{{ s.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 26px; align-items: stretch;">
+              <div style="display: flex; align-items: center; border: 1px solid #3A3A38;">
+                <div onClick="{{ qtyDown }}" style="width: 46px; height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #A8A5A0;" style-hover="color: #FA2A00;">−</div>
+                <div style="width: 44px; text-align: center; font-family: Anton, sans-serif; font-size: 20px;">{{ qty }}</div>
+                <div onClick="{{ qtyUp }}" style="width: 46px; height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #A8A5A0;" style-hover="color: #FA2A00;">+</div>
+              </div>
+              <div onClick="{{ addPdp }}" style="flex: 1; background: #FA2A00; color: #0A0A0A; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);" style-hover="background: #FF5A2B; box-shadow: 0 12px 40px rgba(250,42,0,0.35);">Agregar al carrito</div>
+            </div>
+
+            <div style="margin-top: 34px; border-top: 1px solid #262625;">
+              <div style="padding: 18px 0 12px; font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">Atributos</div>
+              <sc-for list="{{ pdpAttrs }}" as="a" hint-placeholder-count="4">
+                <div style="display: grid; grid-template-columns: 190px 1fr; gap: 16px; padding: 11px 0; border-bottom: 1px solid #1C1C1B; font-size: 14px;">
+                  <span style="color: #6E6B67;">{{ a.k }}</span><span style="color: #F5F3F0; font-weight: 600;">{{ a.v }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px;">
+              <div style="border: 1px solid #262625; padding: 14px; font-size: 12.5px; color: #A8A5A0;"><strong style="color: #F5F3F0; display: block; margin-bottom: 3px;">Retiro en local</strong>Cochabamba · hoy mismo</div>
+              <div style="border: 1px solid #262625; padding: 14px; font-size: 12.5px; color: #A8A5A0;"><strong style="color: #F5F3F0; display: block; margin-bottom: 3px;">Envío nacional</strong>2 a 4 días por transporte</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isPay }}" hint-placeholder-val="{{ false }}">
+      <section style="max-width: 1160px; margin: 0 auto; padding: 34px 32px 80px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 30px;">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; background: {{ s.bg }}; color: {{ s.color }};">{{ s.n }}</span>
+              <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: {{ s.text }};">{{ s.label }}</span>
+              <span style="width: 46px; height: 1px; background: #2B2B29; display: block;"></span>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ backToShipping }}" style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #A8A5A0; cursor: pointer; margin-bottom: 22px;" style-hover="color: #FA2A00;">← Volver a envío</div>
+        <div style="display: grid; grid-template-columns: 7fr 5fr; gap: 24px; align-items: start;">
+          <div style="border: 1px solid #262625; background: #0D0D0C; padding: 26px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+              <h2 style="font-family: Anton, sans-serif; font-size: 26px; margin: 0; text-transform: uppercase; transform: skewX(-6deg);">Método de pago</h2>
+              <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #2F5C3A; background: rgba(46,92,58,0.16); padding: 7px 11px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #7FD69B;">⛨ Pago seguro SSL</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div onClick="{{ pickQr }}" style="cursor: pointer; padding: 20px; border: 1px solid {{ qrBorder }}; background: {{ qrBg }};">
+                <div style="font-family: Anton, sans-serif; font-size: 22px; text-transform: uppercase; transform: skewX(-6deg);">QR simple</div>
+                <div style="font-size: 12.5px; color: #A8A5A0; margin-top: 6px;">Cualquier banco · YoPago</div>
+              </div>
+              <div onClick="{{ pickCard }}" style="cursor: pointer; padding: 20px; border: 1px solid {{ cardBorder }}; background: {{ cardBg }};">
+                <div style="font-family: Anton, sans-serif; font-size: 22px; text-transform: uppercase; transform: skewX(-6deg);">Tarjeta</div>
+                <div style="font-size: 12.5px; color: #A8A5A0; margin-top: 6px;">Débito / crédito · YoPago</div>
+              </div>
+            </div>
+
+            <sc-if value="{{ payLoading }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 22px; border: 1px dashed #3A3A38; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+                <span style="width: 30px; height: 30px; border: 3px solid #2B2B29; border-top-color: #FA2A00; border-radius: 50%; display: block; animation: gq-spin .8s linear infinite;"></span>
+                <span style="font-size: 13px; color: #A8A5A0;">Generando pago de Bs {{ total }}...</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showQr }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 22px; border: 1px solid #262625; background: #0A0A0A; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                <div style="width: 256px; height: 256px; background: repeating-conic-gradient(#F5F3F0 0% 25%, #0A0A0A 0% 50%) 0 0 / 22px 22px; border: 10px solid #F5F3F0;"></div>
+                <div style="font-size: 12px; color: #6E6B67; letter-spacing: 0.1em;">TX ID · YP-{{ txId }}</div>
+                <div style="font-size: 13px; color: #A8A5A0;">Escaneá con la app de tu banco. El monto ya viene cargado.</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showCard }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 22px; border: 1px solid #262625; background: #0A0A0A; height: min(70dvh, 500px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+                <div style="font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">iframe pasarela YoPago</div>
+                <div style="font-size: 13px; color: #A8A5A0;">Formulario de tarjeta embebido · alto 70dvh, techo 500px</div>
+                <div style="font-size: 12px; color: #6E6B67;">TX ID · YP-{{ txId }}</div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="position: sticky; top: 132px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="border: 1px solid #262625; background: #0D0D0C; padding: 22px;">
+              <div style="font-family: Anton, sans-serif; font-size: 20px; text-transform: uppercase; transform: skewX(-6deg); margin-bottom: 16px;">Pedido #{{ orderNo }}</div>
+              <sc-for list="{{ cart }}" as="i" hint-placeholder-count="2">
+                <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1C1C1B;">
+                  <img src="{{ i.img }}" alt="{{ i.name }}" style="width: 46px; height: 46px; object-fit: cover;" />
+                  <div style="flex: 1; font-size: 13px;"><div style="font-weight: 700;">{{ i.name }}</div><div style="color: #6E6B67; margin-top: 2px;">{{ i.qty }} × Bs {{ i.price }}</div></div>
+                  <div style="font-weight: 800; font-size: 13.5px;">Bs {{ i.line }}</div>
+                </div>
+              </sc-for>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px;">
+                <span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Total</span>
+                <span style="font-family: Anton, sans-serif; font-size: 34px; color: #FA2A00;">Bs {{ total }}</span>
+              </div>
+              <div style="font-size: 12.5px; color: #A8A5A0; margin-top: 6px;">{{ deliverySummary }}</div>
+            </div>
+            <div style="border-left: 3px solid #FA2A00; background: rgba(250,42,0,0.08); padding: 14px 16px; display: flex; gap: 12px; align-items: center;">
+              <span style="width: 18px; height: 18px; border: 2px solid #3A2A22; border-top-color: #FA2A00; border-radius: 50%; display: block; animation: gq-spin .9s linear infinite; flex: none;"></span>
+              <span style="font-size: 12.5px; color: #E8C8BC; line-height: 1.45;">Esperando confirmación de pago... no cierres esta ventana.</span>
+            </div>
+            <div onClick="{{ openSupport }}" style="border: 1px solid #3A3A38; padding: 14px 16px; text-align: center; font-size: 12.5px; font-weight: 700; cursor: pointer; color: #A8A5A0;" style-hover="border-color: #FA2A00; color: #FA2A00;">¿Problemas con el pago? Contactar soporte</div>
+            <div onClick="{{ simulatePaid }}" style="border: 1px dashed #3A3A38; padding: 11px; text-align: center; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67; cursor: pointer;" style-hover="color: #F5F3F0;">demo: simular pago confirmado (polling)</div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+      <section style="max-width: 700px; margin: 0 auto; padding: 90px 32px 120px; text-align: center; animation: gq-rise .4s ease both;">
+        <div style="width: 96px; height: 96px; margin: 0 auto; background: #FA2A00; color: #0A0A0A; display: flex; align-items: center; justify-content: center; font-size: 48px; clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);">✓</div>
+        <h1 style="font-family: Anton, sans-serif; font-size: 58px; margin: 28px 0 0; text-transform: uppercase; transform: skewX(-7deg);">¡Gracias por tu compra!</h1>
+        <div style="display: inline-block; background: #FA2A00; color: #0A0A0A; font-family: Anton, sans-serif; font-size: 26px; padding: 10px 26px; margin-top: 18px; transform: skewX(-8deg);">PEDIDO #{{ orderNo }}</div>
+        <p style="color: #A8A5A0; font-size: 15.5px; line-height: 1.6; margin: 22px 0 0;">Ya registramos tu pedido. {{ deliverySummary }}. Te vamos a contactar por WhatsApp para coordinar.</p>
+        <div style="border: 1px solid #262625; background: #0D0D0C; padding: 22px; margin-top: 34px; display: flex; align-items: center; justify-content: space-between; text-align: left;">
+          <div><div style="font-family: Anton, sans-serif; font-size: 20px; text-transform: uppercase;">¿Necesitás ayuda?</div><div style="font-size: 13px; color: #A8A5A0; margin-top: 4px;">Escribinos con tu número de pedido.</div></div>
+          <div onClick="{{ openSupport }}" style="border: 1px solid #FA2A00; color: #FA2A00; font-weight: 800; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 20px; cursor: pointer;" style-hover="background: #FA2A00; color: #0A0A0A;">Contactar</div>
+        </div>
+        <div onClick="{{ goHome }}" style="margin-top: 26px; background: #FA2A00; color: #0A0A0A; font-weight: 800; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; padding: 19px; cursor: pointer; clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);" style-hover="background: #FF5A2B;">Volver a la tienda</div>
+      </section>
+    </sc-if>
+
+  </main>
+
+  <footer style="border-top: 1px solid #262625; background: #0D0D0C; margin-top: auto;">
+    <div style="height: 8px; background: repeating-linear-gradient(115deg, #FA2A00 0 18px, #0A0A0A 18px 36px);"></div>
+    <div style="max-width: 1360px; margin: 0 auto; padding: 48px 32px; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px;">
+      <div>
+        <div style="font-family: Anton, sans-serif; font-size: 22px; transform: skewX(-8deg);"><span style="color: #FA2A00;">GUANTE</span>ARQUEROS <span style="color: #6E6B67;">BOLIVIA</span></div>
+        <p style="font-size: 13.5px; color: #6E6B67; line-height: 1.6; margin: 14px 0 0; max-width: 300px;">Guantes de arquero, indumentaria DREI Athletic y accesorios. Cochabamba, Bolivia.</p>
+      </div>
+      <sc-for list="{{ footerCols }}" as="col" hint-placeholder-count="3">
+        <div>
+          <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #F5F3F0; font-weight: 800; margin-bottom: 14px;">{{ col.title }}</div>
+          <sc-for list="{{ col.items }}" as="it" hint-placeholder-count="4">
+            <div style="font-size: 13.5px; color: #6E6B67; padding: 5px 0; cursor: pointer;" style-hover="color: #FA2A00;">{{ it.label }}</div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border-top: 1px solid #1C1C1B; padding: 18px 32px; max-width: 1360px; margin: 0 auto; display: flex; justify-content: space-between; font-size: 12px; color: #4A4845;">
+      <span>© 2026 Guantearqueros Bolivia · DREI Athletic</span><span>Pagos vía YoPago · Bs</span>
+    </div>
+  </footer>
+
+  <sc-if value="{{ cartOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end;">
+      <div onClick="{{ closeCart }}" style="position: absolute; inset: 0; background: rgba(4,4,4,0.72); backdrop-filter: blur(2px);"></div>
+      <div style="position: relative; width: 456px; max-width: 100vw; height: 100%; background: #0D0D0C; border-left: 1px solid #262625; display: flex; flex-direction: column; animation: gq-slide .22s ease both;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid #262625; display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-family: Anton, sans-serif; font-size: 22px; text-transform: uppercase; transform: skewX(-7deg);">{{ drawerTitle }}</div>
+          <div onClick="{{ closeCart }}" style="cursor: pointer; color: #6E6B67; font-size: 20px;" style-hover="color: #FA2A00;">✕</div>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto;">
+          <sc-if value="{{ stepItems }}" hint-placeholder-val="{{ true }}">
+            <div style="padding: 18px 24px;">
+              <sc-for list="{{ cart }}" as="i" hint-placeholder-count="2">
+                <div style="display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #1C1C1B;">
+                  <img src="{{ i.img }}" alt="{{ i.name }}" style="width: 76px; height: 76px; object-fit: cover; flex: none;" />
+                  <div style="flex: 1;">
+                    <div style="font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67;">{{ i.brand }}</div>
+                    <div style="font-size: 14px; font-weight: 700; margin-top: 3px; line-height: 1.3;">{{ i.name }}</div>
+                    <div style="font-size: 12px; color: #6E6B67; margin-top: 3px;">{{ i.variant }}</div>
+                    <div style="display: flex; align-items: center; gap: 14px; margin-top: 9px;">
+                      <div style="display: flex; align-items: center; border: 1px solid #2B2B29;">
+                        <span onClick="{{ i.dec }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #A8A5A0;">−</span>
+                        <span style="width: 26px; text-align: center; font-size: 13px; font-weight: 800;">{{ i.qty }}</span>
+                        <span onClick="{{ i.inc }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #A8A5A0;">+</span>
+                      </div>
+                      <span onClick="{{ i.remove }}" style="font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #6E6B67; cursor: pointer;" style-hover="color: #E10600;">Quitar</span>
+                    </div>
+                  </div>
+                  <div style="font-family: Anton, sans-serif; font-size: 19px; color: #FA2A00;">Bs {{ i.line }}</div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ cartEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 70px 10px; text-align: center; color: #6E6B67; font-size: 14px;">Tu carrito está vacío.</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ stepShip }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 20px 24px 8px;">
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Nombre *</div>
+                  <input value="{{ form.name }}" onChange="{{ setName }}" placeholder="Nombre y apellido" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;" />
+                </div>
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Teléfono / WhatsApp *</div>
+                  <input value="{{ form.phone }}" onChange="{{ setPhone }}" placeholder="+591 7xx xx xxx" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;" />
+                </div>
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Nota (opcional)</div>
+                  <textarea value="{{ form.note }}" onChange="{{ setNote }}" rows="2" placeholder="Referencia, horario, color preferido..." style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-top: 4px;">
+                  <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 9px;">Modalidad de entrega</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div onClick="{{ setPickup }}" style="cursor: pointer; padding: 15px 14px; border: 1px solid {{ pickupBorder }}; background: {{ pickupBg }};">
+                      <div style="font-size: 13.5px; font-weight: 800; color: {{ pickupColor }};">Retiro en el local</div>
+                      <div style="font-size: 11.5px; color: #8A8783; margin-top: 3px;">Cochabamba · sin costo</div>
+                    </div>
+                    <div onClick="{{ setDelivery }}" style="cursor: pointer; padding: 15px 14px; border: 1px solid {{ deliveryBorder }}; background: {{ deliveryBg }};">
+                      <div style="font-size: 13.5px; font-weight: 800; color: {{ deliveryColor }};">Envío a domicilio</div>
+                      <div style="font-size: 11.5px; color: #8A8783; margin-top: 3px;">Todo el país</div>
+                    </div>
+                  </div>
+                </div>
+
+                <sc-if value="{{ isDelivery }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; flex-direction: column; gap: 14px; animation: gq-rise .25s ease both;">
+                    <div>
+                      <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Departamento *</div>
+                      <select value="{{ form.dept }}" onChange="{{ setDept }}" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;">
+                        <sc-for list="{{ depts }}" as="d" hint-placeholder-count="10">
+                          <option value="{{ d.name }}">{{ d.name }}</option>
+                        </sc-for>
+                      </select>
+                    </div>
+
+                    <sc-if value="{{ isLocalDept }}" hint-placeholder-val="{{ true }}">
+                      <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="border-left: 3px solid #FA2A00; background: rgba(250,42,0,0.07); padding: 10px 13px; font-size: 12.5px; color: #E8C8BC;">Reparto con logística propia en Cochabamba. Necesitamos la ubicación exacta.</div>
+                        <div>
+                          <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Dirección *</div>
+                          <input value="{{ form.address }}" onChange="{{ setAddress }}" placeholder="Calle, número, zona" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;" />
+                        </div>
+                        <div>
+                          <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Ubicación en el mapa *</div>
+                          <div style="position: relative; height: 190px; border: 1px solid {{ mapBorder }}; background: #101312; background-image: linear-gradient(#181C1A 1px, transparent 1px), linear-gradient(90deg, #181C1A 1px, transparent 1px), linear-gradient(115deg, rgba(250,42,0,0.05) 0 40px, transparent 40px 80px); background-size: 26px 26px, 26px 26px, auto; overflow: hidden;">
+                            <div style="position: absolute; left: 0; right: 0; top: 58%; height: 10px; background: #1E2320;"></div>
+                            <div style="position: absolute; top: 0; bottom: 0; left: 38%; width: 8px; background: #1E2320;"></div>
+                            <div style="position: absolute; left: 38%; top: 58%; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center;">
+                              <div style="width: 26px; height: 30px; background: #FA2A00; clip-path: polygon(50% 100%, 0 42%, 0 0, 100% 0, 100% 42%); box-shadow: 0 0 26px rgba(250,42,0,0.6);"></div>
+                              <div style="width: 8px; height: 8px; background: #0A0A0A; border: 2px solid #FA2A00; border-radius: 50%; margin-top: -22px;"></div>
+                            </div>
+                            <div style="position: absolute; left: 10px; bottom: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6E6B67;">Arrastrá el pin</div>
+                            <sc-if value="{{ mapError }}" hint-placeholder-val="{{ false }}">
+                              <div style="position: absolute; inset: 0; background: rgba(10,10,10,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; text-align: center;">
+                                <div style="font-size: 12.5px; font-weight: 800; color: #FF6E68; letter-spacing: 0.08em; text-transform: uppercase;">No pudimos obtener tu ubicación</div>
+                                <div style="font-size: 12px; color: #A8A5A0;">Marcá el punto en el mapa o pegá un link de Google Maps.</div>
+                                <div onClick="{{ clearMapError }}" style="border: 1px solid #FA2A00; color: #FA2A00; font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 14px; cursor: pointer;">Marcar manualmente</div>
+                              </div>
+                            </sc-if>
+                          </div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                            <div onClick="{{ useGeo }}" style="border: 1px solid #2B2B29; padding: 11px; text-align: center; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #A8A5A0; cursor: pointer;" style-hover="border-color: #FA2A00; color: #FA2A00;">Usar mi ubicación</div>
+                            <div onClick="{{ failGeo }}" style="border: 1px solid #2B2B29; padding: 11px; text-align: center; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #A8A5A0; cursor: pointer;" style-hover="border-color: #FA2A00; color: #FA2A00;">Pegar link Maps</div>
+                          </div>
+                          <sc-if value="{{ geoOk }}" hint-placeholder-val="{{ false }}">
+                            <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px; border-left: 3px solid #3F8B55; background: rgba(63,139,85,0.12); padding: 9px 12px; font-size: 12px; color: #8FD9A6;">✓ Ubicación confirmada · −17.3936, −66.1570</div>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ isOtherDept }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; flex-direction: column; gap: 14px; animation: gq-rise .25s ease both;">
+                        <div style="border-left: 3px solid #4E8FCB; background: rgba(78,143,203,0.09); padding: 10px 13px; font-size: 12.5px; color: #BFD8EE; line-height: 1.5;">El envío se despacha por empresa de transporte. Coordinamos la agencia y el pago del flete por WhatsApp.</div>
+                        <div>
+                          <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">CI / Documento *</div>
+                          <input value="{{ form.ci }}" onChange="{{ setCi }}" placeholder="Número de carnet" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;" />
+                        </div>
+                        <div>
+                          <div style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6B67; margin-bottom: 7px;">Correo electrónico *</div>
+                          <input value="{{ form.email }}" onChange="{{ setEmail }}" placeholder="tucorreo@mail.com" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 14px; outline: none;" />
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="border-top: 1px solid #262625; padding: 18px 24px 22px; background: #0A0A0A;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Subtotal</span>
+            <span style="font-family: Anton, sans-serif; font-size: 30px; color: #FA2A00;">Bs {{ total }}</span>
+          </div>
+          <div style="font-size: 12px; color: #6E6B67; margin-bottom: 14px;">{{ deliverySummary }}</div>
+          <div onClick="{{ drawerCta }}" style="background: #FA2A00; color: #0A0A0A; text-align: center; font-weight: 800; font-size: 13.5px; letter-spacing: 0.14em; text-transform: uppercase; padding: 18px; cursor: pointer; clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);" style-hover="background: #FF5A2B;">{{ drawerCtaLabel }}</div>
+          <sc-if value="{{ stepShip }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ backToItems }}" style="text-align: center; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #6E6B67; padding-top: 12px; cursor: pointer;" style-hover="color: #F5F3F0;">← Volver al carrito</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 70; background: rgba(4,4,4,0.8); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 440px; max-width: 100%; background: #0D0D0C; border: 1px solid #FA2A00; padding: 28px; animation: gq-rise .2s ease both;">
+        <div style="font-family: Anton, sans-serif; font-size: 26px; text-transform: uppercase; transform: skewX(-7deg);">Confirmar pedido</div>
+        <p style="font-size: 13.5px; color: #A8A5A0; margin: 10px 0 18px; line-height: 1.55;">Revisá los datos antes de crear el pedido. Después de confirmar pasás al pago.</p>
+        <div style="border-top: 1px solid #1C1C1B;">
+          <sc-for list="{{ confirmRows }}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid #1C1C1B; font-size: 13.5px;">
+              <span style="color: #6E6B67;">{{ r.k }}</span><span style="font-weight: 700; text-align: right;">{{ r.v }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 22px;">
+          <div onClick="{{ closeConfirm }}" style="border: 1px solid #3A3A38; text-align: center; padding: 15px; font-weight: 800; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #A8A5A0; cursor: pointer;" style-hover="border-color: #F5F3F0; color: #F5F3F0;">Volver</div>
+          <div onClick="{{ confirmOrder }}" style="background: #FA2A00; color: #0A0A0A; text-align: center; padding: 15px; font-weight: 800; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;" style-hover="background: #FF5A2B;">Sí, confirmar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ supportOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 80; background: rgba(4,4,4,0.8); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 420px; max-width: 100%; background: #0D0D0C; border: 1px solid #262625; padding: 26px; animation: gq-rise .2s ease both;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="font-family: Anton, sans-serif; font-size: 24px; text-transform: uppercase; transform: skewX(-7deg);">Soporte</div>
+          <div onClick="{{ closeSupport }}" style="cursor: pointer; color: #6E6B67;">✕</div>
+        </div>
+        <p style="font-size: 13.5px; color: #A8A5A0; margin: 8px 0 18px;">Pedido #{{ orderNo }} · te respondemos en horario comercial.</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="border: 1px solid #2B2B29; padding: 14px; display: flex; align-items: center; justify-content: space-between;">
+            <div><div style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">Email</div><div style="font-size: 14px; font-weight: 700; margin-top: 3px;">ventas@guantearquerosbolivia.com.bo</div></div>
+            <div onClick="{{ copyEmail }}" style="font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #FA2A00; cursor: pointer;">{{ copyLabel }}</div>
+          </div>
+          <div style="border: 1px solid #FA2A00; background: rgba(250,42,0,0.07); padding: 14px; display: flex; align-items: center; justify-content: space-between;">
+            <div><div style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6E6B67;">WhatsApp</div><div style="font-size: 14px; font-weight: 700; margin-top: 3px;">+591 700 00 000</div></div>
+            <div style="font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #FA2A00; cursor: pointer;">Abrir chat</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastOn }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; right: 24px; bottom: 24px; z-index: 90; background: #F5F3F0; color: #0A0A0A; padding: 14px 20px; display: flex; align-items: center; gap: 12px; animation: gq-rise .22s ease both; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);">
+      <span style="font-family: Anton, sans-serif; font-size: 16px; color: #FA2A00;">✓</span>
+      <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;">{{ toast }}</span>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;campaignEnabled&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Campaña&quot;},&quot;campaignText&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;DESCUENTOS EN TODA LA TIENDA&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Campaña&quot;},&quot;showStockUrgency&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Producto&quot;}}">
+const img = (kw, lock) => `https://loremflickr.com/720/720/${kw}/all?lock=${lock}`;
+
+const CATS = ["Guantes", "Poleras", "Botas", "Pelotas", "Canilleras"];
+
+const P = [
+  { id: 1, name: "Buffon Ultimate Grip", brand: "Buffon", cat: "Guantes", price: 480, old: 620, stock: 12, kw: "goalkeeper,gloves", lock: 11,
+    desc: "Latex alemán de 4 mm, corte negativo y cierre de muñeca elástico. Para arqueros que juegan en cancha dura y no perdonan un rebote.",
+    attrs: [["Color", "Negro con líneas naranjas"], ["Corte", "Negativo"], ["Látex palma", "4 mm alemán"], ["Cierre", "Muñeca elástica 8 cm"]] },
+  { id: 2, name: "Uhlsport Speed Contact", brand: "Uhlsport", cat: "Guantes", price: 520, old: 0, stock: 7, kw: "goalkeeper,glove", lock: 21,
+    desc: "Diseñado para reacción rápida en distancias cortas. Palma con agarre en seco y húmedo, dorso ventilado.", attrs: [["Color", "Blanco con detalles fluor"], ["Corte", "Roll finger"], ["Látex palma", "3.5 mm"], ["Uso", "Césped sintético"]] },
+  { id: 3, name: "HO Soccer Ssyncro Pro", brand: "HO Soccer", cat: "Guantes", price: 610, old: 750, stock: 3, kw: "soccer,goalkeeper", lock: 31,
+    desc: "Modelo de competición con protección de falange y palma de contacto total. El más pedido de la temporada.", attrs: [["Color", "Negro mate con rojo"], ["Corte", "Híbrido"], ["Látex palma", "4 mm Contact"], ["Protección", "Falange removible"]] },
+  { id: 4, name: "Elite Neo Revolution", brand: "Elite", cat: "Guantes", price: 390, old: 0, stock: 18, kw: "gloves,sport", lock: 41,
+    desc: "Entrada de gama profesional. Buen agarre, precio de entrenamiento diario.", attrs: [["Color", "Verde flúor"], ["Corte", "Plano"], ["Látex palma", "3 mm"], ["Uso", "Entrenamiento"]] },
+  { id: 5, name: "GXP Pro Latex", brand: "GXP", cat: "Guantes", price: 350, old: 420, stock: 22, kw: "goalie,gloves", lock: 51,
+    desc: "Guante de trabajo diario, resistente a cancha de arena y polvo.", attrs: [["Color", "Negro con gris"], ["Corte", "Plano"], ["Látex palma", "3 mm"], ["Uso", "Cancha de arena"]] },
+  { id: 6, name: "DREI Camiseta Arquero Pro", brand: "DREI", cat: "Poleras", price: 280, old: 0, stock: 30, kw: "goalkeeper,jersey", lock: 61,
+    desc: "Tela deportiva con codos acolchados y corte holgado. Sublimación full, personalizable con nombre y número.", attrs: [["Color", "Negro con líneas naranjas"], ["Talla", "S a XXL"], ["Tela", "Micro poliéster 150 g"], ["Personalización", "Nombre y número"]] },
+  { id: 7, name: "DREI Uniforme Personalizado", brand: "DREI", cat: "Poleras", price: 340, old: 420, stock: 9, kw: "football,kit", lock: 71,
+    desc: "Set completo para equipo: camiseta, short y medias. Diseño propio, mínimo 12 unidades.", attrs: [["Color", "A definir con el cliente"], ["Talla", "Curva completa"], ["Incluye", "Camiseta + short + medias"], ["Mínimo", "12 unidades"]] },
+  { id: 8, name: "Vortex FG Botín Cancha", brand: "GXP", cat: "Botas", price: 690, old: 0, stock: 5, kw: "football,boots", lock: 81,
+    desc: "Tapón firme, capellada sintética liviana con banda de golpeo texturizada.", attrs: [["Color", "Naranja con negro"], ["Tamaño", "38 a 44"], ["Tapón", "FG · césped firme"], ["Peso", "215 g"]] },
+  { id: 9, name: "Match Pro Pelota N°5", brand: "GXP", cat: "Pelotas", price: 250, old: 310, stock: 26, kw: "soccer,ball", lock: 91,
+    desc: "Pelota cosida a máquina, cámara de látex, vuelo estable para partido oficial.", attrs: [["Color", "Blanco con líneas negras"], ["Tamaño", "N°5 · 68-70 cm"], ["Cámara", "Látex"], ["Uso", "Partido"]] },
+  { id: 10, name: "Impact Canilleras", brand: "Elite", cat: "Canilleras", price: 120, old: 0, stock: 40, kw: "shin,guard,soccer", lock: 101,
+    desc: "Placa rígida con espuma interna y tobillera desmontable.", attrs: [["Color", "Negro"], ["Tamaño", "15 cm / 18 cm"], ["Tobillera", "Desmontable"], ["Talla", "S / M / L"]] },
+  { id: 11, name: "Buffon Training Grip", brand: "Buffon", cat: "Guantes", price: 300, old: 0, stock: 15, kw: "gloves,goalkeeper", lock: 111,
+    desc: "Versión de entrenamiento del modelo Ultimate, misma horma con látex más duro.", attrs: [["Color", "Gris con naranja"], ["Corte", "Plano"], ["Látex palma", "3 mm duro"], ["Uso", "Entrenamiento"]] },
+  { id: 12, name: "DREI Calza Térmica", brand: "DREI", cat: "Poleras", price: 160, old: 0, stock: 24, kw: "sports,leggings", lock: 121,
+    desc: "Calza larga con protección de cadera y rodilla para arqueros.", attrs: [["Color", "Negro"], ["Talla", "S a XL"], ["Protección", "Cadera + rodilla"], ["Tela", "Lycra 240 g"]] }
+];
+
+const BRANDS = ["Buffon", "Uhlsport", "HO Soccer", "Elite", "GXP", "DREI"];
+const DEPTS = ["Cochabamba", "La Paz", "El Alto", "Santa Cruz", "Oruro", "Potosí", "Chuquisaca", "Tarija", "Beni", "Pando"];
+const SIZES = { Guantes: ["7", "8", "9", "10", "11"], Poleras: ["S", "M", "L", "XL", "XXL"], Botas: ["38", "39", "40", "41", "42", "43", "44"], Pelotas: ["N°4", "N°5"], Canilleras: ["S", "M", "L"] };
+
+class Component extends DCLogic {
+  state = {
+    screen: "home", cat: "Guantes", pdpId: 3, pdpImg: 0, qty: 1, size: null,
+    brandF: [], sizeF: [], maxPrice: 900,
+    cartOpen: false, step: "items", cart: [{ p: 3, qty: 1, size: "9" }, { p: 6, qty: 2, size: "L" }],
+    confirmOpen: false, supportOpen: false, copied: false,
+    mode: "pickup", dept: "Cochabamba", name: "", phone: "", note: "", address: "", ci: "", email: "",
+    geoOk: false, mapError: false,
+    payMethod: null, payLoading: false, orderNo: 1041, toast: null
+  };
+
+  toast(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: msg });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2200);
+  }
+  go(screen) { this.setState({ screen }); window.scrollTo(0, 0); }
+  openCat(cat) { this.setState({ cat, screen: "category", brandF: [], sizeF: [] }); window.scrollTo(0, 0); }
+  openProduct(id) {
+    const p = P.find(x => x.id === id);
+    this.setState({ pdpId: id, screen: "product", pdpImg: 0, qty: 1, size: (SIZES[p.cat] || ["Único"])[1] || null });
+    window.scrollTo(0, 0);
+  }
+  add(id, qty, size) {
+    const cart = this.state.cart.slice();
+    const hit = cart.find(c => c.p === id && c.size === size);
+    if (hit) hit.qty += qty; else cart.push({ p: id, qty, size });
+    this.setState({ cart });
+    this.toast("Agregado al carrito");
+  }
+  fmtCart() {
+    return this.state.cart.map((c, idx) => {
+      const p = P.find(x => x.id === c.p);
+      return {
+        name: p.name, brand: p.brand, price: p.price, qty: c.qty, line: p.price * c.qty,
+        img: img(p.kw, p.lock), variant: c.size ? "Talla " + c.size : "Único",
+        inc: () => this.mut(idx, 1), dec: () => this.mut(idx, -1),
+        remove: () => this.setState({ cart: this.state.cart.filter((_, i) => i !== idx) })
+      };
+    });
+  }
+  mut(idx, d) {
+    const cart = this.state.cart.slice();
+    cart[idx] = Object.assign({}, cart[idx], { qty: Math.max(1, cart[idx].qty + d) });
+    this.setState({ cart });
+  }
+  total() { return this.state.cart.reduce((s, c) => s + P.find(x => x.id === c.p).price * c.qty, 0); }
+  deliverySummary() {
+    const s = this.state;
+    if (s.mode === "pickup") return "Retiro en el local · Cochabamba";
+    return "Envío a domicilio · " + s.dept + (s.dept === "Cochabamba" ? " (logística propia)" : " (por transporte)");
+  }
+  pickPay(m) {
+    this.setState({ payMethod: m, payLoading: true });
+    clearTimeout(this._p);
+    this._p = setTimeout(() => this.setState({ payLoading: false }), 1400);
+  }
+  card(active) {
+    return { border: active ? "#FA2A00" : "#2B2B29", bg: active ? "rgba(250,42,0,0.09)" : "#0F0F0E", color: active ? "#FA2A00" : "#F5F3F0" };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const pdp = P.find(x => x.id === s.pdpId);
+    const cart = this.fmtCart();
+    const total = this.total();
+    const prod = p => ({
+      name: p.name, brand: p.brand, price: "Bs " + p.price, oldPrice: "Bs " + p.old,
+      hasDiscount: p.old > 0, off: p.old > 0 ? Math.round((1 - p.price / p.old) * 100) : 0,
+      stock: p.stock, lowStock: (this.props.showStockUrgency ?? true) && p.stock <= 5,
+      isDrei: p.brand === "DREI", img: img(p.kw, p.lock), open: () => this.openProduct(p.id)
+    });
+    const list = P.filter(p => p.cat === s.cat)
+      .filter(p => !s.brandF.length || s.brandF.includes(p.brand))
+      .filter(p => p.price <= s.maxPrice);
+    const pickup = this.card(s.mode === "pickup"), deliv = this.card(s.mode === "delivery");
+    const stepIdx = s.screen === "done" ? 3 : s.screen === "pay" ? 2 : 1;
+    const pdpSizes = SIZES[pdp.cat] || ["Único"];
+
+    return {
+      campaignOn: this.props.campaignEnabled ?? true,
+      marquee: Array.from({ length: 8 }, (_, i) => ({ text: i % 2 ? "ENVÍOS A TODA BOLIVIA" : (this.props.campaignText ?? "DESCUENTOS EN TODA LA TIENDA") })),
+      isHome: s.screen === "home", isCategory: s.screen === "category", isProduct: s.screen === "product",
+      isPay: s.screen === "pay", isDone: s.screen === "done",
+      goHome: () => this.go("home"), openGuantes: () => this.openCat("Guantes"), openDrei: () => this.openCat("Poleras"),
+      navCats: CATS.map(c => ({ name: c, open: () => this.openCat(c) })),
+      catCards: CATS.map((c, i) => ({ name: c, count: P.filter(p => p.cat === c).length, img: img(["goalkeeper,gloves", "football,jersey", "football,boots", "soccer,ball", "shin,guard"][i], 200 + i), open: () => this.openCat(c) })),
+      brands: BRANDS.map(b => ({ name: b })),
+      heroImg: img("goalkeeper,save", 7), dreiImg: img("football,team,jersey", 9),
+      featured: [P[2], P[0], P[5], P[8]].map(prod),
+      cat: s.cat, list: list.map(prod), listCount: list.length, listEmpty: list.length === 0,
+      brandFilters: BRANDS.map(b => ({ name: b, box: s.brandF.includes(b) ? "#FA2A00" : "transparent", toggle: () => this.setState({ brandF: s.brandF.includes(b) ? s.brandF.filter(x => x !== b) : s.brandF.concat(b) }) })),
+      sizeFilters: (SIZES[s.cat] || ["Único"]).map(z => {
+        const on = s.sizeF.includes(z);
+        return { label: z, border: on ? "#FA2A00" : "#2B2B29", bg: on ? "rgba(250,42,0,0.12)" : "transparent", color: on ? "#FA2A00" : "#A8A5A0", toggle: () => this.setState({ sizeF: on ? s.sizeF.filter(x => x !== z) : s.sizeF.concat(z) }) };
+      }),
+      maxPrice: s.maxPrice, setMaxPrice: e => this.setState({ maxPrice: Number(e.target.value) }),
+      pdp: { name: pdp.name, brand: pdp.brand, category: pdp.cat, price: "Bs " + pdp.price, oldPrice: "Bs " + pdp.old, hasDiscount: pdp.old > 0, off: pdp.old > 0 ? Math.round((1 - pdp.price / pdp.old) * 100) : 0, desc: pdp.desc, stock: pdp.stock, sku: "GQ-" + String(pdp.id).padStart(4, "0"), sizeLabel: pdp.cat === "Guantes" ? "Talla de guante" : "Talla" },
+      pdpLowStock: pdp.stock <= 5, pdpImage: img(pdp.kw, pdp.lock + s.pdpImg),
+      pdpThumbs: [0, 1, 2, 3].map(i => ({ img: img(pdp.kw, pdp.lock + i), border: i === s.pdpImg ? "#FA2A00" : "#262625", opacity: i === s.pdpImg ? 1 : 0.55, pick: () => this.setState({ pdpImg: i }) })),
+      pdpAttrs: pdp.attrs.map(a => ({ k: a[0], v: a[1] })),
+      pdpSizes: pdpSizes.map(z => {
+        const on = s.size === z;
+        return { label: z, border: on ? "#FA2A00" : "#3A3A38", bg: on ? "#FA2A00" : "transparent", color: on ? "#0A0A0A" : "#F5F3F0", pick: () => this.setState({ size: z }) };
+      }),
+      qty: s.qty, qtyUp: () => this.setState({ qty: s.qty + 1 }), qtyDown: () => this.setState({ qty: Math.max(1, s.qty - 1) }),
+      addPdp: () => { this.add(pdp.id, s.qty, s.size); this.setState({ cartOpen: true, step: "items" }); },
+      backToCat: () => this.openCat(pdp.cat),
+      cartCount: s.cart.reduce((n, c) => n + c.qty, 0), cart, cartEmpty: !s.cart.length,
+      total, cartOpen: s.cartOpen, openCart: () => this.setState({ cartOpen: true, step: "items" }), closeCart: () => this.setState({ cartOpen: false }),
+      stepItems: s.step === "items", stepShip: s.step === "shipping",
+      drawerTitle: s.step === "items" ? "Tu carrito" : "Datos de envío",
+      drawerCtaLabel: s.step === "items" ? "Continuar" : "Revisar y confirmar",
+      drawerCta: () => s.step === "items" ? this.setState({ step: "shipping" }) : this.setState({ confirmOpen: true }),
+      backToItems: () => this.setState({ step: "items" }),
+      form: { name: s.name, phone: s.phone, note: s.note, dept: s.dept, address: s.address, ci: s.ci, email: s.email },
+      setName: e => this.setState({ name: e.target.value }), setPhone: e => this.setState({ phone: e.target.value }),
+      setNote: e => this.setState({ note: e.target.value }), setAddress: e => this.setState({ address: e.target.value }),
+      setCi: e => this.setState({ ci: e.target.value }), setEmail: e => this.setState({ email: e.target.value }),
+      setDept: e => this.setState({ dept: e.target.value, geoOk: false, mapError: false }),
+      depts: DEPTS.map(d => ({ name: d })),
+      setPickup: () => this.setState({ mode: "pickup" }), setDelivery: () => this.setState({ mode: "delivery" }),
+      isDelivery: s.mode === "delivery", isLocalDept: s.mode === "delivery" && s.dept === "Cochabamba", isOtherDept: s.mode === "delivery" && s.dept !== "Cochabamba",
+      pickupBorder: pickup.border, pickupBg: pickup.bg, pickupColor: pickup.color,
+      deliveryBorder: deliv.border, deliveryBg: deliv.bg, deliveryColor: deliv.color,
+      geoOk: s.geoOk, mapError: s.mapError, mapBorder: s.geoOk ? "#3F8B55" : s.mapError ? "#E10600" : "#2B2B29",
+      useGeo: () => this.setState({ geoOk: true, mapError: false }), failGeo: () => this.setState({ mapError: true, geoOk: false }), clearMapError: () => this.setState({ mapError: false }),
+      deliverySummary: this.deliverySummary(),
+      confirmOpen: s.confirmOpen, closeConfirm: () => this.setState({ confirmOpen: false }),
+      confirmRows: [
+        { k: "Ítems", v: s.cart.reduce((n, c) => n + c.qty, 0) + " productos" },
+        { k: "Total", v: "Bs " + total },
+        { k: "Entrega", v: this.deliverySummary() },
+        { k: "Cliente", v: s.name || "Sin nombre" }
+      ],
+      confirmOrder: () => { this.setState({ confirmOpen: false, cartOpen: false, screen: "pay", payMethod: null, payLoading: false }); window.scrollTo(0, 0); },
+      backToShipping: () => this.setState({ screen: "home", cartOpen: true, step: "shipping" }),
+      steps: [["1", "Envío"], ["2", "Pago"], ["3", "Confirmación"]].map((st, i) => {
+        const done = i + 1 <= stepIdx;
+        return { n: st[0], label: st[1], bg: done ? "#FA2A00" : "#1C1C1B", color: done ? "#0A0A0A" : "#6E6B67", text: done ? "#F5F3F0" : "#6E6B67" };
+      }),
+      pickQr: () => this.pickPay("qr"), pickCard: () => this.pickPay("card"),
+      qrBorder: s.payMethod === "qr" ? "#FA2A00" : "#2B2B29", qrBg: s.payMethod === "qr" ? "rgba(250,42,0,0.09)" : "#0F0F0E",
+      cardBorder: s.payMethod === "card" ? "#FA2A00" : "#2B2B29", cardBg: s.payMethod === "card" ? "rgba(250,42,0,0.09)" : "#0F0F0E",
+      payLoading: s.payLoading, showQr: s.payMethod === "qr" && !s.payLoading, showCard: s.payMethod === "card" && !s.payLoading,
+      txId: "8241-" + s.orderNo, orderNo: s.orderNo,
+      simulatePaid: () => { this.setState({ screen: "done", cart: [] }); window.scrollTo(0, 0); },
+      supportOpen: s.supportOpen, openSupport: () => this.setState({ supportOpen: true }), closeSupport: () => this.setState({ supportOpen: false, copied: false }),
+      copyEmail: () => { this.setState({ copied: true }); }, copyLabel: s.copied ? "Copiado ✓" : "Copiar",
+      toastOn: !!s.toast, toast: s.toast,
+      footerCols: [
+        { title: "Tienda", items: CATS.map(c => ({ label: c })) },
+        { title: "Ayuda", items: [{ label: "Guía de tallas" }, { label: "Envíos y transporte" }, { label: "Cambios" }, { label: "Contacto" }] },
+        { title: "Marcas", items: BRANDS.slice(0, 4).map(b => ({ label: b })) }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #0A0A0A; color: #F5F3F0; font-family: Manrope, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  a { color: #FA2A00; text-decoration: none; }
+  a:hover { color: #FF6A3D; }
+</style>
+</helmet>
+
+<div style="max-width: 1180px; margin: 0 auto; padding: 56px 36px 100px;">
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="width: 30px; height: 36px; background: linear-gradient(160deg, #FA2A00, #C81F00); clip-path: polygon(0 0, 100% 0, 100% 64%, 50% 100%, 0 64%);"></div>
+    <div style="font-family: Anton, sans-serif; font-size: 19px; transform: skewX(-8deg);"><span style="color: #FA2A00;">GUANTE</span>ARQUEROS BOLIVIA</div>
+  </div>
+  <h1 style="font-family: Anton, sans-serif; font-size: 78px; line-height: 0.9; margin: 26px 0 0; text-transform: uppercase; transform: skewX(-7deg);">Design system</h1>
+  <p style="max-width: 620px; font-size: 16px; line-height: 1.6; color: #A8A5A0; margin: 18px 0 0;">Tokens, tipografía y componentes base de la tienda y del panel. Los nombres de token son los mismos que van al <span style="color: #F5F3F0;">tailwind.config.ts</span> del proyecto Next.js.</p>
+
+  <div style="height: 8px; background: repeating-linear-gradient(115deg, #FA2A00 0 18px, #0A0A0A 18px 36px); margin: 46px 0 0;"></div>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">01 · Color</h2>
+  <p style="font-size: 14px; color: #6E6B67; margin: 0 0 22px;">Base oscura mate, naranja de marca como acción, rojo solo en urgencia, azul DREI como tag de categoría.</p>
+  <sc-for list="{{ colorGroups }}" as="g" hint-placeholder-count="4">
+    <div style="margin-bottom: 26px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 12px;">{{ g.title }}</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+        <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="5">
+          <div style="border: 1px solid #262625;">
+            <div style="height: 82px; background: {{ c.hex }};"></div>
+            <div style="padding: 11px 12px;">
+              <div style="font-size: 12.5px; font-weight: 800;">{{ c.token }}</div>
+              <div style="font-size: 11.5px; color: #6E6B67; margin-top: 3px; font-variant-numeric: tabular-nums;">{{ c.hex }}</div>
+              <div style="font-size: 11px; color: #57554F; margin-top: 5px; line-height: 1.4;">{{ c.use }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-for>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">02 · Tipografía</h2>
+  <p style="font-size: 14px; color: #6E6B67; margin: 0 0 22px;">Anton condensada con <span style="color: #F5F3F0;">skewX(-7deg)</span> para títulos (velocidad); Manrope para UI y texto de producto.</p>
+  <div style="border: 1px solid #262625; background: #0D0D0C;">
+    <sc-for list="{{ typeRows }}" as="t" hint-placeholder-count="6">
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px; padding: 18px 20px; border-bottom: 1px solid #1C1C1B; align-items: center;">
+        <div>
+          <div style="font-size: 12.5px; font-weight: 800;">{{ t.token }}</div>
+          <div style="font-size: 11.5px; color: #57554F; margin-top: 3px;">{{ t.spec }}</div>
+        </div>
+        <div style="font-family: {{ t.family }}; font-size: {{ t.size }}; font-weight: {{ t.weight }}; text-transform: {{ t.transform }}; transform: {{ t.skew }}; color: #F5F3F0; letter-spacing: {{ t.ls }}; overflow: hidden;">{{ t.sample }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">03 · Espaciado, bordes y sombra</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 22px;">
+    <div style="border: 1px solid #262625; background: #0D0D0C; padding: 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 14px;">Escala base 4px</div>
+      <sc-for list="{{ spaces }}" as="s" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 5px 0;">
+          <span style="font-size: 12px; width: 34px; color: #A8A5A0;">{{ s.token }}</span>
+          <span style="height: 8px; background: #FA2A00; width: {{ s.w }}; display: block;"></span>
+          <span style="font-size: 11.5px; color: #57554F;">{{ s.px }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border: 1px solid #262625; background: #0D0D0C; padding: 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 14px;">Radios y cortes</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="height: 46px; background: #1C1C1B; border: 1px solid #2B2B29; display: flex; align-items: center; padding: 0 14px; font-size: 12.5px;">radius-none · 0px (default)</div>
+        <div style="height: 46px; background: #1C1C1B; border: 1px solid #2B2B29; border-radius: 2px; display: flex; align-items: center; padding: 0 14px; font-size: 12.5px;">radius-sm · 2px (inputs)</div>
+        <div style="height: 46px; background: #FA2A00; color: #0A0A0A; display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; font-weight: 800; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);">clip-slash · corte 14px</div>
+        <div style="height: 46px; background: #1C1C1B; display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);">clip-shield · logo / check</div>
+      </div>
+    </div>
+    <div style="border: 1px solid #262625; background: #0D0D0C; padding: 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 14px;">Glow (no sombra gris)</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="height: 46px; background: #FA2A00; color: #0A0A0A; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 40px rgba(250,42,0,0.35);">glow-brand</div>
+        <div style="height: 46px; background: #E10600; color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 40px rgba(225,6,0,0.3);">glow-alert</div>
+        <div style="height: 46px; background: #101010; border: 1px solid #262625; font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 50px rgba(0,0,0,0.6);">shadow-card (hover)</div>
+        <div style="font-size: 11px; color: #57554F; line-height: 1.5;">Nunca sombras difusas pastel. El foco se marca con borde naranja de 1px + glow.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">04 · Componentes</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px;">
+    <div style="border: 1px solid #262625; background: #0D0D0C; padding: 22px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 16px;">Botones</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="background: #FA2A00; color: #0A0A0A; font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; padding: 16px; text-align: center; cursor: pointer; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);" style-hover="background: #FF5A2B; box-shadow: 0 12px 40px rgba(250,42,0,0.35);">btn-primary</div>
+        <div style="border: 1px solid #3A3A38; color: #F5F3F0; font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; padding: 16px; text-align: center; cursor: pointer;" style-hover="border-color: #FA2A00; color: #FA2A00;">btn-outline</div>
+        <div style="color: #A8A5A0; font-weight: 800; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px; text-align: center; cursor: pointer;" style-hover="color: #FA2A00;">btn-ghost</div>
+        <div style="background: #232322; color: #57554F; font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; padding: 16px; text-align: center;">btn-disabled</div>
+      </div>
+    </div>
+    <div style="border: 1px solid #262625; background: #0D0D0C; padding: 22px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin-bottom: 16px;">Badges y estados</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 9px; align-items: center;">
+        <span style="background: #E10600; color: #fff; font-family: Anton, sans-serif; font-size: 15px; padding: 5px 14px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);">-30%</span>
+        <span style="background: #FA2A00; color: #0A0A0A; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 10px;">Nuevo</span>
+        <span style="background: rgba(225,6,0,0.14); color: #FF6E68; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 10px; border-left: 3px solid #E10600;">Últimas 3 u.</span>
+        <span style="background: #1B3A5C; color: #BFD8EE; font-size: 10.5px; font-weight: 800; letter-spacing: 0.16em; padding: 6px 10px;">DREI</span>
+        <span style="background: rgba(111,207,142,0.12); color: #6FCF8E; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 10px;">Completado</span>
+        <span style="background: rgba(226,185,59,0.13); color: #E2B93B; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 10px;">En proceso</span>
+      </div>
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6B67; margin: 22px 0 12px;">Inputs</div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <input placeholder="input default" style="width: 100%; background: #131312; border: 1px solid #2B2B29; color: #F5F3F0; padding: 13px 14px; font-size: 13.5px; outline: none;" />
+        <input placeholder="input focus" style="width: 100%; background: #131312; border: 1px solid #FA2A00; color: #F5F3F0; padding: 13px 14px; font-size: 13.5px; outline: none; box-shadow: 0 0 0 3px rgba(250,42,0,0.15);" />
+        <input placeholder="input error" style="width: 100%; background: #131312; border: 1px solid #E10600; color: #F5F3F0; padding: 13px 14px; font-size: 13.5px; outline: none;" />
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">05 · Texturas</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 22px;">
+    <div>
+      <div style="height: 110px; background: repeating-linear-gradient(115deg, #FA2A00 0 26px, #0A0A0A 26px 52px);"></div>
+      <div style="font-size: 12px; color: #A8A5A0; margin-top: 8px;">stripe-danger · franja de campaña, separadores, footer</div>
+    </div>
+    <div>
+      <div style="height: 110px; background: #0A0A0A; background-image: radial-gradient(120% 80% at 50% -10%, #17120F 0%, #0A0A0A 55%); border: 1px solid #262625;"></div>
+      <div style="font-size: 12px; color: #A8A5A0; margin-top: 8px;">bg-warm-fade · fondo global, evita el negro plano</div>
+    </div>
+    <div>
+      <div style="height: 110px; background: #101312; background-image: linear-gradient(#181C1A 1px, transparent 1px), linear-gradient(90deg, #181C1A 1px, transparent 1px); background-size: 24px 24px; border: 1px solid #262625;"></div>
+      <div style="font-size: 12px; color: #A8A5A0; margin-top: 8px;">grid-map · base del mapa de ubicación (pin naranja de marca)</div>
+    </div>
+  </div>
+
+  <h2 style="font-family: Anton, sans-serif; font-size: 34px; margin: 46px 0 6px; text-transform: uppercase; transform: skewX(-7deg);">06 · Reglas de uso</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px;">
+    <div style="border-left: 3px solid #6FCF8E; background: rgba(111,207,142,0.06); padding: 18px 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6FCF8E; margin-bottom: 10px;">Sí</div>
+      <sc-for list="{{ dos }}" as="d" hint-placeholder-count="5">
+        <div style="font-size: 13.5px; color: #C8C5C0; padding: 5px 0; line-height: 1.5;">{{ d.text }}</div>
+      </sc-for>
+    </div>
+    <div style="border-left: 3px solid #E10600; background: rgba(225,6,0,0.06); padding: 18px 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #FF6E68; margin-bottom: 10px;">No</div>
+      <sc-for list="{{ donts }}" as="d" hint-placeholder-count="5">
+        <div style="font-size: 13.5px; color: #C8C5C0; padding: 5px 0; line-height: 1.5;">{{ d.text }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="border: 1px solid #262625; background: #0D0D0C; padding: 24px; margin-top: 40px;">
+    <div style="font-family: Anton, sans-serif; font-size: 22px; text-transform: uppercase; transform: skewX(-6deg);">Archivos del proyecto</div>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px;">
+      <sc-for list="{{ files }}" as="f" hint-placeholder-count="5">
+        <div style="border: 1px solid #232322; padding: 13px 15px;">
+          <div style="font-size: 13px; font-weight: 800; color: #FA2A00;">{{ f.name }}</div>
+          <div style="font-size: 12px; color: #8A8783; margin-top: 3px;">{{ f.desc }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      colorGroups: [
+        { title: "Base — superficies", items: [
+          { token: "ink-950", hex: "#0A0A0A", use: "Fondo global (negro mate cálido)" },
+          { token: "ink-900", hex: "#0D0D0C", use: "Superficie de sección / drawer" },
+          { token: "ink-850", hex: "#131312", use: "Card, input" },
+          { token: "ink-800", hex: "#1C1C1B", use: "Divisores internos, barras" },
+          { token: "line", hex: "#262625", use: "Borde por defecto" }
+        ] },
+        { title: "Marca — acción", items: [
+          { token: "brand", hex: "#FA2A00", use: "CTA, precio, hover, acento" },
+          { token: "brand-hot", hex: "#FF5A2B", use: "Hover de botón primario" },
+          { token: "brand-deep", hex: "#C81F00", use: "Gradiente del escudo" },
+          { token: "brand-soft", hex: "#3A2A22", use: "Fondo tenue 8% sobre negro" },
+          { token: "on-brand", hex: "#0A0A0A", use: "Texto sobre naranja" }
+        ] },
+        { title: "Tensión y sub-marca", items: [
+          { token: "alert", hex: "#E10600", use: "Oferta, stock bajo, urgencia" },
+          { token: "alert-soft", hex: "#FF6E68", use: "Texto de alerta sobre negro" },
+          { token: "drei", hex: "#1B3A5C", use: "Tag de categoría DREI" },
+          { token: "drei-line", hex: "#4E8FCB", use: "Borde y link DREI" },
+          { token: "drei-ink", hex: "#BFD8EE", use: "Texto sobre azul DREI" }
+        ] },
+        { title: "Texto y estados", items: [
+          { token: "text", hex: "#F5F3F0", use: "Texto principal" },
+          { token: "text-muted", hex: "#A8A5A0", use: "Párrafo secundario" },
+          { token: "text-dim", hex: "#6E6B67", use: "Labels, metadatos" },
+          { token: "ok", hex: "#6FCF8E", use: "Completado, ubicación confirmada" },
+          { token: "warn", hex: "#E2B93B", use: "En proceso" }
+        ] }
+      ],
+      typeRows: [
+        { token: "display-xl", spec: "Anton 108/0.86 skew -7°", family: "Anton, sans-serif", size: "64px", weight: "400", transform: "uppercase", skew: "skewX(-7deg)", ls: "0", sample: "Acá no pasa nada" },
+        { token: "display-lg", spec: "Anton 56/0.92 skew -7°", family: "Anton, sans-serif", size: "40px", weight: "400", transform: "uppercase", skew: "skewX(-7deg)", ls: "0", sample: "Guantes de arquero" },
+        { token: "display-md", spec: "Anton 34 skew -7°", family: "Anton, sans-serif", size: "28px", weight: "400", transform: "uppercase", skew: "skewX(-7deg)", ls: "0", sample: "Destacados" },
+        { token: "price", spec: "Anton 26–56 · brand", family: "Anton, sans-serif", size: "30px", weight: "400", transform: "none", skew: "none", ls: "0", sample: "Bs 610" },
+        { token: "body", spec: "Manrope 16/1.6", family: "Manrope, sans-serif", size: "16px", weight: "400", transform: "none", skew: "none", ls: "0", sample: "Envíos a todo el país, retiro en Cochabamba el mismo día." },
+        { token: "label", spec: "Manrope 11 · 800 · 0.16em", family: "Manrope, sans-serif", size: "11px", weight: "800", transform: "uppercase", skew: "none", ls: "0.16em", sample: "Modalidad de entrega" }
+      ],
+      spaces: [
+        { token: "1", px: "4px", w: "4px" }, { token: "2", px: "8px", w: "8px" }, { token: "3", px: "12px", w: "12px" },
+        { token: "4", px: "16px", w: "16px" }, { token: "6", px: "24px", w: "24px" }, { token: "8", px: "32px", w: "32px" }
+      ],
+      dos: [
+        { text: "Naranja para todo lo accionable: botón, precio, hover, filtro activo." },
+        { text: "Rojo solo en superficies chicas: badge de descuento, stock bajo, estado cancelado." },
+        { text: "Cortes diagonales de 14px en CTAs y cards; escudo solo en logo y confirmación." },
+        { text: "Títulos en Anton con skew; jamás skew en texto corrido." },
+        { text: "Fotografía de producto sobre fondo oscuro, alto contraste, producto centrado." }
+      ],
+      donts: [
+        { text: "Naranja y rojo juntos en bloques grandes — se lee como error." },
+        { text: "Bordes redondeados mayores a 2px o sombras grises difusas." },
+        { text: "Tipografías finas o serif de lujo." },
+        { text: "Fondos blancos en la tienda pública." },
+        { text: "Más de un acento por sección; el azul DREI solo como tag." }
+      ],
+      files: [
+        { name: "Guantearqueros Tienda.dc.html", desc: "Home, categoría, ficha, drawer, checkout 3 pasos" },
+        { name: "Guantearqueros Admin.dc.html", desc: "Login, resumen, categorías, productos, pedidos" },
+        { name: "ARQUITECTURA.md", desc: "Stack, rutas, API, flujo de checkout, Cloudinary" },
+        { name: "tailwind.config.ts", desc: "Tokens listos para Next.js + Tailwind" },
+        { name: "db/schema.ts", desc: "Esquema Drizzle ORM sobre Postgres" }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>
