@@ -5,18 +5,11 @@
  *
  * La contraseña se guarda con Argon2id. Nunca se imprime ni se registra.
  */
+import "../src/lib/load-env";
 import { eq } from "drizzle-orm";
 import { hash } from "@node-rs/argon2";
 import { db } from "../src/db/index";
 import { adminUsers } from "../src/db/schema";
-
-for (const file of [".env.local", ".env"]) {
-  try {
-    process.loadEnvFile(file);
-  } catch {
-    // el archivo puede no existir
-  }
-}
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

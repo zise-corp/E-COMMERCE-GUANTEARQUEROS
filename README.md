@@ -24,7 +24,8 @@ npm install
 cp .env.example .env.local
 ```
 
-Completá `.env.local` (ver sección 2), y después:
+Completá `.env.local` (ver sección 2) — como mínimo `DATABASE_URL` y
+`ADMIN_SESSION_SECRET` — y después:
 
 ```bash
 npm run db:migrate
@@ -34,6 +35,18 @@ npm run dev
 ```
 
 La tienda queda en `http://localhost:3000` y el panel en `http://localhost:3000/admin`.
+
+### Postgres en Windows
+
+Si ya tenés el instalador oficial de PostgreSQL, la base se crea así (te va a pedir
+la contraseña que pusiste al instalarlo):
+
+```bash
+"/c/Program Files/PostgreSQL/18/bin/createdb.exe" -U postgres -h localhost guantearqueros
+```
+
+y la conexión queda `postgresql://postgres:TU_PASSWORD@localhost:5432/guantearqueros`.
+Si la contraseña tiene `@`, `:`, `/` o `?`, hay que escaparla en la URL.
 
 Para ver la tienda con datos antes de cargar el catálogo real:
 

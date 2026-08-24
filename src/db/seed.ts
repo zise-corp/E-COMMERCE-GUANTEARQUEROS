@@ -1,3 +1,4 @@
+import "../lib/load-env";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { brands, categories, products } from "./schema";
