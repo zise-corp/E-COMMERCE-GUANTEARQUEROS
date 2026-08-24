@@ -115,3 +115,13 @@ export const orderItems = pgTable("order_items", {
   imagePublicId: text("image_public_id"),
   attributesSnapshot: jsonb("attributes_snapshot").$type<{ name: string; value: string }[]>().notNull().default([]),
 });
+
+/* ---------- ajustes del sitio ----------
+   Agregado sobre el esquema del bundle: la franja de campaña tiene que poder
+   apagarse desde el admin, y eso necesita un lugar donde guardarlo.
+   Clave/valor libre para no volver a migrar por cada flag nuevo. */
+export const siteSettings = pgTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

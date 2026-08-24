@@ -395,3 +395,25 @@ export async function getNavCategories() {
       .orderBy(asc(categories.position), asc(categories.name)),
   );
 }
+
+/** Búsqueda del overlay del header: por nombre de producto o de marca. */
+export async function searchProducts(term: string, limit = 8): Promise<ProductCard[]> {
+  const q = term.trim();
+  if (q.length < 2) return [];
+  return withFallback<ProductCard[]>([], async () => {
+    const like = `%${q}%`;
+    const rows = await db
+      .select(cardColumns)
+      .from(products)
+      .leftJoin(brands, eq(products.brandId, brands.id))
+      .where(
+        and(
+          eq(products.published, true),
+          sql`(${products.name} ILIKE ${like} OR ${brands.name} ILIKE ${like})`,
+        ),
+      )
+      .orderBy(desc(products.featured), asc(products.name))
+      .limit(limit);
+    return rows.map(toCard);
+  });
+}
