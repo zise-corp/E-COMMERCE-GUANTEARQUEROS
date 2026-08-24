@@ -99,6 +99,26 @@ vacías y avisan por consola. Es a propósito, para que un clon recién bajado b
 | `npm run db:studio` | Drizzle Studio |
 | `npm run admin:create -- --user X --pass Y` | Crea o actualiza un usuario del panel |
 
+## 3b. Si algo se ve raro
+
+**La página sale sin estilos (HTML pelado, links azules).** Pasa cuando `.next`
+mezcla artefactos de `npm run build` con los de `npm run dev`: el HTML pide un CSS
+que el server ya no tiene y devuelve 404. Se arregla borrando la carpeta:
+
+```bash
+npm run clean && npm run dev
+```
+
+Después hacé una recarga forzada en el navegador (Ctrl+Shift+R): el CSS fallido
+queda cacheado. Para evitarlo, corré `npm run clean` cuando alternes entre
+`build` y `dev`.
+
+**"Falta DATABASE_URL" al correr un script.** Los scripts sueltos leen `.env.local`
+por `src/lib/load-env.ts`. Si lo ves, revisá que el archivo exista en la raíz.
+
+**`password authentication failed`.** Casi siempre es el puerto: puede haber más de
+una instancia de Postgres en la máquina (5432 y 5433), cada una con su contraseña.
+
 ## 4. Estructura
 
 ```
