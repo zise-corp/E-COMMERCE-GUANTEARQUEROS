@@ -5,11 +5,13 @@ export function Display({
   as: Tag = "h2",
   size = "md",
   className,
+  id,
   children,
 }: {
   as?: "h1" | "h2" | "h3" | "div";
   size?: "xl" | "lg" | "md" | "sm";
   className?: string;
+  id?: string;
   children: React.ReactNode;
 }) {
   const sizes = {
@@ -19,7 +21,9 @@ export function Display({
     sm: "text-[22px] leading-none",
   } as const;
   return (
-    <Tag className={cn("font-display uppercase skew-fast", sizes[size], className)}>{children}</Tag>
+    <Tag id={id} className={cn("font-display uppercase skew-fast", sizes[size], className)}>
+      {children}
+    </Tag>
   );
 }
 

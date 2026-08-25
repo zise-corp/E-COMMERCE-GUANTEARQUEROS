@@ -4,6 +4,7 @@ import { DreiWordmark } from "@/components/brand/DreiWordmark";
 import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
+import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
 import { getAllProducts, getBrands, getCategoryTree } from "@/db/queries/catalog";
@@ -118,6 +119,7 @@ export default async function HomePage() {
       </section>
 
       <DreiBlock slug={poleras?.slug ?? null} />
+      <StoreLocations />
     </>
   );
 }
