@@ -30,7 +30,23 @@ export const IMAGE_PRESETS = {
 export type ImagePreset = keyof typeof IMAGE_PRESETS;
 
 export function cloudinaryUrl(publicId: string, preset: ImagePreset = "grid"): string {
+  // DEMO temporal: mientras no hay fotos reales subidas, algunas filas de
+  // product_images guardan una URL externa completa en vez de un public_id de
+  // Cloudinary (ver seedDemoProducts). Esa URL se usa tal cual, sin pasarla por
+  // la transformación de Cloudinary porque no aplica a un host ajeno. Cuando el
+  // catálogo real reemplace estas filas, este branch deja de activarse solo.
+  if (/^https?:\/\//.test(publicId)) return publicId;
   return `https://res.cloudinary.com/${CLOUD}/image/upload/${IMAGE_PRESETS[preset]}/${publicId}`;
+}
+
+/**
+ * DEMO temporal: foto de stock determinística (mismo `lock` = misma imagen
+ * siempre, nunca cambia entre visitas). La usan el seed de productos y los
+ * huecos decorativos de la home (hero, cards de categoría, bloque DREI)
+ * mientras el catálogo no tiene fotos reales en Cloudinary.
+ */
+export function demoStockPhoto(keyword: string, lock: number): string {
+  return `https://loremflickr.com/720/720/${keyword}/all?lock=${lock}`;
 }
 
 /** `sizes` explícito por contexto: evita que el browser baje la imagen más grande. */

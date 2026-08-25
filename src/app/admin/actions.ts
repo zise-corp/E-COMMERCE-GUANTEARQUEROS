@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
@@ -9,11 +9,13 @@ import { setOrderStatus } from "@/db/queries/orders";
 import { setCampaign } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
+import { slugify } from "@/lib/slug";
 import {
   campaignSchema,
   categorySchema,
   orderStatusSchema,
   productSchema,
+  reorderCategoriesSchema,
 } from "@/lib/validators";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -60,14 +62,62 @@ export async function saveCategoryAction(
 
   try {
     if (id === undefined) {
-      await db.insert(categories).values(values);
+      // Nueva: se agrega al final de sus hermanas (mismo nivel) y el slug sale
+      // del nombre. El orden real después se ajusta arrastrando la fila.
+      const scope =
+        values.parentId === null ? isNull(categories.parentId) : eq(categories.parentId, values.parentId);
+      const [siblings] = await db.select({ n: sql<number>`count(*)::int` }).from(categories).where(scope);
+
+      await db.insert(categories).values({
+        name: values.name,
+        slug: slugify(values.name),
+        parentId: values.parentId,
+        position: siblings?.n ?? 0,
+        active: values.active,
+      });
     } else {
-      await db.update(categories).set(values).where(eq(categories.id, id));
+      // Editar: el nombre y la visibilidad cambian. El slug queda fijo para no
+      // romper la URL ya publicada, y el orden se toca solo arrastrando la fila.
+      await db
+        .update(categories)
+        .set({ name: values.name, parentId: values.parentId, active: values.active })
+        .where(eq(categories.id, id));
     }
   } catch (error) {
     console.error("[admin] saveCategory", error);
-    return { ok: false, error: "Ese slug ya está en uso." };
+    return { ok: false, error: "Ya existe una categoría con un nombre muy parecido. Probá con otro nombre." };
   }
+
+  revalidatePath("/admin/categorias");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * Reordena las categorías raíz por arrastre. Recibe la lista completa de ids en
+ * el nuevo orden y reasigna `position` = índice. Se valida que sean exactamente
+ * las categorías raíz actuales, ni más ni menos, antes de tocar nada.
+ */
+export async function reorderCategoriesAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = reorderCategoriesSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+
+  const current = await db.select({ id: categories.id }).from(categories).where(isNull(categories.parentId));
+  const currentIds = new Set(current.map((c) => c.id));
+  const incoming = parsed.data.orderedIds;
+
+  const matches = incoming.length === currentIds.size && incoming.every((cid) => currentIds.has(cid));
+  if (!matches) {
+    return { ok: false, error: "El orden no coincide con las categorías actuales. Recargá la página." };
+  }
+
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < incoming.length; i++) {
+      await tx.update(categories).set({ position: i }).where(eq(categories.id, incoming[i]!));
+    }
+  });
 
   revalidatePath("/admin/categorias");
   revalidatePath("/", "layout");
@@ -117,7 +167,6 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
 
   const values = {
     name: v.name,
-    slug: v.slug,
     description: v.description,
     categoryId: v.categoryId,
     subcategoryId: v.subcategoryId,
@@ -133,13 +182,29 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
   };
 
   try {
-    const productId = await db.transaction(async (tx) => {
+    const slug = await db.transaction(async (tx) => {
       let target = id;
+      let finalSlug: string;
+
       if (target === undefined) {
-        const [row] = await tx.insert(products).values(values).returning({ id: products.id });
+        // Nuevo: el slug (la URL /p/...) sale del nombre.
+        finalSlug = slugify(v.name);
+        const [row] = await tx
+          .insert(products)
+          .values({ ...values, slug: finalSlug })
+          .returning({ id: products.id });
         if (!row) throw new Error("insert sin retorno");
         target = row.id;
       } else {
+        // Editar: el slug queda fijo para no romper la ficha ya publicada,
+        // aunque el nombre cambie.
+        const [existing] = await tx
+          .select({ slug: products.slug })
+          .from(products)
+          .where(eq(products.id, target))
+          .limit(1);
+        if (!existing) throw new Error("producto no encontrado");
+        finalSlug = existing.slug;
         await tx.update(products).set(values).where(eq(products.id, target));
       }
 
@@ -156,17 +221,16 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
           })),
         );
       }
-      return target;
+      return finalSlug;
     });
 
     revalidatePath("/admin/productos");
-    revalidatePath(`/p/${v.slug}`);
+    revalidatePath(`/p/${slug}`);
     revalidatePath("/", "layout");
-    void productId;
     return { ok: true };
   } catch (error) {
     console.error("[admin] saveProduct", error);
-    return { ok: false, error: "No se pudo guardar. ¿El slug ya existe?" };
+    return { ok: false, error: "Ya existe un producto con un nombre muy parecido. Probá con otro nombre." };
   }
 }
 

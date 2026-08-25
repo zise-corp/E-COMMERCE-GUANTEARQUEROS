@@ -16,7 +16,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
       <div className="container-shop flex h-[74px] items-center gap-6">
         <Link
           href="/"
-          className="flex flex-none items-center gap-3"
+          className="flex flex-none items-center gap-1"
           aria-label="Guantearqueros Bolivia, inicio"
         >
           <Escudo width={34} height={40} />

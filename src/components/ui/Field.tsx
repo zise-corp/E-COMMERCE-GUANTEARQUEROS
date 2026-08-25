@@ -61,9 +61,19 @@ type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "className">
   hint?: string;
   className?: string;
   fieldClassName?: string;
+  /** Texto fijo antes del valor, p. ej. "/c/" en un slug. No editable. */
+  prefix?: string;
 };
 
-export function Input({ label, error, hint, className, fieldClassName, ...rest }: InputProps) {
+export function Input({
+  label,
+  error,
+  hint,
+  className,
+  fieldClassName,
+  prefix,
+  ...rest
+}: InputProps) {
   const auto = useId();
   const id = rest.id ?? auto;
   return (
@@ -75,12 +85,23 @@ export function Input({ label, error, hint, className, fieldClassName, ...rest }
       htmlFor={id}
       className={fieldClassName}
     >
-      <input
-        {...rest}
-        id={id}
-        aria-invalid={error ? true : undefined}
-        className={cn(control, borderFor(error), className)}
-      />
+      <div className="relative">
+        {prefix ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 flex items-center border-r border-line-strong bg-black/[0.15] px-3 text-sm text-content-dim"
+          >
+            {prefix}
+          </span>
+        ) : null}
+        <input
+          {...rest}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          className={cn(control, borderFor(error), className)}
+          style={prefix ? { paddingLeft: `calc(${prefix.length}ch + 30px)` } : undefined}
+        />
+      </div>
     </Field>
   );
 }
@@ -150,10 +171,14 @@ export function Select({
         aria-invalid={error ? true : undefined}
         className={cn(control, borderFor(error), "cursor-pointer appearance-none", className)}
         style={{
+          // El SVG necesita width/height propios: sin eso, algunos navegadores lo
+          // estiran para llenar el fondo entero en vez de mostrarlo a tamaño real
+          // (por eso la flecha aparecía gigante). backgroundSize lo fija del todo.
           backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'><path d='M1 1.5 6 6.5 11 1.5' stroke='%236E6B67' stroke-width='1.6'/></svg>\")",
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 12 8' fill='none'><path d='M1 1.5 6 6.5 11 1.5' stroke='%236E6B67' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "right 14px center",
+          backgroundSize: "11px 7px",
           paddingRight: "38px",
         }}
       >

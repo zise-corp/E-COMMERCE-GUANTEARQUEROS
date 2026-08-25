@@ -43,7 +43,7 @@ export default async function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", padding: "68px 72px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 26 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <svg width={100} height={118} viewBox="0 0 100 100">
               <defs>
                 <linearGradient id="og" x1="18%" y1="0%" x2="82%" y2="100%">
@@ -56,7 +56,7 @@ export default async function OpengraphImage() {
 
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", fontSize: 66, lineHeight: 1, letterSpacing: "0.01em" }}>
-                <span style={{ color: "#FA2A00" }}>GUANTE</span>
+                <span style={{ color: "#FA2A00" }}>UANTE</span>
                 <span style={{ color: "#F5F3F0" }}>ARQUEROS</span>
               </div>
               <div

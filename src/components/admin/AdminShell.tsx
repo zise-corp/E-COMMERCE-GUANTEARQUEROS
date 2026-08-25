@@ -30,11 +30,11 @@ export function AdminShell({
   return (
     <div className="min-h-dvh bg-[#0F0F0E] text-[#E9E7E4] lg:grid lg:grid-cols-[234px_1fr]">
       <aside className="flex flex-col border-b border-ink-700 bg-[#0B0B0A] lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2.5 border-b border-ink-700 px-[18px] py-5">
+        <div className="flex items-center gap-1.5 border-b border-ink-700 px-[18px] py-5">
           <Escudo width={24} height={29} />
           <div>
             <p className="font-display text-sm tracking-[0.02em] skew-fast-8">
-              <span className="text-brand">GUANTE</span>
+              <span className="text-brand">UANTE</span>
               <span className="text-content">ARQUEROS</span>
             </p>
             <p className="mt-0.5 text-[9.5px] uppercase tracking-[0.22em] text-content-dim">
@@ -43,7 +43,7 @@ export function AdminShell({
           </div>
         </div>
 
-        <nav className="flex flex-1 gap-0.5 overflow-x-auto p-2.5 lg:flex-col lg:overflow-visible lg:p-[10px_10px]">
+        <nav className="flex flex-1 gap-1.5 overflow-x-auto p-2.5 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-[10px_10px]">
           {NAV.map((item) => {
             const active =
               item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
@@ -72,7 +72,7 @@ export function AdminShell({
 
         <div className="hidden border-t border-ink-700 p-3.5 lg:block">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-[30px] w-[30px] items-center justify-center bg-ink-700 text-xs font-extrabold text-brand">
+            <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center border border-line-strong bg-ink-700 text-xs font-extrabold text-brand">
               {initials}
             </span>
             <div className="min-w-0 flex-1">

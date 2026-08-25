@@ -1,13 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DreiWordmark } from "@/components/brand/DreiWordmark";
-import { Escudo } from "@/components/brand/Escudo";
 import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
 import { getBrands, getCategoryTree, getFeaturedProducts } from "@/db/queries/catalog";
+import { demoStockPhoto } from "@/lib/images";
 import { site } from "@/lib/site";
+
+/**
+ * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
+ * mientras el catálogo no tiene fotos reales. Va por slug (no por posición del
+ * array) porque las categorías se pueden reordenar arrastrando en el admin —
+ * si una categoría nueva no está en este mapa, simplemente no muestra foto.
+ */
+const CATEGORY_DEMO_PHOTO: Record<string, { keyword: string; lock: number }> = {
+  guantes: { keyword: "goalkeeper,gloves", lock: 200 },
+  poleras: { keyword: "football,jersey", lock: 201 },
+  botas: { keyword: "football,boots", lock: 202 },
+  pelotas: { keyword: "soccer,ball", lock: 203 },
+  canilleras: { keyword: "shin,guard", lock: 204 },
+};
 
 export const revalidate = 300;
 
@@ -36,14 +50,20 @@ export default async function HomePage() {
             aside={`${categories.length} ${categories.length === 1 ? "línea activa" : "líneas activas"}`}
           />
           <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
-            {categories.map((c) => (
+            {categories.map((c) => {
+              const demoPhoto = CATEGORY_DEMO_PHOTO[c.slug];
+              return (
               <Link
                 key={c.id}
                 href={`/c/${c.slug}`}
                 className="group relative block h-[260px] overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
               >
                 <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
-                  <ProductImage publicId={null} alt="" preset="category" />
+                  <ProductImage
+                    publicId={demoPhoto ? demoStockPhoto(demoPhoto.keyword, demoPhoto.lock) : null}
+                    alt=""
+                    preset="category"
+                  />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-ink-950/95 from-[8%] to-ink-950/[0.15] to-[70%]" />
                 <div className="absolute inset-x-4 bottom-4">
@@ -55,7 +75,8 @@ export default async function HomePage() {
                   </p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -165,9 +186,12 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
           aria-hidden
         />
         <div className="relative aspect-square overflow-hidden border border-line clip-hero">
-          <div className="flex h-full w-full items-center justify-center bg-ink-900">
-            <Escudo width={180} height={212} className="opacity-25" title="" />
-          </div>
+          <ProductImage
+            publicId={demoStockPhoto("goalkeeper,save", 7)}
+            alt="Guantes de arquero"
+            preset="square"
+            priority
+          />
           <div
             className="absolute inset-0"
             style={{
@@ -206,10 +230,12 @@ function DreiBlock({ slug }: { slug: string | null }) {
             Ver indumentaria
           </ButtonLink>
         </div>
-        <div className="relative h-[220px] lg:h-[330px]">
-          <div className="flex h-full w-full items-center justify-center bg-drei/20">
-            <DreiWordmark size={28} className="text-drei-ink opacity-30" />
-          </div>
+        <div className="relative h-[220px] bg-drei/20 lg:h-[330px]">
+          <ProductImage
+            publicId={demoStockPhoto("football,team,jersey", 9)}
+            alt="Indumentaria DREI Athletic"
+            preset="category"
+          />
         </div>
       </div>
     </section>

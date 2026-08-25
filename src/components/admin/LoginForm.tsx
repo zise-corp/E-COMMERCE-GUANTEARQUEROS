@@ -21,7 +21,7 @@ export function LoginForm({ next }: { next: string }) {
         action={formAction}
         className="w-full max-w-[400px] border border-line-strong bg-ink-850 p-8 animate-rise"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
           <Escudo width={28} height={33} />
           <Wordmark size={17} />
         </div>

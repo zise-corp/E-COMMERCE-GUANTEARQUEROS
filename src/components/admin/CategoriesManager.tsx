@@ -1,46 +1,31 @@
 "use client";
 
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
+import { deleteCategoryAction, reorderCategoriesAction, saveCategoryAction } from "@/app/admin/actions";
 import { Input, Select } from "@/components/ui/Field";
+import { GripIcon } from "@/components/ui/Icons";
 import { Toggle } from "@/components/ui/Toggle";
+import { cn } from "@/lib/cn";
 import type { AdminCategoryRow } from "@/db/queries/admin";
-import { slugify } from "@/lib/slug";
 
 type Editing = {
   id?: number;
   name: string;
-  slug: string;
   parentId: number | null;
-  position: number;
   active: boolean;
 };
 
-const blank: Editing = { name: "", slug: "", parentId: null, position: 0, active: true };
+const blank: Editing = { name: "", parentId: null, active: true };
 
 export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
   const router = useRouter();
   const [form, setForm] = useState<Editing>(blank);
-  const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // El slug se arma solo mientras nadie lo edite a mano.
-  useEffect(() => {
-    if (!slugTouched) setForm((f) => ({ ...f, slug: slugify(f.name) }));
-  }, [form.name, slugTouched]);
-
-  function edit(row: { id: number; name: string; slug: string; position?: number }, parentId: number | null) {
-    setForm({
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-      parentId,
-      position: row.position ?? 0,
-      active: true,
-    });
-    setSlugTouched(true);
+  function edit(row: { id: number; name: string }, parentId: number | null) {
+    setForm({ id: row.id, name: row.name, parentId, active: true });
     setError(null);
   }
 
@@ -54,13 +39,12 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
         return;
       }
       setForm(blank);
-      setSlugTouched(false);
       router.refresh();
     });
   }
 
   function remove(id: number, name: string) {
-    if (!window.confirm(`¿Borrar “${name}”? Esta acción no se puede deshacer.`)) return;
+    if (!window.confirm(`¿Borrar "${name}"? Esta acción no se puede deshacer.`)) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteCategoryAction(id);
@@ -69,73 +53,9 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
     });
   }
 
-  const nextPosition = rows.length;
-
   return (
     <div className="grid items-start gap-4 xl:grid-cols-[1fr_320px]">
-      <div className="border border-ink-700 bg-ink-850">
-        <div className="hidden gap-3.5 border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[1.2fr_2fr_90px_80px]">
-          <span>Categoría</span>
-          <span>Subcategorías</span>
-          <span>Productos</span>
-          <span />
-        </div>
-
-        {rows.length === 0 ? (
-          <p className="px-5 py-12 text-center text-[13px] text-content-dim">
-            Todavía no hay categorías. Creá la primera con el panel de la derecha.
-          </p>
-        ) : null}
-
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="grid items-center gap-3.5 border-b border-line-soft px-5 py-4 lg:grid-cols-[1.2fr_2fr_90px_80px]"
-          >
-            <div>
-              <p className="text-sm font-bold">{row.name}</p>
-              <p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {row.subs.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => edit(s, row.id)}
-                  className="border border-line-strong bg-[#0E0E0D] px-2.5 py-[5px] text-[11.5px] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand"
-                >
-                  {s.name}
-                  <span className="ml-1.5 text-content-faint tabular">{s.productCount}</span>
-                </button>
-              ))}
-              {row.subs.length === 0 ? (
-                <span className="text-[11.5px] text-content-faint">Sin subcategorías</span>
-              ) : null}
-            </div>
-
-            <span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => edit(row, null)}
-                className="text-[11.5px] text-content-muted transition-colors duration-150 hover:text-brand"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(row.id, row.name)}
-                aria-label={`Borrar ${row.name}`}
-                className="text-[11.5px] text-content-faint transition-colors duration-150 hover:text-alert"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <CategoryTable rows={rows} onEdit={edit} onRemove={remove} />
 
       <div className="border border-ink-700 bg-ink-850 p-5">
         <div className="flex items-center justify-between">
@@ -145,10 +65,7 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
           {form.id ? (
             <button
               type="button"
-              onClick={() => {
-                setForm(blank);
-                setSlugTouched(false);
-              }}
+              onClick={() => setForm(blank)}
               className="text-[11px] uppercase tracking-[0.1em] text-content-dim hover:text-brand"
             >
               Cancelar
@@ -163,17 +80,6 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
             value={form.name}
             className="bg-[#0E0E0D]"
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-
-          <Input
-            label="Slug"
-            value={form.slug}
-            className="bg-[#0E0E0D]"
-            hint="Es lo que aparece en la URL: /c/medias"
-            onChange={(e) => {
-              setSlugTouched(true);
-              setForm({ ...form, slug: slugify(e.target.value) });
-            }}
           />
 
           <Select
@@ -193,16 +99,6 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
                 </option>
               ))}
           </Select>
-
-          <Input
-            label="Orden en la tienda"
-            type="number"
-            min={0}
-            value={form.position}
-            className="bg-[#0E0E0D]"
-            placeholder={String(nextPosition)}
-            onChange={(e) => setForm({ ...form, position: Number(e.target.value) || 0 })}
-          />
 
           <div className="border border-ink-700 bg-[#0E0E0D] p-3.5">
             <Toggle
@@ -229,8 +125,203 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
           >
             {pending ? "Guardando…" : form.id ? "Guardar cambios" : "Crear categoría"}
           </button>
+          {!pending && form.name.trim().length < 2 ? (
+            <p className="-mt-1.5 text-center text-[11px] text-content-faint">
+              Escribí al menos 2 letras en el nombre para activar el botón.
+            </p>
+          ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Tabla de categorías raíz, reordenable por arrastre (como una lista de Spotify):
+ * mantené apretada la agarradera y deslizá la fila arriba o abajo. Las demás se
+ * corren solas para hacerle lugar; al soltar, se guarda el nuevo orden completo.
+ *
+ * Las categorías nuevas ya entran al final (lo decide el server, por orden de
+ * creación) — este arrastre es para cuando después querés cambiar ese orden.
+ */
+function CategoryTable({
+  rows,
+  onEdit,
+  onRemove,
+}: {
+  rows: AdminCategoryRow[];
+  onEdit: (row: { id: number; name: string }, parentId: number | null) => void;
+  onRemove: (id: number, name: string) => void;
+}) {
+  const router = useRouter();
+  const [order, setOrder] = useState<number[]>(() => rows.map((r) => r.id));
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [dragError, setDragError] = useState<string | null>(null);
+
+  const orderRef = useRef(order);
+  const rowRefs = useRef(new Map<number, HTMLDivElement>());
+
+  // El server manda la verdad (por ejemplo tras crear o borrar una categoría):
+  // el orden local se resincroniza cada vez que cambian las filas.
+  useEffect(() => {
+    const ids = rows.map((r) => r.id);
+    setOrder(ids);
+    orderRef.current = ids;
+  }, [rows]);
+
+  const [, startPersist] = useTransition();
+
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const ordered = order.map((id) => byId.get(id)).filter((r): r is AdminCategoryRow => Boolean(r));
+
+  function persistOrder(finalOrder: number[]) {
+    setDragError(null);
+    startPersist(async () => {
+      const result = await reorderCategoriesAction({ orderedIds: finalOrder });
+      if (!result.ok) {
+        setDragError(result.error);
+        const fallback = rows.map((r) => r.id);
+        setOrder(fallback);
+        orderRef.current = fallback;
+      } else {
+        router.refresh();
+      }
+    });
+  }
+
+  function onHandlePointerDown(e: React.PointerEvent<HTMLButtonElement>, id: number) {
+    e.preventDefault();
+    const startY = e.clientY;
+    setDraggingId(id);
+    setDragY(0);
+
+    function move(ev: PointerEvent) {
+      setDragY(ev.clientY - startY);
+
+      const current = orderRef.current;
+      const withoutDragged = current.filter((rid) => rid !== id);
+
+      let insertAt = withoutDragged.length;
+      for (let i = 0; i < withoutDragged.length; i++) {
+        const el = rowRefs.current.get(withoutDragged[i]!);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (ev.clientY < rect.top + rect.height / 2) {
+          insertAt = i;
+          break;
+        }
+      }
+
+      const next = withoutDragged.slice();
+      next.splice(insertAt, 0, id);
+
+      if (next.join(",") !== current.join(",")) {
+        orderRef.current = next;
+        setOrder(next);
+      }
+    }
+
+    function up() {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setDraggingId(null);
+      setDragY(0);
+      persistOrder(orderRef.current);
+    }
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  return (
+    <div className="border border-ink-700 bg-ink-850">
+      <div className="hidden gap-3.5 border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[28px_1.2fr_2fr_90px_80px]">
+        <span />
+        <span>Categoría</span>
+        <span>Subcategorías</span>
+        <span>Productos</span>
+        <span />
+      </div>
+
+      {dragError ? (
+        <p className="border-b border-ink-700 px-5 py-2.5 text-[12px] text-alert-soft">{dragError}</p>
+      ) : null}
+
+      {rows.length === 0 ? (
+        <p className="px-5 py-12 text-center text-[13px] text-content-dim">
+          Todavía no hay categorías. Creá la primera con el panel de la derecha.
+        </p>
+      ) : null}
+
+      {ordered.map((row) => {
+        const isDragging = draggingId === row.id;
+        return (
+          <div
+            key={row.id}
+            ref={(el) => {
+              if (el) rowRefs.current.set(row.id, el);
+              else rowRefs.current.delete(row.id);
+            }}
+            style={isDragging ? { transform: `translateY(${dragY}px)` } : undefined}
+            className={cn(
+              "grid items-center gap-3.5 border-b border-line-soft px-5 py-4 lg:grid-cols-[28px_1.2fr_2fr_90px_80px]",
+              isDragging && "relative z-10 border-brand bg-[#171716] shadow-card",
+            )}
+          >
+            <button
+              type="button"
+              onPointerDown={(e) => onHandlePointerDown(e, row.id)}
+              aria-label={`Arrastrar para reordenar "${row.name}"`}
+              className="hidden cursor-grab touch-none items-center justify-center self-stretch text-content-faint transition-colors duration-150 hover:text-brand active:cursor-grabbing lg:flex"
+            >
+              <GripIcon />
+            </button>
+
+            <div>
+              <p className="text-sm font-bold">{row.name}</p>
+              <p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {row.subs.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onEdit(s, row.id)}
+                  className="border border-line-strong bg-[#0E0E0D] px-2.5 py-[5px] text-[11.5px] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand"
+                >
+                  {s.name}
+                  <span className="ml-1.5 text-content-faint tabular">{s.productCount}</span>
+                </button>
+              ))}
+              {row.subs.length === 0 ? (
+                <span className="text-[11.5px] text-content-faint">Sin subcategorías</span>
+              ) : null}
+            </div>
+
+            <span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => onEdit(row, null)}
+                className="text-[11.5px] text-content-muted transition-colors duration-150 hover:text-brand"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(row.id, row.name)}
+                aria-label={`Borrar ${row.name}`}
+                className="text-[11.5px] text-content-faint transition-colors duration-150 hover:text-alert"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

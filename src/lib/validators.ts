@@ -123,7 +123,9 @@ const attributeSchema = z.object({
 
 export const productSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  slug: z.string().trim().min(2).max(180).regex(/^[a-z0-9-]+$/, "Slug inválido."),
+  // El slug (la URL /p/...) lo arma el server a partir del nombre: nunca lo
+  // manda el cliente. Así no hay campo que el dueño tenga que entender, y
+  // editar el nombre de un producto no le cambia la URL ya publicada.
   description: z.string().trim().max(4000).default(""),
   categoryId: z.number().int().positive(),
   subcategoryId: z.number().int().positive().nullable().default(null),
@@ -143,10 +145,14 @@ export const productSchema = z.object({
 
 export const categorySchema = z.object({
   name: z.string().trim().min(2).max(80),
-  slug: z.string().trim().min(2).max(90).regex(/^[a-z0-9-]+$/, "Slug inválido."),
   parentId: z.number().int().positive().nullable().default(null),
-  position: z.number().int().min(0).max(999).default(0),
   active: z.boolean().default(true),
+  // Ni slug ni position vienen del cliente: el slug sale del nombre y el orden
+  // se decide arrastrando la fila (ver reorderCategoriesSchema).
+});
+
+export const reorderCategoriesSchema = z.object({
+  orderedIds: z.array(z.number().int().positive()).min(1).max(200),
 });
 
 export const campaignSchema = z.object({

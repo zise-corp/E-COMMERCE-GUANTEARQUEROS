@@ -16,7 +16,6 @@ export type BrandOption = { id: number; name: string };
 
 type FormState = {
   name: string;
-  slug: string;
   description: string;
   categoryId: number | null;
   subcategoryId: number | null;
@@ -35,7 +34,6 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
   if (!product) {
     return {
       name: "",
-      slug: "",
       description: "",
       categoryId: defaultCategoryId,
       subcategoryId: null,
@@ -52,7 +50,6 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
   }
   return {
     name: product.name,
-    slug: product.slug,
     description: product.description,
     categoryId: product.categoryId,
     subcategoryId: product.subcategoryId,
@@ -85,7 +82,6 @@ export function ProductForm({
 }) {
   const roots = categories.filter((c) => c.parentId === null);
   const [form, setForm] = useState<FormState>(() => toForm(product, roots[0]?.id ?? null));
-  const [slugTouched, setSlugTouched] = useState(Boolean(product));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const ref = useDialog(open, onClose);
@@ -93,20 +89,30 @@ export function ProductForm({
   useEffect(() => {
     if (open) {
       setForm(toForm(product, roots[0]?.id ?? null));
-      setSlugTouched(Boolean(product));
       setError(null);
     }
     // Se re-arma solo al abrir o al cambiar de producto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product?.id]);
 
-  useEffect(() => {
-    if (!slugTouched) setForm((f) => ({ ...f, slug: slugify(f.name) }));
-  }, [form.name, slugTouched]);
-
   if (!open) return null;
 
+  // El slug (la URL /p/...) no se muestra ni se edita: lo calcula el server a
+  // partir del nombre al crear, y queda fijo al editar. Acá solo hace falta una
+  // carpeta para Cloudinary — la real si el producto ya existe, o una vista
+  // previa mientras se está creando (el server puede terminar en otra si el
+  // nombre cambió justo antes de guardar; es solo organización, no la URL final).
+  const folderSlug = product ? product.slug : slugify(form.name);
+
   const subs = categories.filter((c) => c.parentId === form.categoryId);
+
+  // DREI no es una marca externa como Buffon o HO Soccer: es la línea propia
+  // del negocio. La lógica de fondo sigue siendo la misma (brandId → la etiqueta
+  // azul en la tienda), pero en el formulario se destaca aparte con su propio
+  // switch en vez de mezclarse en el desplegable de marcas reales.
+  const dreiBrand = brands.find((b) => b.name === "DREI");
+  const otherBrands = brands.filter((b) => b.name !== "DREI");
+  const isDrei = dreiBrand !== undefined && form.brandId === dreiBrand.id;
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -141,7 +147,6 @@ export function ProductForm({
 
     const payload = {
       name: form.name.trim(),
-      slug: form.slug,
       description: form.description.trim(),
       categoryId: form.categoryId,
       subcategoryId: form.subcategoryId,
@@ -203,17 +208,6 @@ export function ProductForm({
                 value={form.name}
                 className="bg-[#0E0E0D]"
                 onChange={(e) => set("name", e.target.value)}
-              />
-
-              <Input
-                label="Slug"
-                value={form.slug}
-                className="bg-[#0E0E0D]"
-                hint={`/p/${form.slug || "…"}`}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  set("slug", slugify(e.target.value));
-                }}
               />
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -362,24 +356,40 @@ export function ProductForm({
 
             <div className="flex flex-col gap-3.5">
               <CloudinaryDropzone
-                slug={form.slug}
+                slug={folderSlug}
                 value={form.images}
                 onChange={(next) => set("images", next)}
               />
 
-              <Select
-                label="Marca"
-                value={form.brandId === null ? "" : String(form.brandId)}
-                className="bg-[#0E0E0D]"
-                onChange={(e) => set("brandId", e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Sin marca —</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </Select>
+              {dreiBrand ? (
+                <div className="border border-drei-line/40 bg-drei/[0.08] p-3.5">
+                  <Toggle
+                    checked={isDrei}
+                    label="Es un producto DREI"
+                    onChange={(on) => set("brandId", on ? dreiBrand.id : null)}
+                  />
+                  <p className="mt-2 text-[11px] leading-relaxed text-drei-ink/80">
+                    DREI es la línea propia del negocio, no una marca externa: se muestra en
+                    la tienda con su etiqueta azul.
+                  </p>
+                </div>
+              ) : null}
+
+              {!isDrei ? (
+                <Select
+                  label="Marca"
+                  value={form.brandId === null ? "" : String(form.brandId)}
+                  className="bg-[#0E0E0D]"
+                  onChange={(e) => set("brandId", e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— Sin marca —</option>
+                  {otherBrands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
 
               <div className="flex flex-col gap-3 border border-ink-700 bg-[#0E0E0D] p-3.5">
                 <Toggle

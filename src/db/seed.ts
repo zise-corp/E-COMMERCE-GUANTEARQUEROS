@@ -1,7 +1,8 @@
 import "../lib/load-env";
 import { eq, sql } from "drizzle-orm";
+import { demoStockPhoto } from "../lib/images";
 import { db } from "./index";
-import { brands, categories, products } from "./schema";
+import { brands, categories, productImages, products } from "./schema";
 
 const TREE: Record<string, string[]> = {
   Guantes: ["Competición", "Entrenamiento", "Junior"],
@@ -63,22 +64,28 @@ export async function ensureOrderNumberSequence() {
 }
 
 /* Productos de demostración (opcional, con --demo).
-   No son parte del seed de producción: son los del prototipo, para poder revisar
-   la tienda antes de que el dueño cargue el catálogo real desde el admin.
-   Van sin imagen — esas salen de Cloudinary y la tienda muestra el placeholder
-   de marca mientras no haya ninguna. */
+   No son parte del seed de producción: son los del prototipo original, para
+   armar una demo completa y mostrarle al cliente cómo se ve la tienda ya
+   "terminada" antes de cerrar el trato. Las fotos son de stock (LoremFlickr,
+   con `lock` para que la imagen quede fija y no cambie en cada visita) — un
+   parche temporal a propósito. Cuando el catálogo real suba sus propias fotos
+   a Cloudinary, esta demo se reemplaza entera: no hay que tocar nada de la
+   lógica, `cloudinaryUrl()` ya sabe usar cualquiera de los dos casos. */
 
 type DemoProduct = {
   name: string; brandName: string; category: string; sub: string;
   price: number; compareAt?: number; stock: number; sizes: string[];
   description: string; attributes: { name: string; value: string }[];
   featured?: boolean;
+  /** Keyword y semilla de LoremFlickr: mismo par de la referencia de diseño. */
+  imageKeyword: string; imageLock: number;
 };
 
 const DEMO: DemoProduct[] = [
   {
     name: "Buffon Ultimate Grip", brandName: "Buffon", category: "Guantes", sub: "Competición",
     price: 480, compareAt: 620, stock: 12, sizes: ["7", "8", "9", "10", "11"], featured: true,
+    imageKeyword: "goalkeeper,gloves", imageLock: 11,
     description:
       "Látex alemán de 4 mm, corte negativo y cierre de muñeca elástico. Para arqueros que juegan en cancha dura y no perdonan un rebote.",
     attributes: [
@@ -91,6 +98,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Uhlsport Speed Contact", brandName: "Uhlsport", category: "Guantes", sub: "Competición",
     price: 520, stock: 7, sizes: ["7", "8", "9", "10", "11"],
+    imageKeyword: "goalkeeper,glove", imageLock: 21,
     description:
       "Diseñado para reacción rápida en distancias cortas. Palma con agarre en seco y húmedo, dorso ventilado.",
     attributes: [
@@ -103,6 +111,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "HO Soccer Ssyncro Pro", brandName: "HO Soccer", category: "Guantes", sub: "Competición",
     price: 610, compareAt: 750, stock: 3, sizes: ["8", "9", "10", "11"], featured: true,
+    imageKeyword: "soccer,goalkeeper", imageLock: 31,
     description:
       "Modelo de competición con protección de falange y palma de contacto total. El más pedido de la temporada.",
     attributes: [
@@ -115,6 +124,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Elite Neo Revolution", brandName: "Elite", category: "Guantes", sub: "Entrenamiento",
     price: 390, stock: 18, sizes: ["7", "8", "9", "10"],
+    imageKeyword: "gloves,sport", imageLock: 41,
     description: "Entrada de gama profesional. Buen agarre, precio de entrenamiento diario.",
     attributes: [
       { name: "Color", value: "Verde flúor" },
@@ -126,6 +136,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "GXP Pro Latex", brandName: "GXP", category: "Guantes", sub: "Entrenamiento",
     price: 350, compareAt: 420, stock: 22, sizes: ["8", "9", "10", "11"],
+    imageKeyword: "goalie,gloves", imageLock: 51,
     description: "Guante de trabajo diario, resistente a cancha de arena y polvo.",
     attributes: [
       { name: "Color", value: "Negro con gris" },
@@ -137,6 +148,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Buffon Training Grip", brandName: "Buffon", category: "Guantes", sub: "Entrenamiento",
     price: 300, stock: 15, sizes: ["7", "8", "9", "10"],
+    imageKeyword: "gloves,goalkeeper", imageLock: 111,
     description: "Versión de entrenamiento del modelo Ultimate, misma horma con látex más duro.",
     attributes: [
       { name: "Color", value: "Gris con naranja" },
@@ -148,6 +160,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "DREI Camiseta Arquero Pro", brandName: "DREI", category: "Poleras", sub: "Arquero",
     price: 280, stock: 30, sizes: ["S", "M", "L", "XL", "XXL"], featured: true,
+    imageKeyword: "goalkeeper,jersey", imageLock: 61,
     description:
       "Tela deportiva con codos acolchados y corte holgado. Sublimación full, personalizable con nombre y número.",
     attributes: [
@@ -159,6 +172,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "DREI Uniforme Personalizado", brandName: "DREI", category: "Poleras", sub: "Uniformes DREI",
     price: 340, compareAt: 420, stock: 9, sizes: ["S", "M", "L", "XL", "XXL"],
+    imageKeyword: "football,kit", imageLock: 71,
     description: "Set completo para equipo: camiseta, short y medias. Diseño propio, mínimo 12 unidades.",
     attributes: [
       { name: "Color", value: "A definir con el cliente" },
@@ -169,6 +183,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "DREI Calza Térmica", brandName: "DREI", category: "Poleras", sub: "Calzas",
     price: 160, stock: 24, sizes: ["S", "M", "L", "XL"],
+    imageKeyword: "sports,leggings", imageLock: 121,
     description: "Calza larga con protección de cadera y rodilla para arqueros.",
     attributes: [
       { name: "Color", value: "Negro" },
@@ -179,6 +194,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Vortex FG Botín Cancha", brandName: "GXP", category: "Botas", sub: "Césped firme",
     price: 690, stock: 5, sizes: ["38", "39", "40", "41", "42", "43", "44"],
+    imageKeyword: "football,boots", imageLock: 81,
     description: "Tapón firme, capellada sintética liviana con banda de golpeo texturizada.",
     attributes: [
       { name: "Color", value: "Naranja con negro" },
@@ -189,6 +205,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Match Pro Pelota N°5", brandName: "GXP", category: "Pelotas", sub: "N°5",
     price: 250, compareAt: 310, stock: 26, sizes: ["N°5"], featured: true,
+    imageKeyword: "soccer,ball", imageLock: 91,
     description: "Pelota cosida a máquina, cámara de látex, vuelo estable para partido oficial.",
     attributes: [
       { name: "Color", value: "Blanco con líneas negras" },
@@ -200,6 +217,7 @@ const DEMO: DemoProduct[] = [
   {
     name: "Impact Canilleras", brandName: "Elite", category: "Canilleras", sub: "Con tobillera",
     price: 120, stock: 40, sizes: ["S", "M", "L"],
+    imageKeyword: "shin,guard,soccer", imageLock: 101,
     description: "Placa rígida con espuma interna y tobillera desmontable.",
     attributes: [
       { name: "Color", value: "Negro" },
@@ -221,11 +239,16 @@ export async function seedDemoProducts() {
     const brand = brandByName.get(p.brandName);
     if (!cat) continue;
 
-    await db
+    const productSlug = slug(p.name);
+
+    // insert-o-busca: si ya corriste --demo antes, el producto existe y solo
+    // hay que asegurarse de que sus fotos estén (por eso no alcanza con
+    // onConflictDoNothing solo: re-ejecutar el seed nunca les agregaba imagen).
+    const [inserted] = await db
       .insert(products)
       .values({
         name: p.name,
-        slug: slug(p.name),
+        slug: productSlug,
         description: p.description,
         categoryId: cat.id,
         subcategoryId: sub?.id ?? null,
@@ -238,7 +261,26 @@ export async function seedDemoProducts() {
         published: true,
         featured: p.featured ?? false,
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: products.id });
+
+    const productId =
+      inserted?.id ??
+      (await db.query.products.findFirst({ where: eq(products.slug, productSlug) }))?.id;
+    if (!productId) continue;
+
+    // Tres fotos por producto (para que la galería de la ficha no se vea vacía),
+    // reemplazando lo que hubiera si el seed ya corrió antes.
+    await db.delete(productImages).where(eq(productImages.productId, productId));
+    await db.insert(productImages).values(
+      [0, 1, 2].map((i) => ({
+        productId,
+        publicId: demoStockPhoto(p.imageKeyword, p.imageLock + i),
+        alt: p.name,
+        position: i,
+        isPrimary: i === 0,
+      })),
+    );
   }
 }
 
@@ -251,7 +293,7 @@ async function main() {
   console.log("Categorías, subcategorías y marcas listas.");
   if (demo) {
     await seedDemoProducts();
-    console.log(DEMO.length + " productos de demostración cargados.");
+    console.log(DEMO.length + " productos de demostración cargados, con 3 fotos de stock cada uno.");
   } else {
     console.log("(agregá --demo para cargar productos de prueba)");
   }

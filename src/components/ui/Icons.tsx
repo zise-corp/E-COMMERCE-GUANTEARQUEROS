@@ -110,6 +110,27 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
+/** Agarradera de arrastre: dos columnas de puntos, el gesto universal de "reordenar". */
+export function GripIcon({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      className={className}
+    >
+      <circle cx="7" cy="6" r="1.6" />
+      <circle cx="7" cy="12" r="1.6" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17" cy="6" r="1.6" />
+      <circle cx="17" cy="12" r="1.6" />
+      <circle cx="17" cy="18" r="1.6" />
+    </svg>
+  );
+}
+
 export function WhatsappIcon(props: IconProps) {
   return (
     <Svg {...props}>
