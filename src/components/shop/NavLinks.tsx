@@ -24,6 +24,19 @@ export function NavLinks({
 
   return (
     <nav className={cn(className, "flex-wrap items-center gap-x-5 gap-y-0.5")}>
+      <Link
+        href="/"
+        aria-current={pathname === "/" ? "page" : undefined}
+        className={cn(
+          "whitespace-nowrap border-b-2 py-1.5 text-[12.5px] font-bold uppercase tracking-[0.06em] transition-colors duration-150",
+          pathname === "/"
+            ? "border-brand text-brand"
+            : "border-transparent hover:border-brand hover:text-brand",
+        )}
+      >
+        Inicio
+      </Link>
+
       {categories.map((c) => {
         const active = pathname === `/${c.slug}` || pathname.startsWith(`/${c.slug}/`);
         return (

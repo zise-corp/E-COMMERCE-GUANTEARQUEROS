@@ -1,5 +1,6 @@
 "use client";
 
+import { CartIcon } from "@/components/ui/Icons";
 import { useCart } from "./CartProvider";
 
 export function CartButton() {
@@ -9,12 +10,12 @@ export function CartButton() {
     <button
       type="button"
       onClick={() => openCart("items")}
-      className="flex items-center gap-2.5 bg-brand px-4 py-[11px] text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-colors duration-150 hover:bg-brand-hot"
+      className="relative flex size-[42px] items-center justify-center bg-brand text-ink-950 transition-colors duration-150 hover:bg-brand-hot focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
       aria-label={`Abrir carrito, ${count} ${count === 1 ? "producto" : "productos"}`}
+      title="Abrir carrito"
     >
-      <span className="hidden sm:inline">Carrito</span>
-      <span className="sm:hidden">Bolsa</span>
-      <span className="inline-flex h-5 min-w-5 items-center justify-center bg-ink-950 px-1 text-xs text-brand tabular">
+      <CartIcon size={21} strokeWidth={1.9} />
+      <span className="absolute -right-1.5 -top-1.5 inline-flex h-[19px] min-w-[19px] items-center justify-center border-2 border-ink-950 bg-content px-1 text-[10px] font-extrabold leading-none text-ink-950 tabular">
         {count}
       </span>
     </button>

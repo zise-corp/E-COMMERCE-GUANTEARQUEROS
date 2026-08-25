@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DreiWordmark } from "@/components/brand/DreiWordmark";
+import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
-import { getBrands, getCategoryTree, getFeaturedProducts } from "@/db/queries/catalog";
+import { getAllProducts, getBrands, getCategoryTree } from "@/db/queries/catalog";
 import { demoStockPhoto } from "@/lib/images";
 import { site } from "@/lib/site";
 
@@ -30,9 +31,9 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [categories, featured, brands] = await Promise.all([
+  const [categories, products, brands] = await Promise.all([
     getCategoryTree(),
-    getFeaturedProducts(4),
+    getAllProducts(),
     getBrands(),
   ]);
 
@@ -96,22 +97,20 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="container-shop py-14">
+      <section id="productos" className="container-shop scroll-mt-28 py-14">
         <SectionHeader
-          title="Destacados"
+          title="Todos los productos"
           aside={
-            guantes ? (
-              <Link href={`/${guantes.slug}`} className="text-brand hover:text-brand-hot">
-                Ver todo →
-              </Link>
-            ) : null
+            <span className="text-content-dim">
+              {products.length} {products.length === 1 ? "producto" : "productos"}
+            </span>
           }
         />
         <ProductGrid
-          products={featured}
+          products={products}
           columns={4}
           aspect="1/1"
-          emptyMessage="Todavía no hay productos destacados. Marca algunos desde el panel."
+          emptyMessage="Todavía no hay productos publicados. Agrégalos desde el panel."
         />
       </section>
 
@@ -156,25 +155,7 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
           ) : null}
         </div>
 
-        <dl className="mt-[46px] flex flex-wrap gap-x-9 gap-y-4 border-t border-line pt-[22px]">
-          {[
-            { n: "6", label: "Marcas" },
-            { n: "24h", label: "Cochabamba" },
-            { n: "9", label: "Departamentos" },
-          ].map((f) => (
-            <div key={f.label}>
-              <dt className="sr-only">{f.label}</dt>
-              <dd>
-                <span className="block font-display text-[30px] leading-none text-content">
-                  {f.n}
-                </span>
-                <span className="mt-1 block text-[11.5px] uppercase tracking-[0.14em] text-content-dim">
-                  {f.label}
-                </span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <HeroStats />
       </div>
 
       <div className="relative">

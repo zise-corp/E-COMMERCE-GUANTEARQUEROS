@@ -211,15 +211,15 @@ export async function getBrands() {
 
 /* ── Productos ────────────────────────────────────────────────────────────── */
 
-export async function getFeaturedProducts(limit = 4): Promise<ProductCard[]> {
+/** Catálogo público completo para la portada, con destacados primero. */
+export async function getAllProducts(): Promise<ProductCard[]> {
   return withFallback<ProductCard[]>([], async () => {
     const rows = await db
       .select(cardColumns)
       .from(products)
       .leftJoin(brands, eq(products.brandId, brands.id))
-      .where(and(eq(products.published, true), eq(products.featured, true)))
-      .orderBy(desc(products.updatedAt))
-      .limit(limit);
+      .where(eq(products.published, true))
+      .orderBy(desc(products.featured), desc(products.updatedAt), asc(products.name));
     return rows.map(toCard);
   });
 }
