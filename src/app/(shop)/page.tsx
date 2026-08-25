@@ -8,7 +8,6 @@ import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
 import { getAllProducts, getBrands, getCategoryTree } from "@/db/queries/catalog";
-import { demoStockPhoto } from "@/lib/images";
 
 /**
  * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
@@ -16,12 +15,12 @@ import { demoStockPhoto } from "@/lib/images";
  * array) porque las categorías se pueden reordenar arrastrando en el admin —
  * si una categoría nueva no está en este mapa, simplemente no muestra foto.
  */
-const CATEGORY_DEMO_PHOTO: Record<string, { keyword: string; lock: number }> = {
-  guantes: { keyword: "goalkeeper,gloves", lock: 200 },
-  poleras: { keyword: "football,jersey", lock: 201 },
-  botas: { keyword: "football,boots", lock: 202 },
-  pelotas: { keyword: "soccer,ball", lock: 203 },
-  canilleras: { keyword: "shin,guard", lock: 204 },
+const CATEGORY_DEMO_PHOTO: Record<string, string> = {
+  guantes: "/demo-products/guantes.png",
+  poleras: "/demo-products/poleras.png",
+  botas: "/demo-products/botas.png",
+  pelotas: "/demo-products/pelotas.png",
+  canilleras: "/demo-products/canilleras.png",
 };
 
 const HERO_IMAGE =
@@ -64,7 +63,7 @@ export default async function HomePage() {
               >
                 <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
                   <ProductImage
-                    publicId={demoPhoto ? demoStockPhoto(demoPhoto.keyword, demoPhoto.lock) : null}
+                    publicId={demoPhoto ?? null}
                     alt=""
                     preset="category"
                   />
@@ -219,7 +218,7 @@ function DreiBlock({ slug }: { slug: string | null }) {
         </div>
         <div className="relative h-[220px] bg-drei/20 lg:h-[330px]">
           <ProductImage
-            publicId={demoStockPhoto("football,team,jersey", 9)}
+            publicId="/demo-products/poleras.png"
             alt="Indumentaria DREI Athletic"
             preset="category"
           />

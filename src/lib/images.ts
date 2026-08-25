@@ -30,6 +30,7 @@ export const IMAGE_PRESETS = {
 export type ImagePreset = keyof typeof IMAGE_PRESETS;
 
 export function cloudinaryUrl(publicId: string, preset: ImagePreset = "grid"): string {
+  if (publicId.startsWith("/")) return publicId;
   // DEMO temporal: mientras no hay fotos reales subidas, algunas filas de
   // product_images guardan una URL externa completa en vez de un public_id de
   // Cloudinary (ver seedDemoProducts). Esa URL se usa tal cual, sin pasarla por

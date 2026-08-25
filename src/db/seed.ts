@@ -1,6 +1,5 @@
 import "../lib/load-env";
 import { eq, sql } from "drizzle-orm";
-import { demoStockPhoto } from "../lib/images";
 import { db } from "./index";
 import { brands, categories, productImages, products } from "./schema";
 
@@ -79,6 +78,14 @@ type DemoProduct = {
   featured?: boolean;
   /** Keyword y semilla de LoremFlickr: mismo par de la referencia de diseño. */
   imageKeyword: string; imageLock: number;
+};
+
+const DEMO_CATEGORY_IMAGE: Record<string, string> = {
+  Guantes: "/demo-products/guantes.png",
+  Poleras: "/demo-products/poleras.png",
+  Botas: "/demo-products/botas.png",
+  Pelotas: "/demo-products/pelotas.png",
+  Canilleras: "/demo-products/canilleras.png",
 };
 
 const DEMO: DemoProduct[] = [
@@ -227,6 +234,74 @@ const DEMO: DemoProduct[] = [
   },
 ];
 
+type ExtraDemoSpec = Omit<
+  DemoProduct,
+  "description" | "attributes" | "imageLock"
+>;
+
+const EXTRA_DEMO: ExtraDemoSpec[] = [
+  // Guantes: 6 originales + 4 nuevos = 10.
+  { name: "Buffon Junior Shield", brandName: "Buffon", category: "Guantes", sub: "Junior", price: 220, stock: 20, sizes: ["4", "5", "6", "7"], imageKeyword: "goalkeeper,gloves,kids" },
+  { name: "Elite Kids Grip", brandName: "Elite", category: "Guantes", sub: "Junior", price: 195, stock: 16, sizes: ["4", "5", "6"], imageKeyword: "soccer,gloves,junior" },
+  { name: "HO Soccer One Negative", brandName: "HO Soccer", category: "Guantes", sub: "Competición", price: 560, compareAt: 640, stock: 8, sizes: ["7", "8", "9", "10"], imageKeyword: "goalkeeper,glove" },
+  { name: "GXP Junior Starter", brandName: "GXP", category: "Guantes", sub: "Junior", price: 180, stock: 25, sizes: ["4", "5", "6", "7"], imageKeyword: "goalie,gloves,kids" },
+
+  // Poleras: 3 originales + 7 nuevos = 10.
+  { name: "DREI Camiseta Arquero Classic", brandName: "DREI", category: "Poleras", sub: "Arquero", price: 240, stock: 22, sizes: ["S", "M", "L", "XL"], imageKeyword: "goalkeeper,jersey" },
+  { name: "DREI Camiseta Match Fluor", brandName: "DREI", category: "Poleras", sub: "Arquero", price: 295, stock: 18, sizes: ["S", "M", "L", "XL", "XXL"], imageKeyword: "football,goalkeeper,shirt" },
+  { name: "DREI Uniforme Team Black", brandName: "DREI", category: "Poleras", sub: "Uniformes DREI", price: 360, stock: 14, sizes: ["S", "M", "L", "XL"], imageKeyword: "football,team,kit" },
+  { name: "DREI Uniforme Team Blue", brandName: "DREI", category: "Poleras", sub: "Uniformes DREI", price: 360, stock: 12, sizes: ["S", "M", "L", "XL"], imageKeyword: "soccer,uniform,blue" },
+  { name: "DREI Calza Corta Protection", brandName: "DREI", category: "Poleras", sub: "Calzas", price: 145, stock: 28, sizes: ["S", "M", "L", "XL"], imageKeyword: "sports,compression,shorts" },
+  { name: "DREI Calza Pro Acolchada", brandName: "DREI", category: "Poleras", sub: "Calzas", price: 210, compareAt: 250, stock: 17, sizes: ["S", "M", "L", "XL"], imageKeyword: "goalkeeper,padded,leggings" },
+  { name: "DREI Polera Entrenamiento Dry", brandName: "DREI", category: "Poleras", sub: "Arquero", price: 190, stock: 32, sizes: ["S", "M", "L", "XL", "XXL"], imageKeyword: "sports,training,shirt" },
+
+  // Botas: 1 original + 9 nuevas = 10.
+  { name: "GXP Velocity FG", brandName: "GXP", category: "Botas", sub: "Césped firme", price: 620, stock: 9, sizes: ["38", "39", "40", "41", "42", "43"], imageKeyword: "football,boots" },
+  { name: "Elite Control Pro FG", brandName: "Elite", category: "Botas", sub: "Césped firme", price: 740, compareAt: 820, stock: 6, sizes: ["39", "40", "41", "42", "43"], imageKeyword: "soccer,cleats" },
+  { name: "Uhlsport Attack FG", brandName: "Uhlsport", category: "Botas", sub: "Césped firme", price: 680, stock: 8, sizes: ["38", "39", "40", "41", "42"], imageKeyword: "football,cleats" },
+  { name: "Buffon Keeper Turf", brandName: "Buffon", category: "Botas", sub: "Futsal", price: 420, stock: 15, sizes: ["37", "38", "39", "40", "41", "42"], imageKeyword: "indoor,soccer,shoes" },
+  { name: "GXP Sala Control", brandName: "GXP", category: "Botas", sub: "Futsal", price: 390, stock: 20, sizes: ["38", "39", "40", "41", "42", "43"], imageKeyword: "futsal,shoes" },
+  { name: "Elite Indoor Speed", brandName: "Elite", category: "Botas", sub: "Futsal", price: 460, stock: 11, sizes: ["39", "40", "41", "42", "43"], imageKeyword: "indoor,football,shoes" },
+  { name: "HO Soccer Keeper FG", brandName: "HO Soccer", category: "Botas", sub: "Césped firme", price: 710, stock: 7, sizes: ["39", "40", "41", "42", "43", "44"], imageKeyword: "soccer,boots,grass" },
+  { name: "GXP Junior Futsal", brandName: "GXP", category: "Botas", sub: "Futsal", price: 280, stock: 24, sizes: ["32", "33", "34", "35", "36", "37"], imageKeyword: "kids,futsal,shoes" },
+  { name: "Elite Junior FG", brandName: "Elite", category: "Botas", sub: "Césped firme", price: 330, stock: 19, sizes: ["33", "34", "35", "36", "37", "38"], imageKeyword: "kids,football,boots" },
+
+  // Pelotas: 1 original + 9 nuevas = 10.
+  { name: "GXP Training Pelota N°5", brandName: "GXP", category: "Pelotas", sub: "N°5", price: 180, stock: 35, sizes: ["N°5"], imageKeyword: "soccer,ball" },
+  { name: "Elite Match Thermo N°5", brandName: "Elite", category: "Pelotas", sub: "N°5", price: 320, compareAt: 380, stock: 18, sizes: ["N°5"], imageKeyword: "football,match,ball" },
+  { name: "Uhlsport Pro Match N°5", brandName: "Uhlsport", category: "Pelotas", sub: "N°5", price: 350, stock: 13, sizes: ["N°5"], imageKeyword: "soccer,ball,stadium" },
+  { name: "Buffon Training N°5", brandName: "Buffon", category: "Pelotas", sub: "N°5", price: 210, stock: 27, sizes: ["N°5"], imageKeyword: "football,training,ball" },
+  { name: "GXP Futsal Pro N°4", brandName: "GXP", category: "Pelotas", sub: "N°4", price: 230, stock: 22, sizes: ["N°4"], imageKeyword: "futsal,ball" },
+  { name: "Elite Sala Control N°4", brandName: "Elite", category: "Pelotas", sub: "N°4", price: 260, stock: 17, sizes: ["N°4"], imageKeyword: "indoor,soccer,ball" },
+  { name: "HO Soccer Academy N°4", brandName: "HO Soccer", category: "Pelotas", sub: "N°4", price: 195, stock: 30, sizes: ["N°4"], imageKeyword: "soccer,academy,ball" },
+  { name: "GXP Junior Soft N°4", brandName: "GXP", category: "Pelotas", sub: "N°4", price: 150, stock: 28, sizes: ["N°4"], imageKeyword: "kids,soccer,ball" },
+  { name: "Elite Street Football", brandName: "Elite", category: "Pelotas", sub: "N°5", price: 170, stock: 21, sizes: ["N°5"], imageKeyword: "street,football,ball" },
+
+  // Canilleras: 1 original + 9 nuevas = 10.
+  { name: "GXP Shield Tobillera", brandName: "GXP", category: "Canilleras", sub: "Con tobillera", price: 110, stock: 34, sizes: ["S", "M", "L"], imageKeyword: "soccer,shin,guards" },
+  { name: "Elite Guard Pro", brandName: "Elite", category: "Canilleras", sub: "Placa simple", price: 145, stock: 26, sizes: ["S", "M", "L"], imageKeyword: "football,shin,guard" },
+  { name: "Uhlsport Carbon Shield", brandName: "Uhlsport", category: "Canilleras", sub: "Placa simple", price: 190, compareAt: 230, stock: 14, sizes: ["M", "L"], imageKeyword: "soccer,protection,guard" },
+  { name: "Buffon Junior Guard", brandName: "Buffon", category: "Canilleras", sub: "Con tobillera", price: 95, stock: 40, sizes: ["XS", "S", "M"], imageKeyword: "kids,shin,guards" },
+  { name: "GXP Flex Plate", brandName: "GXP", category: "Canilleras", sub: "Placa simple", price: 100, stock: 32, sizes: ["S", "M", "L"], imageKeyword: "football,shin,pads" },
+  { name: "Elite Ankle Protect", brandName: "Elite", category: "Canilleras", sub: "Con tobillera", price: 135, stock: 23, sizes: ["S", "M", "L"], imageKeyword: "soccer,ankle,guard" },
+  { name: "HO Soccer Light Guard", brandName: "HO Soccer", category: "Canilleras", sub: "Placa simple", price: 125, stock: 29, sizes: ["S", "M", "L"], imageKeyword: "soccer,shin,protection" },
+  { name: "GXP Mini Shield", brandName: "GXP", category: "Canilleras", sub: "Placa simple", price: 85, stock: 45, sizes: ["XS", "S"], imageKeyword: "junior,shin,guards" },
+  { name: "Elite Match Ankle", brandName: "Elite", category: "Canilleras", sub: "Con tobillera", price: 155, stock: 18, sizes: ["S", "M", "L"], imageKeyword: "football,guard,ankle" },
+];
+
+DEMO.push(
+  ...EXTRA_DEMO.map((product, index): DemoProduct => ({
+    ...product,
+    imageLock: 200 + index * 3,
+    description: `${product.name}, diseñado para rendir con comodidad y resistencia en cada partido y entrenamiento.`,
+    attributes: [
+      { name: "Marca", value: product.brandName },
+      { name: "Línea", value: product.sub },
+      { name: "Uso", value: "Entrenamiento y competición" },
+    ],
+  })),
+);
+
 export async function seedDemoProducts() {
   const allCats = await db.select().from(categories);
   const allBrands = await db.select().from(brands);
@@ -269,18 +344,16 @@ export async function seedDemoProducts() {
       (await db.query.products.findFirst({ where: eq(products.slug, productSlug) }))?.id;
     if (!productId) continue;
 
-    // Tres fotos por producto (para que la galería de la ficha no se vea vacía),
-    // reemplazando lo que hubiera si el seed ya corrió antes.
+    // Una foto controlada y coherente con la categoría, reemplazando las imágenes
+    // aleatorias antiguas si el seed ya se ejecutó antes.
     await db.delete(productImages).where(eq(productImages.productId, productId));
-    await db.insert(productImages).values(
-      [0, 1, 2].map((i) => ({
-        productId,
-        publicId: demoStockPhoto(p.imageKeyword, p.imageLock + i),
-        alt: p.name,
-        position: i,
-        isPrimary: i === 0,
-      })),
-    );
+    await db.insert(productImages).values({
+      productId,
+      publicId: DEMO_CATEGORY_IMAGE[p.category] ?? "/demo-products/guantes.png",
+      alt: p.name,
+      position: 0,
+      isPrimary: true,
+    });
   }
 }
 
@@ -293,7 +366,7 @@ async function main() {
   console.log("Categorías, subcategorías y marcas listas.");
   if (demo) {
     await seedDemoProducts();
-    console.log(DEMO.length + " productos de demostración cargados, con 3 fotos de stock cada uno.");
+    console.log(DEMO.length + " productos de demostración cargados, con imágenes coherentes por categoría.");
   } else {
     console.log("(agrega --demo para cargar productos de prueba)");
   }
