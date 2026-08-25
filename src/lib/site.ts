@@ -26,11 +26,11 @@ export const site = {
   },
 } as const;
 
-/** Cómo se muestra el WhatsApp en pantalla: +591 700 00 000 */
+/** Cómo se muestra el WhatsApp en pantalla: +591 61235265 */
 export function displayWhatsapp(digits: string = site.supportWhatsapp): string {
   const d = digits.replace(/\D/g, "");
   if (d.length === 11 && d.startsWith("591")) {
-    return `+591 ${d.slice(3, 6)} ${d.slice(6, 8)} ${d.slice(8)}`;
+    return `+591 ${d.slice(3)}`;
   }
   return `+${d}`;
 }

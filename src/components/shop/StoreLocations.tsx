@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Display } from "@/components/ui/Heading";
-import { ArrowRightIcon, PinIcon } from "@/components/ui/Icons";
+import { ArrowRightIcon, PinIcon, WhatsappIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
+import { displayWhatsapp, whatsappLink } from "@/lib/site";
 
 const LOCATIONS = [
   {
@@ -99,14 +100,25 @@ export function StoreLocations() {
           <div className="border-t border-line p-5 sm:p-6">
             <p className="text-xs text-content-faint tabular">{coordinates}</p>
             <a
-              href={selected.mapsUrl}
+              href={whatsappLink("Hola, quisiera información sobre sus sucursales.")}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-2 border border-brand px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em] text-brand transition-colors duration-150 hover:bg-brand hover:text-ink-950"
+              className="mt-4 flex w-fit items-center gap-2 text-sm font-bold text-content transition-colors hover:text-brand"
             >
-              Cómo llegar
-              <ArrowRightIcon size={15} />
+              <WhatsappIcon size={16} className="text-brand" />
+              {displayWhatsapp()}
             </a>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href={selected.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 border border-brand px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em] text-brand transition-colors duration-150 hover:bg-brand hover:text-ink-950"
+              >
+                Cómo llegar
+                <ArrowRightIcon size={15} />
+              </a>
+            </div>
           </div>
         </div>
 

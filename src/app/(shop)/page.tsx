@@ -9,7 +9,6 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
 import { getAllProducts, getBrands, getCategoryTree } from "@/db/queries/catalog";
 import { demoStockPhoto } from "@/lib/images";
-import { site } from "@/lib/site";
 
 /**
  * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
@@ -146,7 +145,7 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
 
         <p className="mt-[26px] max-w-[460px] text-[16.5px] leading-relaxed text-content-muted text-pretty">
           Guantes de arquero originales, indumentaria DREI Athletic y accesorios. Envíos a todo el
-          país, retiro en {site.city} el mismo día.
+          país.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
