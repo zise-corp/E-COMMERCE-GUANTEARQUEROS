@@ -15,11 +15,11 @@ export const metadata: Metadata = {
 };
 
 function describeDelivery(order: { mode: string; department: string | null }) {
-  if (order.mode === "pickup") return "Retiro en el local · Cochabamba";
-  if (!order.department) return "Envío a domicilio";
+  if (order.mode === "pickup") return "Retiro en el local · La Paz";
+  if (!order.department) return "Envío";
   return order.department === LOCAL_DEPARTMENT
-    ? "Envío a domicilio · Cochabamba (logística propia)"
-    : `Envío a domicilio · ${order.department} (por transporte)`;
+    ? "Entrega local · La Paz"
+    : `Envío a ${order.department} por transporte`;
 }
 
 export default async function PaymentPage() {

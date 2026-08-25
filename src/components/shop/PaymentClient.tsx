@@ -43,16 +43,19 @@ const POLL_MS = 4000;
 export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox: boolean }) {
   const router = useRouter();
   const cart = useCart();
-  const [method, setMethod] = useState<Method | null>(null);
+  const [method, setMethod] = useState<Method | null>("qr");
   const [intent, setIntent] = useState<Intent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const settled = useRef(false);
+  const initialQrRequested = useRef(false);
+  const requestSequence = useRef(0);
 
   /** El pago se genera solo al elegir método, sin botón extra. */
   const pick = useCallback(
     async (next: Method) => {
+      const requestId = ++requestSequence.current;
       setMethod(next);
       setIntent(null);
       setError(null);
@@ -66,19 +69,28 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         const data = (await res.json()) as
           | { ok: true; intent: Intent }
           | { ok: false; error: string };
+        if (requestId !== requestSequence.current) return;
         if (!res.ok || !data.ok) {
           setError(data.ok ? "No pudimos generar el pago." : data.error);
           return;
         }
         setIntent(data.intent);
       } catch {
+        if (requestId !== requestSequence.current) return;
         setError("No pudimos conectar con la pasarela. Prueba de nuevo o escríbenos.");
       } finally {
-        setLoading(false);
+        if (requestId === requestSequence.current) setLoading(false);
       }
     },
     [order.id],
   );
+
+  // QR es la opción principal: se selecciona y genera al entrar, sin un clic extra.
+  useEffect(() => {
+    if (initialQrRequested.current) return;
+    initialQrRequested.current = true;
+    void pick("qr");
+  }, [pick]);
 
   /** Polling cada 4s. El webhook es la fuente de verdad; acá solo se lee. */
   useEffect(() => {

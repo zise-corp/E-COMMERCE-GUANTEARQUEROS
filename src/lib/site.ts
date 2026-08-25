@@ -55,12 +55,12 @@ export const DEPARTMENTS = [
 
 export type Department = (typeof DEPARTMENTS)[number];
 
-/** Cochabamba es la región con logística propia: pide dirección + ubicación exacta. */
-export const LOCAL_DEPARTMENT: Department = "Cochabamba";
+/** La Paz es la sede principal: permite retiro o entrega con ubicación exacta. */
+export const LOCAL_DEPARTMENT: Department = "La Paz";
 
 export function isLocalDepartment(dept: string | null | undefined): boolean {
   return dept === LOCAL_DEPARTMENT;
 }
 
-/** Centro de Cochabamba — punto de partida del selector de ubicación. */
-export const LOCAL_CENTER = { lat: -17.3936, lng: -66.157 } as const;
+/** Sucursal principal de La Paz — punto de partida del selector de ubicación. */
+export const LOCAL_CENTER = { lat: -16.52362570871352, lng: -68.11237658813462 } as const;

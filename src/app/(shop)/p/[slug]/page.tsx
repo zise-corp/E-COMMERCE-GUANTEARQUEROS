@@ -173,17 +173,6 @@ export default async function ProductPage({ params }: Props) {
               </dl>
             </div>
           ) : null}
-
-          <div className="mt-[22px] grid gap-2.5 sm:grid-cols-2">
-            <div className="border border-line p-3.5 text-[12.5px] text-content-muted">
-              <strong className="mb-1 block text-content">Retiro en local</strong>
-              {site.city} · hoy mismo
-            </div>
-            <div className="border border-line p-3.5 text-[12.5px] text-content-muted">
-              <strong className="mb-1 block text-content">Envío nacional</strong>
-              2 a 4 días por transporte
-            </div>
-          </div>
         </div>
       </div>
     </section>

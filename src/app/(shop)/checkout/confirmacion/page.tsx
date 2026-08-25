@@ -24,9 +24,9 @@ export default async function ConfirmationPage() {
 
   const delivery =
     order.mode === "pickup"
-      ? "Puedes retirarlo en el local de Cochabamba"
+      ? "Puedes retirarlo en la sucursal principal de La Paz"
       : order.department === LOCAL_DEPARTMENT
-        ? "Te lo llevamos a la dirección que marcaste en Cochabamba"
+        ? "Te lo llevamos a la dirección que marcaste en La Paz"
         : `Lo despachamos por transporte a ${order.department ?? "tu departamento"}`;
 
   return <ConfirmationView number={order.number} delivery={delivery} />;

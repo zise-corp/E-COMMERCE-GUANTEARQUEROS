@@ -89,7 +89,7 @@ function deliveryColumns(shipping: ShippingOutput) {
   if (shipping.mode === "pickup") {
     return {
       mode: "pickup" as const,
-      department: null,
+      department: LOCAL_DEPARTMENT,
       address: null,
       lat: null,
       lng: null,
@@ -108,7 +108,8 @@ function deliveryColumns(shipping: ShippingOutput) {
     lng: local && shipping.lng !== null ? shipping.lng.toFixed(6) : null,
     mapsUrl: local && shipping.mapsUrl ? shipping.mapsUrl : null,
     documentId: local ? null : shipping.documentId,
-    branch: local ? null : shipping.branch,
+    // La empresa y sucursal de transporte se definen internamente después.
+    branch: null,
     email: local ? null : shipping.email,
   };
 }

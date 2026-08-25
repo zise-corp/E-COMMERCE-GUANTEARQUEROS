@@ -10,14 +10,13 @@ export type ShippingValues = {
   name: string;
   phone: string;
   note: string;
-  mode: "pickup" | "delivery";
+  mode: "" | "pickup" | "delivery";
   department: Department | null;
   address: string;
   lat: number | null;
   lng: number | null;
   mapsUrl: string;
   documentId: string;
-  branch: string;
   email: string;
 };
 
@@ -25,14 +24,13 @@ export const emptyShipping: ShippingValues = {
   name: "",
   phone: "",
   note: "",
-  mode: "pickup",
+  mode: "",
   department: null,
   address: "",
   lat: null,
   lng: null,
   mapsUrl: "",
   documentId: "",
-  branch: "",
   email: "",
 };
 
@@ -53,11 +51,13 @@ export function validate(values: ShippingValues): { ok: boolean; errors: FieldEr
 }
 
 export function describeDelivery(v: ShippingValues): string {
-  if (v.mode === "pickup") return "Retiro en el local · Cochabamba";
-  if (!v.department) return "Envío a domicilio · elige el departamento";
-  return v.department === LOCAL_DEPARTMENT
-    ? "Envío a domicilio · Cochabamba (logística propia)"
-    : `Envío a domicilio · ${v.department} (por transporte)`;
+  if (!v.department) return "Elige el departamento";
+  if (v.department === LOCAL_DEPARTMENT) {
+    if (v.mode === "pickup") return "Retiro en el local · La Paz";
+    if (v.mode === "delivery") return "Entrega local · La Paz";
+    return "Elige retiro en local o entrega";
+  }
+  return `Envío a ${v.department} por transporte`;
 }
 
 export function ShippingForm({
@@ -74,9 +74,25 @@ export function ShippingForm({
   const set = <K extends keyof ShippingValues>(key: K, next: ShippingValues[K]) =>
     onChange({ ...value, [key]: next });
 
-  const isDelivery = value.mode === "delivery";
-  const isLocal = isDelivery && value.department === LOCAL_DEPARTMENT;
-  const isOther = isDelivery && value.department !== null && value.department !== LOCAL_DEPARTMENT;
+  const isLaPaz = value.department === LOCAL_DEPARTMENT;
+  const isLocalDelivery = isLaPaz && value.mode === "delivery";
+  const isOther = value.department !== null && !isLaPaz;
+
+  function selectDepartment(department: Department | null) {
+    onChange({
+      ...value,
+      department,
+      // En La Paz el cliente debe escoger retiro o entrega. En los demás
+      // departamentos el único flujo disponible es transporte.
+      mode: department === null || department === LOCAL_DEPARTMENT ? "" : "delivery",
+      lat: null,
+      lng: null,
+      mapsUrl: "",
+      address: "",
+      documentId: "",
+      email: "",
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3.5 px-6 pb-2 pt-5">
@@ -111,130 +127,118 @@ export function ShippingForm({
         onChange={(e) => set("note", e.target.value)}
       />
 
-      <fieldset className="mt-1">
-        <legend className="label-xs mb-[9px] text-content-dim">Modalidad de entrega</legend>
-        <div className="grid grid-cols-2 gap-2">
-          <ModeCard
-            active={value.mode === "pickup"}
-            title="Retiro en el local"
-            detail="Cochabamba · sin costo"
-            onClick={() => onChange({ ...value, mode: "pickup" })}
-          />
-          <ModeCard
-            active={isDelivery}
-            title="Envío"
-            detail="Todo el país"
-            onClick={() => onChange({ ...value, mode: "delivery" })}
-          />
-        </div>
-      </fieldset>
+      <Select
+        label="Departamento"
+        required
+        value={value.department ?? ""}
+        error={err("department")}
+        onChange={(e) => selectDepartment((e.target.value || null) as Department | null)}
+      >
+        <option value="">Elige tu departamento…</option>
+        {DEPARTMENTS.map((department) => (
+          <option key={department} value={department}>
+            {department}
+            {department === LOCAL_DEPARTMENT ? " — retiro o entrega local" : ""}
+          </option>
+        ))}
+      </Select>
 
-      {isDelivery ? (
+      {isLaPaz ? (
+        <fieldset className="animate-rise">
+          <legend className="label-xs mb-[9px] text-content-dim">
+            Modalidad en La Paz<span className="text-brand"> *</span>
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            <ModeCard
+              active={value.mode === "pickup"}
+              title="Retiro en el local"
+              detail="Sucursal principal · sin costo"
+              onClick={() =>
+                onChange({
+                  ...value,
+                  mode: "pickup",
+                  address: "",
+                  lat: null,
+                  lng: null,
+                  mapsUrl: "",
+                })
+              }
+            />
+            <ModeCard
+              active={value.mode === "delivery"}
+              title="Entrega local"
+              detail="Marca tu ubicación"
+              onClick={() => onChange({ ...value, mode: "delivery" })}
+            />
+          </div>
+          {err("mode") ? <p className="mt-1.5 text-xs text-alert-soft">{err("mode")}</p> : null}
+        </fieldset>
+      ) : null}
+
+      {isLocalDelivery ? (
         <div className="flex flex-col gap-3.5 animate-rise">
-          <Select
-            label="Departamento"
+          <p className="border-l-[3px] border-brand bg-brand/[0.07] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#E8C8BC]">
+            Entrega local en La Paz. Necesitamos tu dirección y ubicación exacta.
+          </p>
+
+          <Input
+            label="Dirección"
             required
-            value={value.department ?? ""}
-            error={err("department")}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                department: (e.target.value || null) as Department | null,
-                // Cambiar de departamento borra los datos del otro camino: los
-                // dos flujos piden cosas distintas y no deben mezclarse.
-                lat: null,
-                lng: null,
-                mapsUrl: "",
-                address: "",
-                branch: "",
-              })
-            }
-          >
-            <option value="">Elige tu departamento…</option>
-            {DEPARTMENTS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-                {d === LOCAL_DEPARTMENT ? " — entrega a domicilio" : ""}
-              </option>
-            ))}
-          </Select>
+            placeholder="Calle, número, zona"
+            autoComplete="street-address"
+            value={value.address}
+            error={err("address")}
+            onChange={(e) => set("address", e.target.value)}
+          />
 
-          {isLocal ? (
-            <div className="flex flex-col gap-3.5">
-              <p className="border-l-[3px] border-brand bg-brand/[0.07] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#E8C8BC]">
-                Reparto con logística propia en Cochabamba. Necesitamos la ubicación exacta.
-              </p>
+          <div>
+            <p className="label-xs mb-[7px] text-content-dim">
+              Ubicación en el mapa<span className="text-brand"> *</span>
+            </p>
+            <LocationPicker
+              value={value.lat !== null && value.lng !== null ? { lat: value.lat, lng: value.lng } : null}
+              error={err("lat")}
+              onChange={(next, mapsUrl) =>
+                onChange({
+                  ...value,
+                  lat: next?.lat ?? null,
+                  lng: next?.lng ?? null,
+                  mapsUrl: mapsUrl ?? value.mapsUrl,
+                })
+              }
+            />
+          </div>
+        </div>
+      ) : null}
 
-              <Input
-                label="Dirección"
-                required
-                placeholder="Calle, número, zona"
-                autoComplete="street-address"
-                value={value.address}
-                error={err("address")}
-                onChange={(e) => set("address", e.target.value)}
-              />
+      {isOther ? (
+        <div className="flex flex-col gap-3.5 animate-rise">
+          <p className="border-l-[3px] border-drei-line bg-drei-line/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-drei-ink">
+            Para envíos fuera de La Paz solo necesitamos los datos del destinatario. El vendedor
+            coordinará la empresa y la sucursal de transporte.
+          </p>
 
-              <div>
-                <p className="label-xs mb-[7px] text-content-dim">
-                  Ubicación en el mapa<span className="text-brand"> *</span>
-                </p>
-                <LocationPicker
-                  value={value.lat !== null && value.lng !== null ? { lat: value.lat, lng: value.lng } : null}
-                  error={err("lat")}
-                  onChange={(next, mapsUrl) =>
-                    onChange({
-                      ...value,
-                      lat: next?.lat ?? null,
-                      lng: next?.lng ?? null,
-                      mapsUrl: mapsUrl ?? value.mapsUrl,
-                    })
-                  }
-                />
-              </div>
-            </div>
-          ) : null}
+          <Input
+            label="CI / Documento"
+            required
+            placeholder="Ej. 1234567 LP"
+            value={value.documentId}
+            error={err("documentId")}
+            hint="Lo piden en la agencia para entregar el paquete."
+            onChange={(e) => set("documentId", e.target.value)}
+          />
 
-          {isOther ? (
-            <div className="flex flex-col gap-3.5 animate-rise">
-              <p className="border-l-[3px] border-drei-line bg-drei-line/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-drei-ink">
-                Fuera de Cochabamba no hacemos entrega a domicilio: el paquete se despacha por
-                empresa de transporte y lo retiras en la sucursal con tu carnet.
-              </p>
-
-              <Input
-                label="Sucursal de destino"
-                required
-                placeholder="Ej. Trans Copacabana, terminal de Santa Cruz"
-                value={value.branch}
-                error={err("branch")}
-                hint="La agencia y sucursal donde quieres retirar el paquete."
-                onChange={(e) => set("branch", e.target.value)}
-              />
-
-              <Input
-                label="CI / Documento"
-                required
-                placeholder="Ej. 1234567 CB"
-                value={value.documentId}
-                error={err("documentId")}
-                hint="Lo piden en la agencia para entregarte el paquete."
-                onChange={(e) => set("documentId", e.target.value)}
-              />
-
-              <Input
-                label="Correo electrónico"
-                required
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="tucorreo@mail.com"
-                value={value.email}
-                error={err("email")}
-                onChange={(e) => set("email", e.target.value)}
-              />
-            </div>
-          ) : null}
+          <Input
+            label="Correo electrónico"
+            required
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="tucorreo@mail.com"
+            value={value.email}
+            error={err("email")}
+            onChange={(e) => set("email", e.target.value)}
+          />
         </div>
       ) : null}
     </div>
@@ -262,7 +266,7 @@ function ModeCard({
         active ? "border-brand bg-brand/[0.09]" : "border-line-strong bg-[#0F0F0E] hover:border-[#3A3A38]",
       )}
     >
-      <span className={cn("block text-[13.5px] font-extrabold", active ? "text-brand" : "text-content")}>
+      <span className={cn("block text-[13.5px] font-extrabold", active ? "text-brand" : "text-content") }>
         {title}
       </span>
       <span className="mt-[3px] block text-[11.5px] text-[#8A8783]">{detail}</span>

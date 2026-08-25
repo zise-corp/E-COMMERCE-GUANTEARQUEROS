@@ -1,8 +1,6 @@
 import { AdminTopbar } from "@/components/admin/AdminShell";
 import { NewProductButton } from "@/components/admin/NewProductButton";
-import { CampaignToggle } from "@/components/admin/CampaignToggle";
 import { getDashboard } from "@/db/queries/admin";
-import { getCampaign } from "@/db/queries/settings";
 import { requireAdmin } from "@/lib/admin-auth";
 import { cn } from "@/lib/cn";
 import { formatBs, formatBsCompact } from "@/lib/money";
@@ -18,7 +16,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 
 export default async function AdminDashboard() {
   await requireAdmin();
-  const [data, campaign] = await Promise.all([getDashboard(), getCampaign()]);
+  const data = await getDashboard();
 
   const maxSale = Math.max(1, ...data.weeklySales.map((w) => w.total));
   const totalOrders = data.byStatus.reduce((n, s) => n + s.n, 0);
@@ -182,7 +180,6 @@ export default async function AdminDashboard() {
             )}
           </div>
 
-          <CampaignToggle campaign={campaign} />
         </div>
       </div>
     </>

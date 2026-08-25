@@ -18,27 +18,27 @@ export const shippingSchema = z
     name: trimmed(120).min(2, "Escribe tu nombre."),
     phone: phoneSchema,
     note: trimmed(500).optional().default(""),
-    mode: z.enum(["pickup", "delivery"]),
+    mode: z.enum(["pickup", "delivery"], {
+      errorMap: () => ({ message: "Elige retiro en local o entrega." }),
+    }),
     department: z.enum(DEPARTMENTS).nullable().default(null),
     address: trimmed(240).optional().default(""),
     lat: z.number().min(-90).max(90).nullable().default(null),
     lng: z.number().min(-180).max(180).nullable().default(null),
     mapsUrl: trimmed(500).optional().default(""),
     documentId: trimmed(40).optional().default(""),
-    branch: trimmed(160).optional().default(""),
     email: z.union([z.literal(""), z.string().trim().email("Correo inválido.").max(160)])
       .optional()
       .default(""),
   })
   .superRefine((v, ctx) => {
-    if (v.mode !== "delivery") return;
-
     if (!v.department) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Elige el departamento." });
       return;
     }
 
     if (v.department === LOCAL_DEPARTMENT) {
+      if (v.mode === "pickup") return;
       // Cochabamba: logística propia, hace falta dirección y punto exacto.
       if (v.address.trim().length < 5) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Escribe la dirección." });
@@ -51,17 +51,20 @@ export const shippingSchema = z
         });
       }
     } else {
-      // Otro departamento: despacho por transporte. No hay reparto a domicilio
-      // fuera de Cochabamba, así que en vez de dirección + mapa se pide a qué
-      // sucursal de la agencia mandar el paquete, más CI y correo para retirarlo.
+      if (v.mode !== "delivery") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["mode"],
+          message: "El retiro en local solo está disponible en La Paz.",
+        });
+      }
+      // En otro departamento el comprador solo deja sus datos. La empresa y la
+      // sucursal de transporte las coordina posteriormente el vendedor.
       if (v.documentId.trim().length < 4) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Falta el CI o documento." });
       }
       if (!v.email) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Falta el correo." });
-      }
-      if (v.branch.trim().length < 3) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["branch"], message: "Indica a qué sucursal enviamos." });
       }
     }
   });

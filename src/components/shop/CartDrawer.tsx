@@ -94,6 +94,12 @@ export function CartDrawer() {
 function ItemsStep() {
   const cart = useCart();
 
+  function emptyCart() {
+    if (!window.confirm("¿Quieres vaciar todos los productos del carrito?")) return;
+    cart.clear();
+    cart.setOrderId(null);
+  }
+
   if (cart.items.length === 0) {
     return (
       <div className="px-6 py-[70px] text-center">
@@ -110,14 +116,28 @@ function ItemsStep() {
   }
 
   return (
-    <ul className="px-6 py-[18px]">
-      {cart.items.map((item) => {
-        const line = toNumber(item.unitPrice) * item.quantity;
-        return (
-          <li
-            key={`${item.productId}-${item.size ?? "u"}`}
-            className="flex gap-3.5 border-b border-ink-800 py-3.5 last:border-b-0"
-          >
+    <div className="px-6 py-[18px]">
+      <div className="flex items-center justify-between border-b border-ink-800 pb-2.5">
+        <span className="text-[11.5px] text-content-dim">
+          {cart.count} {cart.count === 1 ? "producto" : "productos"}
+        </span>
+        <button
+          type="button"
+          onClick={emptyCart}
+          className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:text-alert focus-visible:text-alert"
+        >
+          Vaciar carrito
+        </button>
+      </div>
+
+      <ul>
+        {cart.items.map((item) => {
+          const line = toNumber(item.unitPrice) * item.quantity;
+          return (
+            <li
+              key={`${item.productId}-${item.size ?? "u"}`}
+              className="flex gap-3.5 border-b border-ink-800 py-3.5 last:border-b-0"
+            >
             <Link
               href={`/p/${item.slug}`}
               onClick={cart.closeCart}
@@ -159,10 +179,10 @@ function ItemsStep() {
             <span className="font-display text-[19px] leading-tight text-brand tabular">
               {formatBs(line)}
             </span>
-          </li>
-        );
-      })}
-    </ul>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
-
