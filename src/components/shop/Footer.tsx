@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Escudo } from "@/components/brand/Escudo";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { site } from "@/lib/site";
+import { FacebookIcon, InstagramIcon, WhatsappIcon } from "@/components/ui/Icons";
+import { site, whatsappLink } from "@/lib/site";
 import type { NavCategory } from "./Header";
 
 export function Footer({ categories }: { categories: NavCategory[] }) {
@@ -28,11 +29,28 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
           <p className="mt-3.5 max-w-[300px] text-[13.5px] leading-relaxed text-content-dim">
             Guantes de arquero, indumentaria DREI Athletic y accesorios. {site.city}, {site.country}.
           </p>
+          <div className="mt-5 flex items-center gap-2" aria-label="Redes sociales">
+            <SocialLink href={site.social.facebook} label="Facebook de Guantearqueros Bolivia">
+              <FacebookIcon size={18} />
+            </SocialLink>
+            <SocialLink href={site.social.facebookSecondary} label="Segunda página de Facebook">
+              <FacebookIcon size={18} />
+            </SocialLink>
+            <SocialLink href={site.social.instagram} label="Instagram de Guantearqueros Bolivia">
+              <InstagramIcon size={18} />
+            </SocialLink>
+            <SocialLink
+              href={whatsappLink("Hola, quisiera información sobre sus productos.")}
+              label="Contactar por WhatsApp"
+            >
+              <WhatsappIcon size={18} />
+            </SocialLink>
+          </div>
         </div>
 
         <FooterColumn
           title="Tienda"
-          items={categories.map((c) => ({ label: c.name, href: `/c/${c.slug}` }))}
+          items={categories.map((c) => ({ label: c.name, href: `/${c.slug}` }))}
         />
         <FooterColumn
           title="Ayuda"
@@ -46,10 +64,10 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
         <FooterColumn
           title="Marcas"
           items={[
-            { label: "Buffon", href: "/c/guantes" },
-            { label: "Uhlsport", href: "/c/guantes" },
-            { label: "HO Soccer", href: "/c/guantes" },
-            { label: "DREI Athletic", href: "/c/poleras" },
+            { label: "Buffon", href: "/guantes" },
+            { label: "Uhlsport", href: "/guantes" },
+            { label: "HO Soccer", href: "/guantes" },
+            { label: "DREI Athletic", href: "/drei" },
           ]}
         />
       </div>
@@ -63,6 +81,29 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+function SocialLink({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      title={label}
+      className="flex size-10 items-center justify-center border border-line-strong text-content-dim transition-colors duration-150 hover:border-brand hover:bg-brand/[0.08] hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      {children}
+    </a>
   );
 }
 

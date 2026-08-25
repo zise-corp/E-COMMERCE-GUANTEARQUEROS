@@ -231,18 +231,25 @@ export type CatalogFilters = {
   minPrice?: number;
 };
 
+export type ResolvedCategory = { id: number; parentId: number | null };
+
 export async function getProductsByCategory(
   categorySlug: string,
   subcategorySlug?: string,
   filters: CatalogFilters = {},
+  resolvedCategory?: ResolvedCategory,
 ): Promise<ProductCard[]> {
   return withFallback<ProductCard[]>([], async () => {
     const target = subcategorySlug ?? categorySlug;
-    const [cat] = await db
-      .select({ id: categories.id, parentId: categories.parentId })
-      .from(categories)
-      .where(and(eq(categories.slug, target), eq(categories.active, true)))
-      .limit(1);
+    const cat =
+      resolvedCategory ??
+      (
+        await db
+          .select({ id: categories.id, parentId: categories.parentId })
+          .from(categories)
+          .where(and(eq(categories.slug, target), eq(categories.active, true)))
+          .limit(1)
+      )[0];
     if (!cat) return [];
 
     const scope =
@@ -274,16 +281,24 @@ export async function getProductsByCategory(
 }
 
 /** Rango de precios y tallas disponibles de una rama, para armar los filtros. */
-export async function getCategoryFacets(categorySlug: string, subcategorySlug?: string) {
+export async function getCategoryFacets(
+  categorySlug: string,
+  subcategorySlug?: string,
+  resolvedCategory?: ResolvedCategory,
+) {
   return withFallback<{ sizes: string[]; brandNames: string[]; maxPrice: number }>(
     { sizes: [], brandNames: [], maxPrice: 900 },
     async () => {
       const target = subcategorySlug ?? categorySlug;
-      const [cat] = await db
-        .select({ id: categories.id, parentId: categories.parentId })
-        .from(categories)
-        .where(eq(categories.slug, target))
-        .limit(1);
+      const cat =
+        resolvedCategory ??
+        (
+          await db
+            .select({ id: categories.id, parentId: categories.parentId })
+            .from(categories)
+            .where(eq(categories.slug, target))
+            .limit(1)
+        )[0];
       if (!cat) return { sizes: [], brandNames: [], maxPrice: 900 };
 
       const scope =

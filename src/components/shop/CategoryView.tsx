@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Display } from "@/components/ui/Heading";
 import {
-  getCategoryBySlug,
   getCategoryFacets,
   getCategoryTree,
   getProductsByCategory,
@@ -35,23 +34,36 @@ export async function CategoryView({
   categorySlug,
   subcategorySlug,
   searchParams,
+  displayName,
+  fixedBrandName,
 }: {
   categorySlug: string;
   subcategorySlug?: string;
   searchParams: SearchParams;
+  displayName?: string;
+  fixedBrandName?: string;
 }) {
   const target = subcategorySlug ?? categorySlug;
-  const category = await getCategoryBySlug(target);
+  const tree = await getCategoryTree();
+  const root = tree.find((c) => c.slug === categorySlug);
+  const category = subcategorySlug
+    ? root?.children.find((child) => child.slug === target)
+    : root;
   if (!category) notFound();
 
-  const parent = subcategorySlug ? await getCategoryBySlug(categorySlug) : null;
-  if (subcategorySlug && (!parent || category.parentId !== parent.id)) notFound();
+  const parent = subcategorySlug ? root : null;
+  if (subcategorySlug && !parent) notFound();
+
+  const resolvedCategory = {
+    id: category.id,
+    parentId: subcategorySlug ? (parent?.id ?? null) : null,
+  };
 
   const filters = filtersFromParams(searchParams);
-  const [products, facets, tree] = await Promise.all([
-    getProductsByCategory(categorySlug, subcategorySlug, filters),
-    getCategoryFacets(categorySlug, subcategorySlug),
-    getCategoryTree(),
+  if (fixedBrandName) filters.brandNames = [fixedBrandName];
+  const [products, facets] = await Promise.all([
+    getProductsByCategory(categorySlug, subcategorySlug, filters, resolvedCategory),
+    getCategoryFacets(categorySlug, subcategorySlug, resolvedCategory),
   ]);
 
   const node = tree.find((c) => c.slug === categorySlug);
@@ -70,7 +82,7 @@ export async function CategoryView({
         {subcategorySlug && parent ? (
           <>
             <Link
-              href={`/c/${parent.slug}`}
+              href={`/${parent.slug}`}
               className="text-content-dim transition-colors duration-150 hover:text-brand"
             >
               {parent.name}
@@ -78,24 +90,24 @@ export async function CategoryView({
             {" / "}
           </>
         ) : null}
-        <span className="text-brand">{category.name}</span>
+        <span className="text-brand">{displayName ?? category.name}</span>
       </nav>
 
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-[18px]">
         <Display as="h1" size="lg">
-          {category.name}
+          {displayName ?? category.name}
         </Display>
         <p className="text-[12.5px] text-content-muted">
           {products.length} {products.length === 1 ? "resultado" : "resultados"}
         </p>
       </div>
 
-      {subcategories.length > 0 && !subcategorySlug ? (
+      {subcategories.length > 0 && !subcategorySlug && !fixedBrandName ? (
         <div className="mb-6 flex flex-wrap gap-2">
           {subcategories.map((s) => (
             <Link
               key={s.id}
-              href={`/c/${categorySlug}/${s.slug}`}
+              href={`/${categorySlug}/${s.slug}`}
               className="border border-line-strong px-3 py-2 text-[11.5px] font-bold tracking-[0.06em] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand"
             >
               {s.name}
@@ -108,7 +120,7 @@ export async function CategoryView({
       <div className="grid items-start gap-8 lg:grid-cols-[258px_1fr]">
         <Suspense fallback={<div className="h-64 border border-line bg-ink-900" />}>
           <CategoryFilters
-            brandNames={facets.brandNames}
+            brandNames={fixedBrandName ? [] : facets.brandNames}
             sizes={facets.sizes}
             maxPrice={facets.maxPrice}
           />

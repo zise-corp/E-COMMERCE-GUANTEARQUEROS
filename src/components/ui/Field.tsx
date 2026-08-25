@@ -61,7 +61,7 @@ type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "className">
   hint?: string;
   className?: string;
   fieldClassName?: string;
-  /** Texto fijo antes del valor, p. ej. "/c/" en un slug. No editable. */
+  /** Texto fijo antes del valor, p. ej. "/p/" en un slug. No editable. */
   prefix?: string;
   /** Control opcional al final del input, por ejemplo mostrar/ocultar contraseña. */
   endAdornment?: React.ReactNode;

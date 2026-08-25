@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 import { loginAction, type LoginState } from "@/app/admin/login/actions";
-import { site } from "@/lib/site";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
@@ -88,10 +87,6 @@ export function LoginForm({ next }: { next: string }) {
             Volver a la tienda
           </Link>
         </div>
-
-        <p className="mt-4 text-[11.5px] tracking-[0.06em] text-content-dim">
-          {site.url.replace(/^https?:\/\//, "")}/admin
-        </p>
       </form>
     </div>
   );

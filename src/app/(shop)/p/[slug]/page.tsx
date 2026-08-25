@@ -87,7 +87,7 @@ export default async function ProductPage({ params }: Props) {
 
       <div className="mb-4">
         <BackButton
-          fallbackHref={`/c/${product.categorySlug}`}
+          fallbackHref={`/${product.categorySlug}`}
           label={`Volver a ${product.categoryName}`}
         />
       </div>
@@ -101,7 +101,7 @@ export default async function ProductPage({ params }: Props) {
         </Link>
         {" / "}
         <Link
-          href={`/c/${product.categorySlug}`}
+          href={`/${product.categorySlug}`}
           className="transition-colors duration-150 hover:text-brand"
         >
           {product.categoryName}
@@ -110,7 +110,7 @@ export default async function ProductPage({ params }: Props) {
           <>
             {" / "}
             <Link
-              href={`/c/${product.categorySlug}/${product.subcategorySlug}`}
+              href={`/${product.categorySlug}/${product.subcategorySlug}`}
               className="transition-colors duration-150 hover:text-brand"
             >
               {product.subcategoryName}

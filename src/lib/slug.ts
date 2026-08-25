@@ -10,3 +10,24 @@ export function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+/** Rutas de primer nivel que pertenecen a la aplicación y no a categorías. */
+export const RESERVED_CATEGORY_SLUGS = new Set([
+  "admin",
+  "api",
+  "ayuda",
+  "c",
+  "checkout",
+  "drei",
+  "p",
+  "login",
+  "robots.txt",
+  "sitemap.xml",
+  "opengraph-image",
+  "favicon.ico",
+  "_next",
+]);
+
+export function isReservedCategorySlug(slug: string): boolean {
+  return RESERVED_CATEGORY_SLUGS.has(slug.toLowerCase());
+}

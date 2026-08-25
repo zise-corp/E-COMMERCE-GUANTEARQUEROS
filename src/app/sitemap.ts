@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const categories = tree.map((c) => ({
-    url: `${site.url}/c/${c.slug}`,
+    url: `${site.url}/${c.slug}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.8,
@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const subcategories = subs
     .filter((s) => s.parentSlug !== null)
     .map((s) => ({
-      url: `${site.url}/c/${s.parentSlug}/${s.slug}`,
+      url: `${site.url}/${s.parentSlug}/${s.slug}`,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.6,
@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: site.url, lastModified: now, changeFrequency: "daily", priority: 1 },
+    { url: `${site.url}/drei`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     ...categories,
     ...subcategories,
     ...products,

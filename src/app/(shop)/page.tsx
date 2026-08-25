@@ -55,7 +55,7 @@ export default async function HomePage() {
               return (
               <Link
                 key={c.id}
-                href={`/c/${c.slug}`}
+                href={`/${c.slug}`}
                 className="group relative block h-[260px] overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
               >
                 <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
@@ -101,7 +101,7 @@ export default async function HomePage() {
           title="Destacados"
           aside={
             guantes ? (
-              <Link href={`/c/${guantes.slug}`} className="text-brand hover:text-brand-hot">
+              <Link href={`/${guantes.slug}`} className="text-brand hover:text-brand-hot">
                 Ver todo →
               </Link>
             ) : null
@@ -145,12 +145,12 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
 
         <div className="mt-8 flex flex-wrap gap-3">
           {guantesSlug ? (
-            <ButtonLink href={`/c/${guantesSlug}`} size="lg">
+            <ButtonLink href={`/${guantesSlug}`} size="lg">
               Ver guantes
             </ButtonLink>
           ) : null}
           {dreiSlug ? (
-            <ButtonLink href={`/c/${dreiSlug}`} variant="outline" size="lg" className="hover:border-drei-line hover:text-drei-line">
+            <ButtonLink href="/drei" variant="outline" size="lg" className="hover:border-drei-line hover:text-drei-line">
               DREI Athletic
             </ButtonLink>
           ) : null}
@@ -226,7 +226,7 @@ function DreiBlock({ slug }: { slug: string | null }) {
             Uniformes personalizados, camisetas de arquero, calzas y poleras. Producción propia en
             Bolivia.
           </p>
-          <ButtonLink href={`/c/${slug}`} variant="drei" className="mt-[26px]" slash={false}>
+          <ButtonLink href="/drei" variant="drei" className="mt-[26px]" slash={false}>
             Ver indumentaria
           </ButtonLink>
         </div>

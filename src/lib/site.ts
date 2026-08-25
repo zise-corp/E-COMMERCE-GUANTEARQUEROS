@@ -11,10 +11,18 @@ export const site = {
   country: "Bolivia",
   currency: "BOB",
   locale: "es-BO",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://guantearquerosbolivia.com.bo",
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://guantearquerosbolivia.com.bo").replace(
+    /\/+$/,
+    "",
+  ),
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearquerosbolivia.com.bo",
   /** Solo dígitos, formato internacional: se usa en el link de wa.me. */
-  supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "59170000000",
+  supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "59161235265",
+  social: {
+    facebook: "https://www.facebook.com/guantearqueros.bolivia",
+    facebookSecondary: "https://www.facebook.com/profile.php?id=61552525021314",
+    instagram: "https://www.instagram.com/guantearquerosbolivia_oficial",
+  },
 } as const;
 
 /** Cómo se muestra el WhatsApp en pantalla: +591 700 00 000 */

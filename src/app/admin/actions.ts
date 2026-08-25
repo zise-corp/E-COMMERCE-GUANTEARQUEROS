@@ -9,7 +9,7 @@ import { setOrderStatus } from "@/db/queries/orders";
 import { setCampaign } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
-import { slugify } from "@/lib/slug";
+import { isReservedCategorySlug, slugify } from "@/lib/slug";
 import {
   campaignSchema,
   categorySchema,
@@ -45,6 +45,14 @@ export async function saveCategoryAction(
   }
 
   const values = parsed.data;
+  const nextSlug = slugify(values.name);
+
+  if (values.parentId === null && isReservedCategorySlug(nextSlug)) {
+    return {
+      ok: false,
+      error: `“${nextSlug}” es una ruta reservada del sistema. Usa otro nombre.`,
+    };
+  }
 
   // Un nivel: una subcategoría no puede colgar de otra subcategoría.
   if (values.parentId !== null) {
@@ -70,7 +78,7 @@ export async function saveCategoryAction(
 
       await db.insert(categories).values({
         name: values.name,
-        slug: slugify(values.name),
+        slug: nextSlug,
         parentId: values.parentId,
         position: siblings?.n ?? 0,
         active: values.active,

@@ -69,8 +69,10 @@ export const db: Db = new Proxy({} as Db, {
 let warned = false;
 
 /**
- * Para las páginas públicas: sin DATABASE_URL devuelve el fallback en vez de romper
- * el build. Si la base *sí* está configurada y la consulta falla, el error sube.
+ * Para las páginas públicas: sin base o ante una interrupción de lectura devuelve
+ * el fallback en vez de reemplazar toda la tienda por la pantalla global de error.
+ * Las escrituras y consultas administrativas no usan este envoltorio: allí el error
+ * sigue subiendo para no ocultar una operación que no se guardó.
  */
 export async function withFallback<T>(fallback: T, run: () => Promise<T>): Promise<T> {
   if (!isDbConfigured()) {
@@ -82,5 +84,10 @@ export async function withFallback<T>(fallback: T, run: () => Promise<T>): Promi
     }
     return fallback;
   }
-  return run();
+  try {
+    return await run();
+  } catch (error) {
+    console.error("[db] Lectura pública fallida; se usa contenido de respaldo.", error);
+    return fallback;
+  }
 }

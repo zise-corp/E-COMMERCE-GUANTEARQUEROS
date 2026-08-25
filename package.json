@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "clean": "node -e \"for(const dir of ['.next','.next-dev'])require('fs').rmSync(dir,{recursive:true,force:true})\"",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
