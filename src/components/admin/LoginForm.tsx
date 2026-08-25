@@ -23,9 +23,9 @@ export function LoginForm({ next }: { next: string }) {
         action={formAction}
         className="w-full max-w-[400px] border border-line-strong bg-ink-850 p-8 animate-rise"
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0">
           <Escudo width={28} height={33} />
-          <Wordmark size={17} />
+          <Wordmark size={17} className="ml-[2px]" />
         </div>
 
         <h1 className="mt-[22px] font-display text-[30px] uppercase skew-fast-6">

@@ -22,15 +22,16 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
       {/* Tres columnas laterales iguales: el nav del medio queda centrado respecto
           a la pantalla, no respecto al espacio que sobra entre logo y botones
           (que es lo que pasa con un simple flex + ml-auto). */}
-      <div className="container-shop flex h-[74px] items-center gap-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+      <div className="container-shop flex h-[74px] items-center gap-2 sm:gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <MobileMenu categories={categories} dreiSlug={dreiSlug} />
         <Link
           href="/"
-          className="flex flex-none items-center gap-1"
+          className="flex flex-none items-center gap-0"
           aria-label="Guantearqueros Bolivia, inicio"
         >
-          <Escudo width={34} height={40} />
-          <Wordmark size={22} className="hidden sm:block" />
+          <Escudo width={34} height={40} className="h-8 w-[27px] sm:h-10 sm:w-[34px]" />
+          <Wordmark size={16} className="ml-[2px] sm:hidden" />
+          <Wordmark size={22} className="ml-[2px] hidden sm:block" />
         </Link>
 
         <NavLinks

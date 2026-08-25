@@ -1,5 +1,4 @@
 import { AdminTopbar } from "@/components/admin/AdminShell";
-import { NewProductButton } from "@/components/admin/NewProductButton";
 import { getDashboard } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { cn } from "@/lib/cn";
@@ -61,7 +60,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      <AdminTopbar title="Resumen" subtitle="Últimos 30 días" action={<NewProductButton />} />
+      <AdminTopbar title="Resumen" subtitle="Últimos 30 días" />
 
       <div className="flex flex-col gap-[18px] px-5 py-[26px] pb-16 sm:px-7">
         <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">

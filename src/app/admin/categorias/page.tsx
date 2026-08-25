@@ -1,5 +1,4 @@
 import { AdminTopbar } from "@/components/admin/AdminShell";
-import { NewProductButton } from "@/components/admin/NewProductButton";
 import { CategoriesManager } from "@/components/admin/CategoriesManager";
 import { getAdminCategories } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -16,7 +15,6 @@ export default async function AdminCategoriesPage() {
       <AdminTopbar
         title="Categorías"
         subtitle={`${rows.length} categorías · ${subCount} subcategorías`}
-        action={<NewProductButton />}
       />
       <div className="px-5 py-[26px] pb-16 sm:px-7">
         <CategoriesManager rows={rows} />

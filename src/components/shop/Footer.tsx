@@ -22,9 +22,9 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
 
       <div className="container-shop grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0">
             <Escudo width={26} height={31} />
-            <Wordmark size={22} withBolivia />
+            <Wordmark size={22} withBolivia className="ml-[2px]" />
           </div>
           <p className="mt-3.5 max-w-[300px] text-[13.5px] leading-relaxed text-content-dim">
             Guantes de arquero, indumentaria DREI Athletic y accesorios. {site.city}, {site.country}.

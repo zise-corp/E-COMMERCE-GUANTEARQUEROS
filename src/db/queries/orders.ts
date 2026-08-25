@@ -314,8 +314,15 @@ export async function getOrder(orderId: number): Promise<OrderSummary | null> {
 
 /* ── Consultas del admin ──────────────────────────────────────────────────── */
 
-export async function listOrders(status?: OrderSummary["status"]) {
-  const where = status ? eq(orders.status, status) : undefined;
+export async function listOrders(status?: OrderSummary["status"], localDate?: string) {
+  const dateWhere = localDate
+    ? sql<boolean>`(${orders.createdAt} AT TIME ZONE 'America/La_Paz')::date = ${localDate}::date`
+    : undefined;
+  const where = status && dateWhere
+    ? and(eq(orders.status, status), dateWhere)
+    : status
+      ? eq(orders.status, status)
+      : dateWhere;
   return db
     .select({
       id: orders.id,
@@ -332,6 +339,32 @@ export async function listOrders(status?: OrderSummary["status"]) {
     .from(orders)
     .where(where)
     .orderBy(desc(orders.number));
+}
+
+export type DailySale = {
+  name: string;
+  size: string | null;
+  units: number;
+  amount: string;
+};
+
+/** Productos efectivamente vendidos (solo pedidos pagados) en fecha boliviana. */
+export async function salesForDate(localDate: string): Promise<DailySale[]> {
+  return db
+    .select({
+      name: orderItems.name,
+      size: orderItems.size,
+      units: sql<number>`SUM(${orderItems.quantity})::int`,
+      amount: sql<string>`SUM(${orderItems.unitPrice} * ${orderItems.quantity})::text`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(and(
+      eq(orders.paymentStatus, "pagado"),
+      sql<boolean>`(${orders.createdAt} AT TIME ZONE 'America/La_Paz')::date = ${localDate}::date`,
+    ))
+    .groupBy(orderItems.name, orderItems.size)
+    .orderBy(desc(sql`SUM(${orderItems.quantity})`), asc(orderItems.name));
 }
 
 export async function setOrderStatus(orderId: number, status: OrderSummary["status"]) {
