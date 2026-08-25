@@ -1,16 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Escudo } from "@/components/brand/Escudo";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Input } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
+import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 import { loginAction, type LoginState } from "@/app/admin/login/actions";
 import { site } from "@/lib/site";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div
@@ -47,11 +50,23 @@ export function LoginForm({ next }: { next: string }) {
           />
           <Input
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             label="Contraseña"
             autoComplete="current-password"
             required
             className="bg-[#0E0E0D]"
+            endAdornment={
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-pressed={showPassword}
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                className="flex size-8 items-center justify-center text-content-dim transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
+            }
           />
 
           {state.error ? (
@@ -64,6 +79,14 @@ export function LoginForm({ next }: { next: string }) {
           ) : null}
 
           <SubmitButton />
+
+          <Link
+            href="/"
+            className="flex items-center justify-center gap-2 border border-line-strong px-4 py-[13px] text-[12px] font-extrabold uppercase tracking-[0.12em] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand"
+          >
+            <ArrowLeftIcon size={15} />
+            Volver a la tienda
+          </Link>
         </div>
 
         <p className="mt-4 text-[11.5px] tracking-[0.06em] text-content-dim">

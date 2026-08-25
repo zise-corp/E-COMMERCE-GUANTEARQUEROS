@@ -63,6 +63,8 @@ type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "className">
   fieldClassName?: string;
   /** Texto fijo antes del valor, p. ej. "/c/" en un slug. No editable. */
   prefix?: string;
+  /** Control opcional al final del input, por ejemplo mostrar/ocultar contraseña. */
+  endAdornment?: React.ReactNode;
 };
 
 export function Input({
@@ -72,6 +74,7 @@ export function Input({
   className,
   fieldClassName,
   prefix,
+  endAdornment,
   ...rest
 }: InputProps) {
   const auto = useId();
@@ -98,9 +101,12 @@ export function Input({
           {...rest}
           id={id}
           aria-invalid={error ? true : undefined}
-          className={cn(control, borderFor(error), className)}
+          className={cn(control, borderFor(error), Boolean(endAdornment) && "pr-12", className)}
           style={prefix ? { paddingLeft: `calc(${prefix.length}ch + 30px)` } : undefined}
         />
+        {endAdornment ? (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3">{endAdornment}</div>
+        ) : null}
       </div>
     </Field>
   );
