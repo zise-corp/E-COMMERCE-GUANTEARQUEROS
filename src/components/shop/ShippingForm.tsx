@@ -54,7 +54,7 @@ export function describeDelivery(v: ShippingValues): string {
   if (!v.department) return "Elige el departamento";
   if (v.department === LOCAL_DEPARTMENT) {
     if (v.mode === "pickup") return "Retiro en el local · La Paz";
-    if (v.mode === "delivery") return "Entrega local · La Paz";
+    if (v.mode === "delivery") return "Envío a domicilio · La Paz";
     return "Elige retiro en local o entrega";
   }
   return `Envío a ${v.department} por transporte`;
@@ -140,7 +140,7 @@ export function ShippingForm({
         {DEPARTMENTS.map((department) => (
           <option key={department} value={department}>
             {department}
-            {department === LOCAL_DEPARTMENT ? " — retiro o entrega local" : ""}
+            {department === LOCAL_DEPARTMENT ? " — retiro o envío a domicilio" : ""}
           </option>
         ))}
       </Select>
@@ -168,7 +168,7 @@ export function ShippingForm({
             />
             <ModeCard
               active={value.mode === "delivery"}
-              title="Entrega local"
+              title="Envío a domicilio"
               detail="Marca tu ubicación"
               onClick={() => onChange({ ...value, mode: "delivery" })}
             />
@@ -180,7 +180,7 @@ export function ShippingForm({
       {isLocalDelivery ? (
         <div className="flex flex-col gap-3 animate-rise">
           <p className="border-l-[3px] border-brand bg-brand/[0.07] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#E8C8BC]">
-            Entrega local en La Paz. Necesitamos tu dirección y ubicación exacta.
+            Envío a domicilio en La Paz. Necesitamos tu dirección y ubicación exacta.
           </p>
 
           <Input
