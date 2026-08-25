@@ -1,47 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/ui/Drawer";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { formatBs, toNumber } from "@/lib/money";
 import { useCart } from "./CartProvider";
 import { ProductImage } from "./ProductImage";
-import {
-  ShippingForm,
-  describeDelivery,
-  emptyShipping,
-  validate,
-  type ShippingValues,
-} from "./ShippingForm";
-import { ConfirmOrderModal } from "./ConfirmOrderModal";
 
 export function CartDrawer() {
   const cart = useCart();
-  const [shipping, setShipping] = useState<ShippingValues>(emptyShipping);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [submitAttempted, setSubmitAttempted] = useState(false);
-
-  const title = cart.step === "items" ? "Tu carrito" : "Datos de envío";
-  const ctaLabel = cart.step === "items" ? "Continuar" : "Revisar y confirmar";
+  const router = useRouter();
   const empty = cart.items.length === 0;
 
-  const onCta = useCallback(() => {
-    if (cart.step === "items") {
-      cart.setStep("shipping");
-      return;
-    }
-    setSubmitAttempted(true);
-    // La validación vive en ShippingForm; acá solo se abre el resumen si pasó.
-    if (validate(shipping).ok) setConfirmOpen(true);
-  }, [cart, shipping]);
+  function continueToShipping() {
+    cart.closeCart();
+    router.push("/checkout/envio");
+  }
 
   return (
-    <>
       <Drawer
         open={cart.open}
         onClose={cart.closeCart}
-        title={title}
+        title="Tu carrito"
         footer={
           <div className="px-6 pb-[22px] pt-[18px]">
             <div className="mb-1.5 flex items-baseline justify-between">
@@ -50,44 +31,19 @@ export function CartDrawer() {
                 {formatBs(cart.subtotal)}
               </span>
             </div>
-            <p className="mb-3.5 text-xs text-content-dim">{describeDelivery(shipping)}</p>
             <button
               type="button"
-              onClick={onCta}
+              onClick={continueToShipping}
               disabled={empty}
               className="w-full bg-brand px-4 py-[18px] text-center text-[13.5px] font-extrabold uppercase tracking-[0.14em] text-ink-950 transition-colors duration-150 clip-slash-lg hover:bg-brand-hot disabled:bg-ink-700 disabled:text-content-faint"
             >
-              {ctaLabel}
+              Continuar con el envío
             </button>
-            {cart.step === "shipping" ? (
-              <button
-                type="button"
-                onClick={() => cart.setStep("items")}
-                className="w-full pt-3 text-center text-[11.5px] uppercase tracking-[0.12em] text-content-dim transition-colors duration-150 hover:text-content"
-              >
-                ← Volver al carrito
-              </button>
-            ) : null}
           </div>
         }
       >
-        {cart.step === "items" ? (
-          <ItemsStep />
-        ) : (
-          <ShippingForm
-            value={shipping}
-            onChange={setShipping}
-            showErrors={submitAttempted}
-          />
-        )}
+        <ItemsStep />
       </Drawer>
-
-      <ConfirmOrderModal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        shipping={shipping}
-      />
-    </>
   );
 }
 

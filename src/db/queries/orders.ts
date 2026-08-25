@@ -1,9 +1,10 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../index";
 import { orderItems, orders, productImages, products } from "../schema";
 import type { ShippingOutput } from "@/lib/validators";
 import { toDbNumeric } from "@/lib/money";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
+import { getCheckoutSettings } from "./settings";
 
 export type OrderLineInput = { productId: number; size: string | null; quantity: number };
 
@@ -36,17 +37,20 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
       sizes: products.sizes,
       attributes: products.attributes,
       published: products.published,
-      image: sql<string | null>`(
-        SELECT pi.public_id FROM ${productImages} pi
-        WHERE pi.product_id = ${products.id}
-        ORDER BY pi.is_primary DESC, pi.position ASC, pi.id ASC
-        LIMIT 1
-      )`,
     })
     .from(products)
     .where(inArray(products.id, ids));
 
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const imageRows = await db
+    .select({ productId: productImages.productId, publicId: productImages.publicId })
+    .from(productImages)
+    .where(inArray(productImages.productId, ids))
+    .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id));
+  const imageByProduct = new Map<number, string>();
+  for (const image of imageRows) {
+    if (!imageByProduct.has(image.productId)) imageByProduct.set(image.productId, image.publicId);
+  }
 
   return lines.map((line) => {
     const p = byId.get(line.productId);
@@ -70,7 +74,7 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
       size: line.size,
       unitPrice: p.price,
       quantity: line.quantity,
-      imagePublicId: p.image,
+      imagePublicId: imageByProduct.get(p.id) ?? null,
       attributesSnapshot: p.attributes ?? [],
     };
   });
@@ -82,6 +86,38 @@ export function totalOf(lines: PricedLine[]): string {
     0,
   );
   return (cents / 100).toFixed(2);
+}
+
+export type OrderPricing = {
+  subtotal: string;
+  shipping: string;
+  discount: string;
+  total: string;
+  discountCode: string | null;
+};
+
+export async function calculateOrderPricing(
+  lines: PricedLine[],
+  rawCode = "",
+  chargeShipping = true,
+): Promise<OrderPricing> {
+  const settings = await getCheckoutSettings();
+  const subtotal = Number(totalOf(lines));
+  const shipping = chargeShipping ? Math.max(0, settings.shippingPrice) : 0;
+  const code = rawCode.trim().toUpperCase();
+  const match = code ? settings.discounts.find((item) => item.active && item.code.toUpperCase() === code) : null;
+  const rawDiscount = match
+    ? match.type === "percent" ? subtotal * (match.value / 100) : match.value
+    : 0;
+  // Los códigos descuentan productos, nunca generan saldo sobre el envío.
+  const discount = Math.min(subtotal, Math.max(0, rawDiscount));
+  return {
+    subtotal: subtotal.toFixed(2),
+    shipping: shipping.toFixed(2),
+    discount: discount.toFixed(2),
+    total: Math.max(0, subtotal + shipping - discount).toFixed(2),
+    discountCode: match ? match.code.toUpperCase() : null,
+  };
 }
 
 /** Solo se guardan los campos que corresponden a la modalidad elegida. */
@@ -114,8 +150,7 @@ function deliveryColumns(shipping: ShippingOutput) {
   };
 }
 
-export async function createOrder(shipping: ShippingOutput, lines: PricedLine[]) {
-  const total = totalOf(lines);
+export async function createOrder(shipping: ShippingOutput, lines: PricedLine[], pricing: OrderPricing) {
 
   return db.transaction(async (tx) => {
     const [seq] = await tx.execute<{ number: number }>(
@@ -132,7 +167,7 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[])
         customerPhone: shipping.phone,
         note: shipping.note || null,
         ...deliveryColumns(shipping),
-        total: toDbNumeric(total),
+        total: toDbNumeric(pricing.total),
       })
       .returning({ id: orders.id, number: orders.number });
 
@@ -163,8 +198,8 @@ export async function updateOrder(
   orderId: number,
   shipping: ShippingOutput,
   lines: PricedLine[],
+  pricing: OrderPricing,
 ) {
-  const total = totalOf(lines);
 
   return db.transaction(async (tx) => {
     const [current] = await tx
@@ -193,7 +228,7 @@ export async function updateOrder(
         customerPhone: shipping.phone,
         note: shipping.note || null,
         ...deliveryColumns(shipping),
-        total: toDbNumeric(total),
+        total: toDbNumeric(pricing.total),
         updatedAt: new Date(),
       })
       .where(eq(orders.id, orderId));
@@ -257,7 +292,17 @@ export async function getOrder(orderId: number): Promise<OrderSummary | null> {
       size: orderItems.size,
       unitPrice: orderItems.unitPrice,
       quantity: orderItems.quantity,
-      imagePublicId: orderItems.imagePublicId,
+      // Pedidos antiguos pueden no tener la imagen congelada. Mientras el
+      // producto siga existiendo, recuperamos su imagen principal actual.
+      imagePublicId: sql<string | null>`COALESCE(
+        ${orderItems.imagePublicId},
+        (
+          SELECT pi.public_id FROM ${productImages} pi
+          WHERE pi.product_id = ${orderItems.productId}
+          ORDER BY pi.is_primary DESC, pi.position ASC, pi.id ASC
+          LIMIT 1
+        )
+      )`,
       attributesSnapshot: orderItems.attributesSnapshot,
     })
     .from(orderItems)

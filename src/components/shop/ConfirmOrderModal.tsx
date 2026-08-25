@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatBs } from "@/lib/money";
 import { useCart } from "./CartProvider";
-import { describeDelivery, type ShippingValues } from "./ShippingForm";
+import type { ShippingValues } from "./ShippingForm";
 
 /**
  * Último paso antes de crear el pedido. La orden se crea acá, en el server, y
@@ -17,10 +17,16 @@ export function ConfirmOrderModal({
   open,
   onClose,
   shipping,
+  shippingPrice,
+  discountCode,
+  discountAmount,
 }: {
   open: boolean;
   onClose: () => void;
   shipping: ShippingValues;
+  shippingPrice: number;
+  discountCode: string;
+  discountAmount: number;
 }) {
   const cart = useCart();
   const router = useRouter();
@@ -33,6 +39,7 @@ export function ConfirmOrderModal({
     try {
       const payload = {
         shipping,
+        discountCode,
         items: cart.items.map((i) => ({
           productId: i.productId,
           size: i.size,
@@ -74,8 +81,11 @@ export function ConfirmOrderModal({
 
   const rows: { k: string; v: string }[] = [
     { k: "Ítems", v: `${cart.count} ${cart.count === 1 ? "producto" : "productos"}` },
-    { k: "Total", v: formatBs(cart.subtotal) },
-    { k: "Entrega", v: describeDelivery(shipping) },
+    ...(shipping.mode === "pickup"
+      ? [{ k: "Retiro en el local", v: "Sin costo" }]
+      : [{ k: "Envío", v: formatBs(shippingPrice) }]),
+    ...(discountAmount > 0 ? [{ k: `Descuento · ${discountCode}`, v: `− ${formatBs(discountAmount)}` }] : []),
+    { k: "Total", v: formatBs(Math.max(0, cart.subtotal + shippingPrice - discountAmount)) },
     { k: "Cliente", v: shipping.name || "Sin nombre" },
   ];
 

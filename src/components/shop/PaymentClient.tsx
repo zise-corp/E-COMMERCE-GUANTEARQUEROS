@@ -28,7 +28,10 @@ export type PaymentOrder = {
   number: number;
   total: string;
   paymentStatus: string;
-  deliverySummary: string;
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  pickup: boolean;
   items: {
     name: string;
     size: string | null;
@@ -144,8 +147,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
       <button
         type="button"
         onClick={() => {
-          cart.openCart("shipping");
-          router.push("/");
+          router.push("/checkout/envio");
         }}
         className="mb-[22px] inline-flex items-center gap-2 text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-content-muted transition-colors duration-150 hover:text-brand"
       >
@@ -253,9 +255,12 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
 
         <div className="flex flex-col gap-3 lg:sticky lg:top-[132px]">
           <div className="border border-line bg-ink-900 p-5">
-            <h2 className="mb-4 font-display text-xl uppercase skew-fast-6">
-              Pedido #{order.number}
-            </h2>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 className="font-display text-xl uppercase skew-fast-6">Resumen del pedido</h2>
+              <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-dim">
+                Pedido #{order.number}
+              </span>
+            </div>
 
             <ul>
               {order.items.map((i, idx) => (
@@ -280,13 +285,36 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
               ))}
             </ul>
 
-            <div className="mt-4 flex items-baseline justify-between">
+            <div className="mt-4 space-y-2 border-t border-ink-800 pt-4 text-[13px]">
+              <div className="flex justify-between">
+                <span className="text-content-dim">Subtotal</span>
+                <span>{formatBs(order.subtotal)}</span>
+              </div>
+              {order.pickup ? (
+                <div className="flex justify-between">
+                  <span className="text-content-dim">Retiro en el local</span>
+                  <span className="text-state-ok">Sin costo</span>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-content-dim">Envío</span>
+                  <span>{formatBs(order.shipping)}</span>
+                </div>
+              )}
+              {order.discount > 0 ? (
+                <div className="flex justify-between text-state-ok">
+                  <span>Descuento</span>
+                  <span>− {formatBs(order.discount)}</span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
               <span className="label-xs tracking-[0.14em] text-content-dim">Total</span>
               <span className="font-display text-[34px] leading-none text-brand tabular">
                 {formatBs(order.total)}
               </span>
             </div>
-            <p className="mt-1.5 text-[12.5px] text-content-muted">{order.deliverySummary}</p>
           </div>
 
           {intent ? (

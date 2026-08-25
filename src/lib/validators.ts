@@ -82,6 +82,7 @@ export const orderItemSchema = z.object({
 export const createOrderSchema = z.object({
   shipping: shippingSchema,
   items: z.array(orderItemSchema).min(1, "El carrito está vacío.").max(50),
+  discountCode: trimmed(40).optional().default(""),
 });
 
 export const updateOrderSchema = createOrderSchema.extend({
@@ -167,6 +168,27 @@ export const reorderCategoriesSchema = z.object({
 export const campaignSchema = z.object({
   enabled: z.boolean(),
   messages: z.array(z.string().trim().min(1).max(80)).min(1).max(6),
+});
+
+export const checkoutSettingsSchema = z.object({
+  shippingPrice: z.number().min(0).max(10_000),
+  discounts: z.array(z.object({
+    code: z.string().trim().min(2).max(40).transform((value) => value.toUpperCase()),
+    type: z.enum(["percent", "fixed"]),
+    value: z.number().positive().max(1_000_000),
+    active: z.boolean(),
+  })).max(100).superRefine((codes, ctx) => {
+    const seen = new Set<string>();
+    codes.forEach((item, index) => {
+      if (item.type === "percent" && item.value > 100) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "value"], message: "El porcentaje no puede superar 100." });
+      }
+      if (seen.has(item.code)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "code"], message: "El código está repetido." });
+      }
+      seen.add(item.code);
+    });
+  }),
 });
 
 export const uploadSignatureSchema = z.object({

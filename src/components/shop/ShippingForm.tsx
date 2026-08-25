@@ -95,32 +95,34 @@ export function ShippingForm({
   }
 
   return (
-    <div className="flex flex-col gap-3.5 px-6 pb-2 pt-5">
-      <Input
-        label="Nombre"
-        required
-        placeholder="Nombre y apellido"
-        autoComplete="name"
-        value={value.name}
-        error={err("name")}
-        onChange={(e) => set("name", e.target.value)}
-      />
+    <div className="flex flex-col gap-3 px-6 pb-2 pt-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          label="Nombre"
+          required
+          placeholder="Nombre y apellido"
+          autoComplete="name"
+          value={value.name}
+          error={err("name")}
+          onChange={(e) => set("name", e.target.value)}
+        />
 
-      <Input
-        label="Teléfono / WhatsApp"
-        required
-        type="tel"
-        inputMode="tel"
-        placeholder="+591 7xx xx xxx"
-        autoComplete="tel"
-        value={value.phone}
-        error={err("phone")}
-        onChange={(e) => set("phone", e.target.value)}
-      />
+        <Input
+          label="Teléfono / WhatsApp"
+          required
+          type="tel"
+          inputMode="tel"
+          placeholder="+591 7xx xx xxx"
+          autoComplete="tel"
+          value={value.phone}
+          error={err("phone")}
+          onChange={(e) => set("phone", e.target.value)}
+        />
+      </div>
 
       <Textarea
         label="Nota (opcional)"
-        rows={2}
+        rows={1}
         placeholder="Referencia, horario, color preferido..."
         value={value.note}
         error={err("note")}
@@ -176,7 +178,7 @@ export function ShippingForm({
       ) : null}
 
       {isLocalDelivery ? (
-        <div className="flex flex-col gap-3.5 animate-rise">
+        <div className="flex flex-col gap-3 animate-rise">
           <p className="border-l-[3px] border-brand bg-brand/[0.07] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#E8C8BC]">
             Entrega local en La Paz. Necesitamos tu dirección y ubicación exacta.
           </p>
@@ -212,7 +214,7 @@ export function ShippingForm({
       ) : null}
 
       {isOther ? (
-        <div className="flex flex-col gap-3.5 animate-rise">
+        <div className="flex flex-col gap-3 animate-rise">
           <p className="border-l-[3px] border-drei-line bg-drei-line/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-drei-ink">
             Para envíos fuera de La Paz solo necesitamos los datos del destinatario. El vendedor
             coordinará la empresa y la sucursal de transporte.

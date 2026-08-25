@@ -34,7 +34,7 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
       aria-label={
         needsSize ? `Elegir talla de ${product.name}` : `Agregar ${product.name} al carrito`
       }
-      title={needsSize ? "Elegir talla" : "Agregar al carrito"}
+      title="Agregar al carrito"
       onClick={() => {
         if (needsSize) {
           router.push(`/p/${product.slug}`);
@@ -54,18 +54,21 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
         toast.show("Agregado al carrito");
       }}
       className={[
-        "absolute right-0 top-0 z-20 flex h-10 w-[46px] items-center justify-center",
+        "absolute inset-x-0 bottom-0 z-20 flex h-11 items-center justify-center gap-2",
         // Corte diagonal invertido: sigue el lenguaje angular del resto de la marca.
-        "bg-brand text-ink-950 [clip-path:polygon(14px_0,100%_0,100%_100%,0_100%)]",
+        "bg-brand text-ink-950",
         "transition-[opacity,transform,background-color] duration-150",
         "hover:bg-brand-hot hover:shadow-glow-brand active:scale-95",
         // En escritorio aparece al pasar el mouse; en táctil siempre visible,
         // porque ahí no existe el hover.
-        "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-        "max-lg:opacity-100",
+        "translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100",
+        "max-lg:translate-y-0 max-lg:opacity-100",
       ].join(" ")}
     >
       <CartIcon size={18} />
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.11em]">
+        Agregar al carrito
+      </span>
     </button>
   );
 }

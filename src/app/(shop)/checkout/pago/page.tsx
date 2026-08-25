@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { PaymentClient } from "@/components/shop/PaymentClient";
 import { getOrder } from "@/db/queries/orders";
 import { ORDER_COOKIE, verifyToken, type OrderSession } from "@/lib/session";
-import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { isSandbox } from "@/lib/yopago";
+import { getCheckoutSettings } from "@/db/queries/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +13,6 @@ export const metadata: Metadata = {
   title: "Pago",
   robots: { index: false, follow: false },
 };
-
-function describeDelivery(order: { mode: string; department: string | null }) {
-  if (order.mode === "pickup") return "Retiro en el local · La Paz";
-  if (!order.department) return "Envío";
-  return order.department === LOCAL_DEPARTMENT
-    ? "Entrega local · La Paz"
-    : `Envío a ${order.department} por transporte`;
-}
 
 export default async function PaymentPage() {
   const store = await cookies();
@@ -34,6 +26,14 @@ export default async function PaymentPage() {
   // Un pedido ya pagado no vuelve al paso 2.
   if (order.paymentStatus === "pagado") redirect("/checkout/confirmacion");
 
+  const settings = await getCheckoutSettings();
+  const subtotal = order.items.reduce(
+    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+    0,
+  );
+  const shipping = order.mode === "pickup" ? 0 : settings.shippingPrice;
+  const discount = Math.max(0, subtotal + shipping - Number(order.total));
+
   return (
     <PaymentClient
       order={{
@@ -41,7 +41,10 @@ export default async function PaymentPage() {
         number: order.number,
         total: order.total,
         paymentStatus: order.paymentStatus,
-        deliverySummary: describeDelivery(order),
+        subtotal,
+        shipping,
+        discount,
+        pickup: order.mode === "pickup",
         items: order.items.map((i) => ({
           name: i.name,
           size: i.size,

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   OrderError,
+  calculateOrderPricing,
   createOrder,
   priceLines,
   updateOrder,
@@ -55,7 +56,12 @@ export async function POST(request: Request) {
 
   try {
     const lines = await priceLines(parsed.data.items);
-    const order = await createOrder(parsed.data.shipping, lines);
+    const pricing = await calculateOrderPricing(
+      lines,
+      parsed.data.discountCode,
+      parsed.data.shipping.mode !== "pickup",
+    );
+    const order = await createOrder(parsed.data.shipping, lines, pricing);
     await rememberOrder(order.id);
 
     // Enganche pendiente de implementar: nunca debe tumbar la creación del pedido.
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
       number: order.number,
       customerName: parsed.data.shipping.name,
       customerPhone: parsed.data.shipping.phone,
-      total: lines.reduce((n, l) => n + Number.parseFloat(l.unitPrice) * l.quantity, 0).toFixed(2),
+      total: pricing.total,
       mode: parsed.data.shipping.mode,
       department: parsed.data.shipping.department,
       paymentStatus: "pendiente",
@@ -98,7 +104,12 @@ export async function PATCH(request: Request) {
 
   try {
     const lines = await priceLines(parsed.data.items);
-    const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines);
+    const pricing = await calculateOrderPricing(
+      lines,
+      parsed.data.discountCode,
+      parsed.data.shipping.mode !== "pickup",
+    );
+    const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines, pricing);
     return NextResponse.json({ ok: true, orderId: order.id, number: order.number });
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);

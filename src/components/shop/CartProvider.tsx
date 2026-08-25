@@ -38,6 +38,7 @@ type CartState = {
   setQuantity: (productId: number, size: string | null, quantity: number) => void;
   remove: (productId: number, size: string | null) => void;
   clear: () => void;
+  syncImages: (images: { productId: number; imagePublicId: string | null }[]) => void;
   openCart: (step?: CartStep) => void;
   closeCart: () => void;
   setStep: (step: CartStep) => void;
@@ -145,6 +146,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clear = useCallback(() => setItems([]), []);
 
+  const syncImages = useCallback((images: { productId: number; imagePublicId: string | null }[]) => {
+    const byProduct = new Map(images.map((item) => [item.productId, item.imagePublicId]));
+    setItems((current) => current.map((item) =>
+      byProduct.has(item.productId)
+        ? { ...item, imagePublicId: byProduct.get(item.productId) ?? null }
+        : item,
+    ));
+  }, []);
+
   const openCart = useCallback((next: CartStep = "items") => {
     setStep(next);
     setOpen(true);
@@ -167,12 +177,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setQuantity,
       remove,
       clear,
+      syncImages,
       openCart,
       closeCart,
       setStep,
       setOrderId,
     };
-  }, [items, open, step, ready, orderId, add, setQuantity, remove, clear, openCart, closeCart, setOrderId]);
+  }, [items, open, step, ready, orderId, add, setQuantity, remove, clear, syncImages, openCart, closeCart, setOrderId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

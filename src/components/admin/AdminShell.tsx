@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/categorias", label: "Categorías", badge: "categories" },
   { href: "/admin/productos", label: "Productos", badge: "products" },
   { href: "/admin/pedidos", label: "Pedidos", badge: "newOrders" },
+  { href: "/admin/ajustes", label: "Envíos y descuentos", badge: null },
 ] as const;
 
 export type AdminCounts = { categories: number; products: number; newOrders: number };

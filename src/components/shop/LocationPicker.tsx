@@ -162,7 +162,11 @@ export function LocationPicker({
         </p>
       ) : null}
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      <details className="mt-2 border border-line-soft bg-ink-950/40 px-3 py-2">
+        <summary className="cursor-pointer text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-dim hover:text-brand">
+          Otras formas de indicar la ubicación
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-2">
         <label className="flex flex-col">
           <span className="label-xs mb-1.5 text-content-dim">Latitud</span>
           <input
@@ -183,9 +187,9 @@ export function LocationPicker({
             className="rounded-sm border border-line-strong bg-ink-850 px-3 py-2.5 text-[13px] tabular outline-none focus:border-brand focus:shadow-focus"
           />
         </label>
-      </div>
+        </div>
 
-      <div className="mt-2">
+        <div className="mt-2">
         <span className="label-xs mb-1.5 block text-content-dim">O pega tu enlace de Google Maps</span>
         <div className="flex gap-2">
           <input
@@ -208,7 +212,8 @@ export function LocationPicker({
           </button>
         </div>
         {pasteError ? <p className="mt-1.5 text-xs text-alert-soft">{pasteError}</p> : null}
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -334,7 +339,7 @@ function RealMap({
     >
       <div
         ref={nodeRef}
-        className="gq-delivery-map h-[210px] w-full bg-[#d7d2c8] sm:h-[230px]"
+        className="gq-delivery-map h-[190px] w-full bg-[#d7d2c8] sm:h-[205px]"
         aria-label="Mapa real para marcar la ubicación de entrega"
       />
       <p className="flex items-center gap-2 border-t border-line bg-ink-900 px-3 py-2.5 text-[11px] leading-snug text-content-muted">

@@ -27,13 +27,13 @@ export function ProductCard({
        según el navegador. Con este orden, el link cubre la card y el botón se
        superpone solo en su esquina. */
     <div className="group relative flex flex-col border border-line bg-[#101010] transition-[border-color,box-shadow] duration-150 hover:border-brand hover:shadow-card">
-      <Link href={`/p/${product.slug}`} className="flex flex-1 flex-col">
-        <div
-          className={cn(
-            "relative overflow-hidden bg-ink-950",
-            aspect === "1/1" ? "aspect-square" : "aspect-[4/3]",
-          )}
-        >
+      <div
+        className={cn(
+          "relative overflow-hidden bg-ink-950",
+          aspect === "1/1" ? "aspect-square" : "aspect-[4/3]",
+        )}
+      >
+        <Link href={`/p/${product.slug}`} className="absolute inset-0">
           <ProductImage
             publicId={product.imagePublicId}
             alt={product.name}
@@ -43,14 +43,12 @@ export function ProductCard({
 
           {off !== null ? <DiscountBadge percent={off} className="absolute left-0 top-0" /> : null}
 
-          {/* DREI abajo a la izquierda: arriba a la derecha ahora vive el carrito.
-              Si hay banda de stock bajo, sube para no quedar tapada. */}
           {product.isDrei ? (
-            <DreiTag className={cn("absolute left-2.5", low ? "bottom-11" : "bottom-2.5")} />
+            <DreiTag className="absolute right-2.5 top-2.5" />
           ) : null}
 
           {low ? (
-            <LowStockBar stock={product.stock} className="absolute inset-x-0 bottom-0" />
+            <LowStockBar stock={product.stock} className="absolute inset-x-0 top-10" />
           ) : null}
 
           {product.stock === 0 ? (
@@ -60,8 +58,11 @@ export function ProductCard({
               </span>
             </div>
           ) : null}
-        </div>
+        </Link>
+        <QuickAddButton product={product} />
+      </div>
 
+      <Link href={`/p/${product.slug}`} className="flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-2 p-4">
           <p className="label-xs text-content-dim">{product.brandName ?? "Guantearqueros"}</p>
           <h3 className="flex-1 text-[15px] font-bold leading-tight transition-colors duration-150 group-hover:text-brand">
@@ -70,8 +71,6 @@ export function ProductCard({
           <Price value={product.price} compareAt={product.compareAtPrice} size="md" />
         </div>
       </Link>
-
-      <QuickAddButton product={product} />
     </div>
   );
 }

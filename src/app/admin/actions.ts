@@ -6,12 +6,13 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { categories, productImages, products } from "@/db/schema";
 import { setOrderStatus } from "@/db/queries/orders";
-import { setCampaign } from "@/db/queries/settings";
+import { setCampaign, setCheckoutSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
 import {
   campaignSchema,
+  checkoutSettingsSchema,
   categorySchema,
   orderStatusSchema,
   productSchema,
@@ -279,5 +280,17 @@ export async function saveCampaignAction(input: unknown): Promise<ActionResult> 
   await setCampaign(parsed.data);
   revalidatePath("/", "layout");
   revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function saveCheckoutSettingsAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = checkoutSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa la configuración." };
+  }
+  await setCheckoutSettings(parsed.data);
+  revalidatePath("/admin/ajustes");
+  revalidatePath("/checkout/envio");
   return { ok: true };
 }
