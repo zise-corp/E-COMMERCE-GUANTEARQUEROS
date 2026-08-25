@@ -22,47 +22,57 @@ export function ProductCard({
   const low = product.stock > 0 && product.stock <= LOW_STOCK;
 
   return (
-    <Link
-      href={`/p/${product.slug}`}
-      className="group flex flex-col border border-line bg-[#101010] transition-[border-color,box-shadow] duration-150 hover:border-brand hover:shadow-card"
-    >
-      <div
-        className={cn("relative overflow-hidden bg-ink-950", aspect === "1/1" ? "aspect-square" : "aspect-[4/3]")}
-      >
-        <ProductImage
-          publicId={product.imagePublicId}
-          alt={product.name}
-          preset={aspect === "1/1" ? "square" : "grid"}
-          priority={priority}
-        />
+    /* El botón de carrito va como HERMANO del link, no adentro: un <button>
+       dentro de un <a> es HTML inválido y hace que el clic se comporte distinto
+       según el navegador. Con este orden, el link cubre la card y el botón se
+       superpone solo en su esquina. */
+    <div className="group relative flex flex-col border border-line bg-[#101010] transition-[border-color,box-shadow] duration-150 hover:border-brand hover:shadow-card">
+      <Link href={`/p/${product.slug}`} className="flex flex-1 flex-col">
+        <div
+          className={cn(
+            "relative overflow-hidden bg-ink-950",
+            aspect === "1/1" ? "aspect-square" : "aspect-[4/3]",
+          )}
+        >
+          <ProductImage
+            publicId={product.imagePublicId}
+            alt={product.name}
+            preset={aspect === "1/1" ? "square" : "grid"}
+            priority={priority}
+          />
 
-        {off !== null ? (
-          <DiscountBadge percent={off} className="absolute left-0 top-0" />
-        ) : null}
+          {off !== null ? <DiscountBadge percent={off} className="absolute left-0 top-0" /> : null}
 
-        {product.isDrei ? <DreiTag className="absolute right-2.5 top-2.5" /> : null}
+          {/* DREI abajo a la izquierda: arriba a la derecha ahora vive el carrito.
+              Si hay banda de stock bajo, sube para no quedar tapada. */}
+          {product.isDrei ? (
+            <DreiTag className={cn("absolute left-2.5", low ? "bottom-11" : "bottom-2.5")} />
+          ) : null}
 
-        {low ? <LowStockBar stock={product.stock} className="absolute inset-x-0 bottom-0" /> : null}
+          {low ? (
+            <LowStockBar stock={product.stock} className="absolute inset-x-0 bottom-0" />
+          ) : null}
 
-        <QuickAddButton product={product} />
+          {product.stock === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-ink-950/70">
+              <span className="label-xs border border-line-strong px-3 py-2 text-content-muted">
+                Sin stock
+              </span>
+            </div>
+          ) : null}
+        </div>
 
-        {product.stock === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink-950/70">
-            <span className="label-xs border border-line-strong px-3 py-2 text-content-muted">
-              Sin stock
-            </span>
-          </div>
-        ) : null}
-      </div>
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <p className="label-xs text-content-dim">{product.brandName ?? "Guantearqueros"}</p>
+          <h3 className="flex-1 text-[15px] font-bold leading-tight transition-colors duration-150 group-hover:text-brand">
+            {product.name}
+          </h3>
+          <Price value={product.price} compareAt={product.compareAtPrice} size="md" />
+        </div>
+      </Link>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <p className="label-xs text-content-dim">{product.brandName ?? "Guantearqueros"}</p>
-        <h3 className="flex-1 text-[15px] font-bold leading-tight transition-colors duration-150 group-hover:text-brand">
-          {product.name}
-        </h3>
-        <Price value={product.price} compareAt={product.compareAtPrice} size="md" />
-      </div>
-    </Link>
+      <QuickAddButton product={product} />
+    </div>
   );
 }
 
@@ -88,7 +98,7 @@ export function ProductGrid({
   return (
     <div
       className={cn(
-        "grid gap-4 grid-cols-2",
+        "grid grid-cols-2 gap-4",
         columns === 4 ? "lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3",
       )}
     >
