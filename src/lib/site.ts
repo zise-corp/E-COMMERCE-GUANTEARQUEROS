@@ -22,6 +22,7 @@ export const site = {
     facebook: "https://www.facebook.com/guantearqueros.bolivia",
     facebookSecondary: "https://www.facebook.com/profile.php?id=61552525021314",
     instagram: "https://www.instagram.com/guantearquerosbolivia_oficial",
+    tiktok: "https://www.tiktok.com/@guantearqueros.bo",
   },
 } as const;
 

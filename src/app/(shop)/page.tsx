@@ -24,6 +24,9 @@ const CATEGORY_DEMO_PHOTO: Record<string, { keyword: string; lock: number }> = {
   canilleras: { keyword: "shin,guard", lock: 204 },
 };
 
+const HERO_IMAGE =
+  "https://contents.mediadecathlon.com/p2585609/k$c266853b5915b6b1850da5d51f4b8b9f/guantes-de-arquero-de-futbol-nino-f100-superesist-rojo-azul.jpg";
+
 export const revalidate = 300;
 
 export const metadata: Metadata = {
@@ -121,19 +124,21 @@ export default async function HomePage() {
 
 function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug: string | null }) {
   return (
-    <section className="container-shop grid items-center gap-12 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:pb-10 lg:pt-[72px]">
+    <section className="container-shop grid items-center gap-10 pb-8 pt-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)] lg:pb-8 lg:pt-8">
       <div className="animate-rise">
         <p className="inline-flex items-center gap-2.5 border border-brand px-3 py-[7px] text-[11.5px] font-extrabold uppercase tracking-[0.18em] text-brand">
           Temporada 2026 · Bolivia
         </p>
 
-        <h1 className="mt-[22px] font-display text-[clamp(3.25rem,11vw,6.75rem)] uppercase leading-[0.86] tracking-[-0.01em] skew-fast">
-          <span className="block text-content">Acá no</span>
+        <h1 className="mt-[22px] max-w-[760px] font-display text-[clamp(2.55rem,6.5vw,4.8rem)] uppercase leading-[0.9] tracking-[-0.01em] skew-fast">
+          <span className="block text-content">La tienda #1</span>
+          <span className="block text-content">de guantes e</span>
+          <span className="block text-content">indumentaria para</span>
           <span
             className="block text-brand"
             style={{ textShadow: "0 0 44px rgba(250,42,0,0.45)" }}
           >
-            pasa nada.
+            arqueros en Bolivia
           </span>
         </h1>
 
@@ -158,7 +163,7 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
         <HeroStats />
       </div>
 
-      <div className="relative">
+      <div className="relative w-full max-w-[430px] justify-self-center lg:-translate-y-16 lg:justify-self-end xl:-translate-y-20">
         <div
           className="absolute inset-[8%_6%] blur-[40px]"
           style={{
@@ -168,8 +173,8 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
         />
         <div className="relative aspect-square overflow-hidden border border-line clip-hero">
           <ProductImage
-            publicId={demoStockPhoto("goalkeeper,save", 7)}
-            alt="Guantes de arquero"
+            publicId={HERO_IMAGE}
+            alt="Guantes de arquero rojos y azules"
             preset="square"
             priority
           />

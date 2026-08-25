@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Escudo } from "@/components/brand/Escudo";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { FacebookIcon, InstagramIcon, WhatsappIcon } from "@/components/ui/Icons";
+import { FacebookIcon, InstagramIcon, TiktokIcon, WhatsappIcon } from "@/components/ui/Icons";
 import { site, whatsappLink } from "@/lib/site";
 import type { NavCategory } from "./Header";
 
@@ -38,6 +38,9 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
             </SocialLink>
             <SocialLink href={site.social.instagram} label="Instagram de Guantearqueros Bolivia">
               <InstagramIcon size={18} />
+            </SocialLink>
+            <SocialLink href={site.social.tiktok} label="TikTok de Guantearqueros Bolivia">
+              <TiktokIcon size={18} />
             </SocialLink>
             <SocialLink
               href={whatsappLink("Hola, quisiera información sobre sus productos.")}

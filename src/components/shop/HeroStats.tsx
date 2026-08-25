@@ -51,20 +51,20 @@ export function HeroStats() {
   return (
     <dl
       ref={root}
-      className="mt-[46px] grid grid-cols-3 divide-x divide-line border-y border-line bg-ink-900/40"
+      className="mt-10 grid overflow-hidden border-y border-line bg-ink-900/40 sm:grid-cols-3 sm:divide-x sm:divide-line"
     >
       {STATS.map((stat) => {
         const current = Math.round(stat.value * progress);
         return (
           <div
             key={stat.label}
-            className="flex min-w-0 flex-col px-3 py-4 first:pl-0 sm:px-6 sm:py-5"
+            className="flex min-w-0 flex-col items-center border-b border-line px-4 py-4 text-center last:border-b-0 sm:border-b-0 sm:px-3 sm:py-5 lg:px-5"
           >
-            <dt className="mt-1 text-[9px] uppercase leading-tight tracking-[0.1em] text-content-dim sm:text-[11px] sm:tracking-[0.14em]">
+            <dt className="mt-1.5 text-[10px] uppercase leading-snug tracking-[0.12em] text-content-dim lg:text-[11px] lg:tracking-[0.14em]">
               {stat.label}
             </dt>
             <dd
-              className="order-first font-display text-[clamp(1.45rem,4vw,2rem)] leading-none text-content tabular"
+              className="order-first whitespace-nowrap font-display text-[clamp(1.75rem,4vw,2.25rem)] leading-none text-content tabular"
               aria-label={`${stat.prefix}${stat.value}${stat.suffix} ${stat.label}`}
             >
               <span aria-hidden>

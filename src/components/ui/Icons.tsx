@@ -104,6 +104,15 @@ export function InstagramIcon(props: IconProps) {
   );
 }
 
+export function TiktokIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14 3v11.2a4.8 4.8 0 1 1-4-4.7" />
+      <path d="M14 3c.8 3 2.7 4.8 5.5 5" />
+    </Svg>
+  );
+}
+
 export function ShieldIcon(props: IconProps) {
   return (
     <Svg {...props}>
