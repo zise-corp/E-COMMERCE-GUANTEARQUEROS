@@ -5,13 +5,13 @@ import { useEffect, useState, useTransition } from "react";
 import { setOrderStatusAction } from "@/app/admin/actions";
 import { Escudo } from "@/components/brand/Escudo";
 import { Drawer } from "@/components/ui/Drawer";
-import { PinIcon } from "@/components/ui/Icons";
 import { Spinner } from "@/components/ui/Spinner";
 import type { OrderSummary } from "@/db/queries/orders";
 import { cloudinaryUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { STATUS_META } from "./OrdersManager";
+import { OrderLocationMap } from "./OrderLocationMap";
 
 const STATUSES: OrderSummary["status"][] = ["recibido", "en_proceso", "completado", "cancelado"];
 
@@ -74,7 +74,7 @@ export function OrderDetailDrawer({
     : order.mode === "pickup"
       ? [
           { k: "Modalidad", v: "Retiro en el local" },
-          { k: "Sucursal", v: "Cochabamba centro" },
+          { k: "Sucursal", v: "Sucursal principal · La Paz" },
         ]
       : isLocal
         ? [
@@ -89,12 +89,6 @@ export function OrderDetailDrawer({
             { k: "CI", v: order.documentId ?? "—" },
             { k: "Email", v: order.email ?? "—" },
           ];
-
-  const mapsHref =
-    order?.mapsUrl ??
-    (order?.lat && order?.lng
-      ? `https://www.google.com/maps/search/?api=1&query=${order.lat},${order.lng}`
-      : null);
 
   return (
     <Drawer
@@ -135,25 +129,11 @@ export function OrderDetailDrawer({
             ))}
 
             {isLocal && order.lat && order.lng ? (
-              <a
-                href={mapsHref ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative mt-3 block h-[140px] border border-line-strong bg-map transition-colors duration-150 hover:border-brand"
-              >
-                <span
-                  className="absolute left-[44%] top-[52%] block h-[26px] w-[22px] -translate-x-1/2 -translate-y-full bg-brand clip-pin"
-                  style={{ boxShadow: "0 0 20px rgba(250,42,0,0.55)" }}
-                  aria-hidden
-                />
-                <span className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-ink-950/80 px-2 py-1 text-[10.5px] uppercase tracking-[0.1em] text-[#8A8783]">
-                  <PinIcon size={11} />
-                  Abrir en Google Maps ↗
-                </span>
-                <span className="absolute bottom-2 left-2 text-[10.5px] text-content-dim tabular">
-                  {Number(order.lat).toFixed(4)}, {Number(order.lng).toFixed(4)}
-                </span>
-              </a>
+              <OrderLocationMap
+                lat={Number(order.lat)}
+                lng={Number(order.lng)}
+                mapsUrl={order.mapsUrl}
+              />
             ) : null}
           </Section>
 
