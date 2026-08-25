@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCart } from "@/components/shop/AddToCart";
+import { BackButton } from "@/components/shop/BackButton";
 import { ProductGallery } from "@/components/shop/ProductGallery";
 import { LowStockNote } from "@/components/ui/Badge";
 import { Price } from "@/components/ui/Price";
@@ -83,6 +84,13 @@ export default async function ProductPage({ params }: Props) {
         // El contenido es nuestro y ya está serializado: no hay entrada del usuario sin escapar.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
+
+      <div className="mb-4">
+        <BackButton
+          fallbackHref={`/c/${product.categorySlug}`}
+          label={`Volver a ${product.categoryName}`}
+        />
+      </div>
 
       <nav
         aria-label="Migas de pan"

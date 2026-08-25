@@ -3,7 +3,7 @@ import { z } from "zod";
 import { searchProducts } from "@/db/queries/catalog";
 
 const querySchema = z.object({
-  q: z.string().trim().min(2, "Escribí al menos 2 letras.").max(80),
+  q: z.string().trim().min(2, "Escribe al menos 2 letras.").max(80),
 });
 
 export async function GET(request: Request) {

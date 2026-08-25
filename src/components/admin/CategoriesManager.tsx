@@ -127,7 +127,7 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
           </button>
           {!pending && form.name.trim().length < 2 ? (
             <p className="-mt-1.5 text-center text-[11px] text-content-faint">
-              Escribí al menos 2 letras en el nombre para activar el botón.
+              Escribe al menos 2 letras en el nombre para activar el botón.
             </p>
           ) : null}
         </div>
@@ -138,11 +138,11 @@ export function CategoriesManager({ rows }: { rows: AdminCategoryRow[] }) {
 
 /**
  * Tabla de categorías raíz, reordenable por arrastre (como una lista de Spotify):
- * mantené apretada la agarradera y deslizá la fila arriba o abajo. Las demás se
+ * mantén apretada la agarradera y desliza la fila arriba o abajo. Las demás se
  * corren solas para hacerle lugar; al soltar, se guarda el nuevo orden completo.
  *
  * Las categorías nuevas ya entran al final (lo decide el server, por orden de
- * creación) — este arrastre es para cuando después querés cambiar ese orden.
+ * creación) — este arrastre es para cuando después quieres cambiar ese orden.
  */
 function CategoryTable({
   rows,
@@ -250,7 +250,7 @@ function CategoryTable({
 
       {rows.length === 0 ? (
         <p className="px-5 py-12 text-center text-[13px] text-content-dim">
-          Todavía no hay categorías. Creá la primera con el panel de la derecha.
+          Todavía no hay categorías. Crea la primera con el panel de la derecha.
         </p>
       ) : null}
 

@@ -22,7 +22,7 @@ export default function GlobalError({
       </h1>
 
       <p className="mt-5 max-w-[440px] text-[15px] leading-relaxed text-content-muted">
-        Tuvimos un problema cargando esta página. Probá de nuevo; si sigue pasando, escribinos y lo
+        Tuvimos un problema cargando esta página. Prueba de nuevo; si sigue pasando, escríbenos y lo
         revisamos.
       </p>
 

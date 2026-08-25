@@ -17,6 +17,7 @@ export type ShippingValues = {
   lng: number | null;
   mapsUrl: string;
   documentId: string;
+  branch: string;
   email: string;
 };
 
@@ -31,6 +32,7 @@ export const emptyShipping: ShippingValues = {
   lng: null,
   mapsUrl: "",
   documentId: "",
+  branch: "",
   email: "",
 };
 
@@ -52,7 +54,7 @@ export function validate(values: ShippingValues): { ok: boolean; errors: FieldEr
 
 export function describeDelivery(v: ShippingValues): string {
   if (v.mode === "pickup") return "Retiro en el local · Cochabamba";
-  if (!v.department) return "Envío a domicilio · elegí el departamento";
+  if (!v.department) return "Envío a domicilio · elige el departamento";
   return v.department === LOCAL_DEPARTMENT
     ? "Envío a domicilio · Cochabamba (logística propia)"
     : `Envío a domicilio · ${v.department} (por transporte)`;
@@ -120,15 +122,9 @@ export function ShippingForm({
           />
           <ModeCard
             active={isDelivery}
-            title="Envío a domicilio"
+            title="Envío"
             detail="Todo el país"
-            onClick={() =>
-              onChange({
-                ...value,
-                mode: "delivery",
-                department: value.department ?? LOCAL_DEPARTMENT,
-              })
-            }
+            onClick={() => onChange({ ...value, mode: "delivery" })}
           />
         </div>
       </fieldset>
@@ -144,16 +140,21 @@ export function ShippingForm({
               onChange({
                 ...value,
                 department: (e.target.value || null) as Department | null,
-                // Cambiar de departamento borra los datos del otro camino.
+                // Cambiar de departamento borra los datos del otro camino: los
+                // dos flujos piden cosas distintas y no deben mezclarse.
                 lat: null,
                 lng: null,
                 mapsUrl: "",
+                address: "",
+                branch: "",
               })
             }
           >
+            <option value="">Elige tu departamento…</option>
             {DEPARTMENTS.map((d) => (
               <option key={d} value={d}>
                 {d}
+                {d === LOCAL_DEPARTMENT ? " — entrega a domicilio" : ""}
               </option>
             ))}
           </Select>
@@ -197,16 +198,27 @@ export function ShippingForm({
           {isOther ? (
             <div className="flex flex-col gap-3.5 animate-rise">
               <p className="border-l-[3px] border-drei-line bg-drei-line/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-drei-ink">
-                El envío se despacha por empresa de transporte. Coordinamos la agencia y el pago
-                del flete por WhatsApp.
+                Fuera de Cochabamba no hacemos entrega a domicilio: el paquete se despacha por
+                empresa de transporte y lo retiras en la sucursal con tu carnet.
               </p>
+
+              <Input
+                label="Sucursal de destino"
+                required
+                placeholder="Ej. Trans Copacabana, terminal de Santa Cruz"
+                value={value.branch}
+                error={err("branch")}
+                hint="La agencia y sucursal donde quieres retirar el paquete."
+                onChange={(e) => set("branch", e.target.value)}
+              />
 
               <Input
                 label="CI / Documento"
                 required
-                placeholder="Número de carnet"
+                placeholder="Ej. 1234567 CB"
                 value={value.documentId}
                 error={err("documentId")}
+                hint="Lo piden en la agencia para entregarte el paquete."
                 onChange={(e) => set("documentId", e.target.value)}
               />
 

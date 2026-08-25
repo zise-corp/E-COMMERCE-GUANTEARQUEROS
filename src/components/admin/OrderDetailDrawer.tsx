@@ -85,6 +85,7 @@ export function OrderDetailDrawer({
         : [
             { k: "Modalidad", v: "Envío por transporte" },
             { k: "Departamento", v: order.department ?? "—" },
+            { k: "Sucursal", v: order.branch ?? "—" },
             { k: "CI", v: order.documentId ?? "—" },
             { k: "Email", v: order.email ?? "—" },
           ];

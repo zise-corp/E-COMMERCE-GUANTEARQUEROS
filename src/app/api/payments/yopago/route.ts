@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[api/payments/yopago] POST", error);
     return NextResponse.json(
-      { ok: false, error: "No pudimos generar el pago. Probá con el otro método o escribinos." },
+      { ok: false, error: "No pudimos generar el pago. Prueba con el otro método o escríbenos." },
       { status: 502 },
     );
   }

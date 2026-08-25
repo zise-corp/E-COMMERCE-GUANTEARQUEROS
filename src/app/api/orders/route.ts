@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const parsed = createOrderSchema.safeParse(body);
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Revisá los datos del formulario.");
+    return fail(parsed.error.issues[0]?.message ?? "Revisa los datos del formulario.");
   }
 
   try {
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);
     console.error("[api/orders] POST", error);
-    return fail("No pudimos guardar el pedido. Probá de nuevo en un momento.", 500);
+    return fail("No pudimos guardar el pedido. Prueba de nuevo en un momento.", 500);
   }
 }
 
@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
 
   const parsed = updateOrderSchema.safeParse(body);
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Revisá los datos del formulario.");
+    return fail(parsed.error.issues[0]?.message ?? "Revisa los datos del formulario.");
   }
 
   const session = await currentSession();
@@ -103,6 +103,6 @@ export async function PATCH(request: Request) {
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);
     console.error("[api/orders] PATCH", error);
-    return fail("No pudimos actualizar el pedido. Probá de nuevo en un momento.", 500);
+    return fail("No pudimos actualizar el pedido. Prueba de nuevo en un momento.", 500);
   }
 }

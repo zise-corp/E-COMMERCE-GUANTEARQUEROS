@@ -155,7 +155,7 @@ function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }
 
             {!searched && !loading ? (
               <p className="px-5 py-8 text-center text-[13px] text-content-faint">
-                Escribí al menos 2 letras.
+                Escribe al menos 2 letras.
               </p>
             ) : null}
           </div>

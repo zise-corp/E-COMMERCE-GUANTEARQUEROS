@@ -36,7 +36,7 @@ export function CloudinaryDropzone({
       if (list.length === 0) return;
 
       if (!slug) {
-        setError("Poné primero el nombre del producto: la carpeta sale del slug.");
+        setError("Pon primero el nombre del producto: la carpeta sale del slug.");
         return;
       }
 
@@ -106,7 +106,7 @@ export function CloudinaryDropzone({
 
         if (uploaded.length > 0) onChange([...value, ...uploaded]);
       } catch {
-        setError("No pudimos subir las imágenes. Revisá tu conexión.");
+        setError("No pudimos subir las imágenes. Revisa tu conexión.");
       } finally {
         setBusy(false);
         if (inputRef.current) inputRef.current.value = "";
@@ -145,13 +145,13 @@ export function CloudinaryDropzone({
         ) : (
           <>
             <p className="text-[13px] text-content-muted">
-              Arrastrá imágenes o{" "}
+              Arrastra imágenes o{" "}
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 className="text-brand underline-offset-2 hover:underline"
               >
-                buscá en tu equipo
+                busca en tu equipo
               </button>
             </p>
             <p className="mt-1.5 text-[11px] text-content-faint">

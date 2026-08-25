@@ -295,7 +295,7 @@ async function main() {
     await seedDemoProducts();
     console.log(DEMO.length + " productos de demostración cargados, con 3 fotos de stock cada uno.");
   } else {
-    console.log("(agregá --demo para cargar productos de prueba)");
+    console.log("(agrega --demo para cargar productos de prueba)");
   }
 }
 

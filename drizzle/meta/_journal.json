@@ -15,6 +15,13 @@
       "when": 1787544467139,
       "tag": "0001_ajustes-sitio",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787620244123,
+      "tag": "0002_sucursal-envio",
+      "breakpoints": true
     }
   ]
 }

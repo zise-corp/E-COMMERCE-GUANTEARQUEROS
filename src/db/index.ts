@@ -30,7 +30,7 @@ export function getDb(): Db {
   const url = process.env["DATABASE_URL"];
   if (!url) {
     throw new Error(
-      "Falta DATABASE_URL. Copiá .env.example a .env.local y completá la conexión de Postgres.",
+      "Falta DATABASE_URL. Copia .env.example a .env.local y completa la conexión de Postgres.",
     );
   }
 

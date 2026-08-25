@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { discountPercent } from "@/lib/money";
 import type { ProductCard as ProductCardData } from "@/db/queries/catalog";
 import { ProductImage } from "./ProductImage";
+import { QuickAddButton } from "./QuickAddButton";
 
 const LOW_STOCK = 5;
 
@@ -42,6 +43,8 @@ export function ProductCard({
         {product.isDrei ? <DreiTag className="absolute right-2.5 top-2.5" /> : null}
 
         {low ? <LowStockBar stock={product.stock} className="absolute inset-x-0 bottom-0" /> : null}
+
+        <QuickAddButton product={product} />
 
         {product.stock === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center bg-ink-950/70">

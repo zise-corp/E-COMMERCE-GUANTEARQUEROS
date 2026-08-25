@@ -111,7 +111,7 @@ export default async function HomePage() {
           products={featured}
           columns={4}
           aspect="1/1"
-          emptyMessage="Todavía no hay productos destacados. Marcá algunos desde el panel."
+          emptyMessage="Todavía no hay productos destacados. Marca algunos desde el panel."
         />
       </section>
 

@@ -22,7 +22,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Revisá los datos." };
+    return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
   }
 
   const key = parsed.data.username.toLowerCase();
@@ -31,7 +31,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   if (record && record.until > now && record.count >= MAX_ATTEMPTS) {
     const minutes = Math.ceil((record.until - now) / 60000);
-    return { error: `Demasiados intentos. Probá de nuevo en ${minutes} min.` };
+    return { error: `Demasiados intentos. Prueba de nuevo en ${minutes} min.` };
   }
 
   const result = await loginAdmin(parsed.data.username, parsed.data.password);

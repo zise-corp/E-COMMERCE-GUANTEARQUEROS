@@ -56,7 +56,7 @@ export function ConfirmOrderModal({
         setError(
           !data.ok && data.error
             ? data.error
-            : "No pudimos guardar el pedido. Probá de nuevo en un momento.",
+            : "No pudimos guardar el pedido. Prueba de nuevo en un momento.",
         );
         return;
       }
@@ -66,7 +66,7 @@ export function ConfirmOrderModal({
       cart.closeCart();
       router.push("/checkout/pago");
     } catch {
-      setError("No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.");
+      setError("No pudimos conectar con el servidor. Revisa tu conexión y prueba de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -84,7 +84,7 @@ export function ConfirmOrderModal({
       open={open}
       onClose={saving ? () => undefined : onClose}
       title="Confirmar pedido"
-      description="Revisá los datos antes de crear el pedido. Después de confirmar pasás al pago."
+      description="Revisa los datos antes de crear el pedido. Después de confirmar pasás al pago."
       accent
       showClose={false}
     >

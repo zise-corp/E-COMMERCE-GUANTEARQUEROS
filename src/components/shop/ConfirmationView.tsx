@@ -44,9 +44,9 @@ export function ConfirmationView({ number, delivery }: { number: number; deliver
 
         <div className="mt-[34px] flex flex-wrap items-center justify-between gap-4 border border-line bg-ink-900 p-[22px] text-left">
           <div>
-            <p className="font-display text-xl uppercase">¿Necesitás ayuda?</p>
+            <p className="font-display text-xl uppercase">¿Necesitas ayuda?</p>
             <p className="mt-1 text-[13px] text-content-muted">
-              Escribinos con tu número de pedido.
+              Escríbenos con tu número de pedido.
             </p>
           </div>
           <button

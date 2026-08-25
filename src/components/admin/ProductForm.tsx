@@ -137,11 +137,11 @@ export function ProductForm({
     const stock = Number.parseInt(form.stock, 10);
 
     if (!Number.isFinite(price)) {
-      setError("Poné un precio válido.");
+      setError("Pon un precio válido.");
       return;
     }
     if (form.categoryId === null) {
-      setError("Elegí una categoría.");
+      setError("Elige una categoría.");
       return;
     }
 
@@ -223,7 +223,7 @@ export function ProductForm({
                     }))
                   }
                 >
-                  <option value="">— Elegí una —</option>
+                  <option value="">— Elige una —</option>
                   {roots.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}

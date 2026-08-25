@@ -72,7 +72,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         }
         setIntent(data.intent);
       } catch {
-        setError("No pudimos conectar con la pasarela. Probá de nuevo o escribinos.");
+        setError("No pudimos conectar con la pasarela. Prueba de nuevo o escríbenos.");
       } finally {
         setLoading(false);
       }
@@ -102,7 +102,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
           window.scrollTo(0, 0);
           router.replace("/checkout/confirmacion");
         } else if (data.order.paymentStatus === "fallido") {
-          setError("El pago fue rechazado. Probá con el otro método o escribinos.");
+          setError("El pago fue rechazado. Prueba con el otro método o escríbenos.");
           setIntent(null);
           setMethod(null);
         }

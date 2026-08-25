@@ -17,7 +17,7 @@ export default function NotFound() {
       </h1>
 
       <p className="mt-5 max-w-[420px] text-[15px] leading-relaxed text-content-muted">
-        La página que buscás se movió o nunca existió. Volvé a la tienda y seguí desde ahí.
+        La página que buscás se movió o nunca existió. Vuelve a la tienda y sigue desde ahí.
       </p>
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">

@@ -20,7 +20,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
 
   function add() {
     if (hasSizes && !size) {
-      setError("Elegí una talla.");
+      setError("Elige una talla.");
       return;
     }
     setError(null);

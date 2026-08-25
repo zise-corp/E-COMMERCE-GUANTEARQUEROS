@@ -51,7 +51,7 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
   return lines.map((line) => {
     const p = byId.get(line.productId);
     if (!p || !p.published) {
-      throw new OrderError("Uno de los productos ya no está disponible. Revisá tu carrito.");
+      throw new OrderError("Uno de los productos ya no está disponible. Revisa tu carrito.");
     }
     if (p.stock < line.quantity) {
       throw new OrderError(
@@ -62,7 +62,7 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
     }
     const sizes = p.sizes ?? [];
     if (sizes.length > 0 && (line.size === null || !sizes.includes(line.size))) {
-      throw new OrderError(`Elegí una talla válida para “${p.name}”.`);
+      throw new OrderError(`Elige una talla válida para “${p.name}”.`);
     }
     return {
       productId: p.id,
@@ -95,6 +95,7 @@ function deliveryColumns(shipping: ShippingOutput) {
       lng: null,
       mapsUrl: null,
       documentId: null,
+      branch: null,
       email: null,
     };
   }
@@ -107,6 +108,7 @@ function deliveryColumns(shipping: ShippingOutput) {
     lng: local && shipping.lng !== null ? shipping.lng.toFixed(6) : null,
     mapsUrl: local && shipping.mapsUrl ? shipping.mapsUrl : null,
     documentId: local ? null : shipping.documentId,
+    branch: local ? null : shipping.branch,
     email: local ? null : shipping.email,
   };
 }
@@ -226,6 +228,7 @@ export type OrderSummary = {
   lng: string | null;
   mapsUrl: string | null;
   documentId: string | null;
+  branch: string | null;
   email: string | null;
   status: "recibido" | "en_proceso" | "completado" | "cancelado";
   paymentStatus: "pendiente" | "pagado" | "fallido" | "reembolsado";

@@ -91,6 +91,7 @@ export const orders = pgTable("orders", {
   mapsUrl: text("maps_url"),
   documentId: text("document_id"),                // delivery + otro departamento (CI)
   email: text("email"),
+  branch: text("branch"),                         // delivery + otro departamento: sucursal de la agencia
 
   status: orderStatus("status").notNull().default("recibido"),
   paymentStatus: paymentStatus("payment_status").notNull().default("pendiente"),

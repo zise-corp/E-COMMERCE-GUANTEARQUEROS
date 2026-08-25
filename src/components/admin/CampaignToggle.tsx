@@ -18,7 +18,7 @@ export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
   function save(nextEnabled = enabled, nextMessages = messages) {
     const clean = nextMessages.map((m) => m.trim()).filter(Boolean);
     if (clean.length === 0) {
-      setFeedback("Escribí al menos una frase.");
+      setFeedback("Escribe al menos una frase.");
       return;
     }
     setFeedback(null);

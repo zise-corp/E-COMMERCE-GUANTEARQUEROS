@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { CheckIcon } from "@/components/ui/Icons";
+import { CheckIcon, PinIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { LOCAL_CENTER } from "@/lib/site";
 import { parseMapsUrl } from "@/lib/validators";
@@ -9,13 +9,14 @@ import { parseMapsUrl } from "@/lib/validators";
 /**
  * Selector de ubicación propio. No usa la API de Google ni tiles externos: es la
  * grilla oscura del design system con el pin naranja de marca (nunca el pin rojo
- * de Google). El pin se arrastra o se clickea, y la posición se traduce a
+ * de Google). El pin se arrastra o se toca, y la posición se traduce a
  * coordenadas reales con una escala fija alrededor del punto de referencia.
  *
- * Tres entradas, para que el cliente nunca quede sin salida:
+ * Cuatro formas de dar el punto, para que nadie quede trabado:
  *   1. "Usar mi ubicación" (geolocalización del navegador),
  *   2. pegar un link de Google Maps,
- *   3. marcar el punto a mano sobre la grilla.
+ *   3. tocar o arrastrar el pin sobre la grilla,
+ *   4. escribir latitud y longitud a mano.
  */
 
 const MAP_HEIGHT = 190;
@@ -42,15 +43,15 @@ export function LocationPicker({
   const boxRef = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState<LatLng>(value ?? LOCAL_CENTER);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Las coordenadas escritas a mano se guardan como texto mientras se tipean:
+  // si no, borrar un dígito reformatearía el número debajo del cursor.
+  const [manual, setManual] = useState<{ lat: string; lng: string } | null>(null);
 
-  // Posición del pin dentro del recuadro, derivada de las coordenadas.
   const pin = (() => {
-    const box = boxRef.current;
-    const w = box?.clientWidth ?? 380;
+    const w = boxRef.current?.clientWidth ?? 380;
     if (!value) return { x: w / 2, y: MAP_HEIGHT / 2 };
     const dx = (value.lng - anchor.lng) / lngPerPx(anchor.lat);
     const dy = -(value.lat - anchor.lat) / LAT_PER_PX;
@@ -65,10 +66,9 @@ export function LocationPicker({
       const box = boxRef.current;
       if (!box) return;
       const rect = box.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      const dx = x - rect.width / 2;
-      const dy = y - MAP_HEIGHT / 2;
+      const dx = clientX - rect.left - rect.width / 2;
+      const dy = clientY - rect.top - MAP_HEIGHT / 2;
+      setManual(null);
       onChange({
         lat: Number((anchor.lat - dy * LAT_PER_PX).toFixed(6)),
         lng: Number((anchor.lng + dx * lngPerPx(anchor.lat)).toFixed(6)),
@@ -82,6 +82,12 @@ export function LocationPicker({
       setGeoError("Tu navegador no permite compartir la ubicación.");
       return;
     }
+    // El navegador bloquea la geolocalización fuera de HTTPS (localhost sí vale).
+    if (!window.isSecureContext) {
+      setGeoError("La ubicación solo funciona en sitios seguros (https).");
+      return;
+    }
+
     setBusy(true);
     setGeoError(null);
     navigator.geolocation.getCurrentPosition(
@@ -91,6 +97,7 @@ export function LocationPicker({
           lng: Number(pos.coords.longitude.toFixed(6)),
         };
         setAnchor(next);
+        setManual(null);
         onChange(next);
         setBusy(false);
       },
@@ -98,8 +105,10 @@ export function LocationPicker({
         setBusy(false);
         setGeoError(
           err.code === err.PERMISSION_DENIED
-            ? "No nos diste permiso para ver tu ubicación."
-            : "No pudimos obtener tu ubicación.",
+            ? "No diste permiso para ver tu ubicación."
+            : err.code === err.TIMEOUT
+              ? "La ubicación tardó demasiado. Prueba de nuevo."
+              : "No pudimos obtener tu ubicación.",
         );
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
@@ -113,25 +122,61 @@ export function LocationPicker({
       return;
     }
     setAnchor(coords);
+    setManual(null);
     onChange(coords, pasted.trim());
-    setPasting(false);
     setPasted("");
     setPasteError(null);
     setGeoError(null);
   }, [pasted, onChange]);
 
-  const borderColor = value ? "border-[#3F8B55]" : geoError || error ? "border-alert" : "border-line-strong";
+  /** Coordenada escrita a mano: solo se aplica cuando el número es válido. */
+  function setManualCoord(which: "lat" | "lng", raw: string) {
+    const base = manual ?? {
+      lat: value ? String(value.lat) : "",
+      lng: value ? String(value.lng) : "",
+    };
+    const next = { ...base, [which]: raw };
+    setManual(next);
+
+    const lat = Number.parseFloat(next.lat);
+    const lng = Number.parseFloat(next.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      setAnchor({ lat, lng });
+      onChange({ lat, lng });
+    }
+  }
+
+  const borderColor = value
+    ? "border-[#3F8B55]"
+    : geoError || error
+      ? "border-alert"
+      : "border-line-strong";
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={useGeolocation}
+        disabled={busy}
+        className="mb-2 flex w-full items-center justify-center gap-2 border border-brand/60 bg-brand/[0.07] px-4 py-3 text-[12px] font-extrabold uppercase tracking-[0.1em] text-brand transition-colors duration-150 hover:bg-brand hover:text-ink-950 disabled:opacity-60"
+      >
+        <PinIcon size={14} />
+        {busy ? "Buscando tu ubicación…" : "Usar mi ubicación actual"}
+      </button>
+
       <div
         ref={boxRef}
         onPointerDown={(e) => {
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          // Solo el fondo del mapa coloca el pin: si el clic viene de un control
+          // encima (por ejemplo el botón del overlay de error), se ignora.
+          if (e.target !== e.currentTarget) return;
+          e.currentTarget.setPointerCapture?.(e.pointerId);
           setFromPoint(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
-          if (e.buttons === 1) setFromPoint(e.clientX, e.clientY);
+          if (e.buttons === 1 && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+            setFromPoint(e.clientX, e.clientY);
+          }
         }}
         role="application"
         aria-label="Mapa para marcar la ubicación de entrega"
@@ -142,8 +187,8 @@ export function LocationPicker({
         style={{ height: MAP_HEIGHT }}
       >
         {/* Dos avenidas insinuadas: dan referencia sin fingir un mapa real. */}
-        <div className="absolute inset-x-0 top-[58%] h-2.5 bg-[#1E2320]" aria-hidden />
-        <div className="absolute inset-y-0 left-[38%] w-2 bg-[#1E2320]" aria-hidden />
+        <div className="pointer-events-none absolute inset-x-0 top-[58%] h-2.5 bg-[#1E2320]" aria-hidden />
+        <div className="pointer-events-none absolute inset-y-0 left-[38%] w-2 bg-[#1E2320]" aria-hidden />
 
         <div
           className="pointer-events-none absolute flex flex-col items-center"
@@ -154,14 +199,11 @@ export function LocationPicker({
             style={{ boxShadow: "0 0 26px rgba(250,42,0,0.6)" }}
             aria-hidden
           />
-          <div
-            className="-mt-[22px] h-2 w-2 rounded-full border-2 border-brand bg-ink-950"
-            aria-hidden
-          />
+          <div className="-mt-[22px] h-2 w-2 rounded-full border-2 border-brand bg-ink-950" aria-hidden />
         </div>
 
         <span className="pointer-events-none absolute bottom-2.5 left-2.5 text-[10px] uppercase tracking-[0.12em] text-content-dim">
-          {value ? "Arrastrá el pin para ajustar" : "Tocá el mapa para marcar"}
+          {value ? "Arrastra el pin para ajustar" : "Toca el mapa para marcar"}
         </span>
 
         {geoError ? (
@@ -170,7 +212,7 @@ export function LocationPicker({
               {geoError}
             </p>
             <p className="text-xs text-content-muted">
-              Marcá el punto en el mapa o pegá un link de Google Maps.
+              Marca el punto en el mapa, pega un link de Maps o escribe las coordenadas.
             </p>
             <button
               type="button"
@@ -183,64 +225,19 @@ export function LocationPicker({
         ) : null}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={useGeolocation}
-          disabled={busy}
-          className="border border-line-strong p-[11px] text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand disabled:opacity-50"
-        >
-          {busy ? "Buscando…" : "Usar mi ubicación"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setPasting((p) => !p)}
-          className="border border-line-strong p-[11px] text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-content-muted transition-colors duration-150 hover:border-brand hover:text-brand"
-        >
-          Pegar link Maps
-        </button>
-      </div>
-
-      {pasting ? (
-        <div className="mt-2">
-          <div className="flex gap-2">
-            <input
-              value={pasted}
-              onChange={(e) => {
-                setPasted(e.target.value);
-                setPasteError(null);
-              }}
-              placeholder="https://maps.app.goo.gl/… o -17.3936, -66.1570"
-              aria-label="Link de Google Maps"
-              className="min-w-0 flex-1 rounded-sm border border-line-strong bg-ink-850 px-3 py-2.5 text-[13px] outline-none focus:border-brand focus:shadow-focus"
-            />
-            <button
-              type="button"
-              onClick={applyPasted}
-              className="bg-brand px-4 text-[11.5px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-colors duration-150 hover:bg-brand-hot"
-            >
-              Usar
-            </button>
-          </div>
-          {pasteError ? <p className="mt-1.5 text-xs text-alert-soft">{pasteError}</p> : null}
-          <p className="mt-1.5 text-[11px] leading-relaxed text-content-faint">
-            En Google Maps: mantené apretado el punto, tocá “Compartir” y pegá el link acá.
-          </p>
-        </div>
-      ) : null}
-
       {value ? (
-        <div className="mt-[9px] flex items-center gap-2.5 border-l-[3px] border-[#3F8B55] bg-[#3F8B55]/[0.12] px-3 py-2.5">
+        <div className="mt-[9px] flex flex-wrap items-center gap-2.5 border-l-[3px] border-[#3F8B55] bg-[#3F8B55]/[0.12] px-3 py-2.5">
           <CheckIcon size={14} className="text-[#8FD9A6]" />
-          <span className="text-xs text-[#8FD9A6] tabular">
-            Ubicación confirmada · {value.lat.toFixed(4)}, {value.lng.toFixed(4)}
-          </span>
+          <span className="text-xs text-[#8FD9A6]">Ubicación marcada</span>
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => {
+              setManual(null);
+              onChange(null);
+            }}
             className="ml-auto text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:text-brand"
           >
-            Cambiar
+            Quitar
           </button>
         </div>
       ) : error ? (
@@ -248,6 +245,54 @@ export function LocationPicker({
           {error}
         </p>
       ) : null}
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="flex flex-col">
+          <span className="label-xs mb-1.5 text-content-dim">Latitud</span>
+          <input
+            inputMode="decimal"
+            value={manual?.lat ?? (value ? String(value.lat) : "")}
+            onChange={(e) => setManualCoord("lat", e.target.value)}
+            placeholder="-17.393600"
+            className="rounded-sm border border-line-strong bg-ink-850 px-3 py-2.5 text-[13px] tabular outline-none focus:border-brand focus:shadow-focus"
+          />
+        </label>
+        <label className="flex flex-col">
+          <span className="label-xs mb-1.5 text-content-dim">Longitud</span>
+          <input
+            inputMode="decimal"
+            value={manual?.lng ?? (value ? String(value.lng) : "")}
+            onChange={(e) => setManualCoord("lng", e.target.value)}
+            placeholder="-66.157000"
+            className="rounded-sm border border-line-strong bg-ink-850 px-3 py-2.5 text-[13px] tabular outline-none focus:border-brand focus:shadow-focus"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2">
+        <span className="label-xs mb-1.5 block text-content-dim">O pega tu link de Google Maps</span>
+        <div className="flex gap-2">
+          <input
+            value={pasted}
+            onChange={(e) => {
+              setPasted(e.target.value);
+              setPasteError(null);
+            }}
+            placeholder="https://maps.app.goo.gl/…"
+            aria-label="Link de Google Maps"
+            className="min-w-0 flex-1 rounded-sm border border-line-strong bg-ink-850 px-3 py-2.5 text-[13px] outline-none focus:border-brand focus:shadow-focus"
+          />
+          <button
+            type="button"
+            onClick={applyPasted}
+            disabled={!pasted.trim()}
+            className="bg-brand px-4 text-[11.5px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-colors duration-150 hover:bg-brand-hot disabled:bg-ink-700 disabled:text-content-faint"
+          >
+            Usar
+          </button>
+        </div>
+        {pasteError ? <p className="mt-1.5 text-xs text-alert-soft">{pasteError}</p> : null}
+      </div>
     </div>
   );
 }

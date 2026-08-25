@@ -15,7 +15,7 @@ export const phoneSchema = trimmed(30)
 
 export const shippingSchema = z
   .object({
-    name: trimmed(120).min(2, "Escribí tu nombre."),
+    name: trimmed(120).min(2, "Escribe tu nombre."),
     phone: phoneSchema,
     note: trimmed(500).optional().default(""),
     mode: z.enum(["pickup", "delivery"]),
@@ -25,6 +25,7 @@ export const shippingSchema = z
     lng: z.number().min(-180).max(180).nullable().default(null),
     mapsUrl: trimmed(500).optional().default(""),
     documentId: trimmed(40).optional().default(""),
+    branch: trimmed(160).optional().default(""),
     email: z.union([z.literal(""), z.string().trim().email("Correo inválido.").max(160)])
       .optional()
       .default(""),
@@ -33,29 +34,34 @@ export const shippingSchema = z
     if (v.mode !== "delivery") return;
 
     if (!v.department) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Elegí el departamento." });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Elige el departamento." });
       return;
     }
 
     if (v.department === LOCAL_DEPARTMENT) {
       // Cochabamba: logística propia, hace falta dirección y punto exacto.
       if (v.address.trim().length < 5) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Escribí la dirección." });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Escribe la dirección." });
       }
       if (v.lat === null || v.lng === null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["lat"],
-          message: "Marcá la ubicación en el mapa.",
+          message: "Marca la ubicación en el mapa.",
         });
       }
     } else {
-      // Otro departamento: despacho por transporte, hace falta CI y email.
+      // Otro departamento: despacho por transporte. No hay reparto a domicilio
+      // fuera de Cochabamba, así que en vez de dirección + mapa se pide a qué
+      // sucursal de la agencia mandar el paquete, más CI y correo para retirarlo.
       if (v.documentId.trim().length < 4) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Falta el CI o documento." });
       }
       if (!v.email) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Falta el correo." });
+      }
+      if (v.branch.trim().length < 3) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["branch"], message: "Indica a qué sucursal enviamos." });
       }
     }
   });

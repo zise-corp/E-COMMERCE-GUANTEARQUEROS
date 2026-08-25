@@ -85,7 +85,7 @@ export async function saveCategoryAction(
     }
   } catch (error) {
     console.error("[admin] saveCategory", error);
-    return { ok: false, error: "Ya existe una categoría con un nombre muy parecido. Probá con otro nombre." };
+    return { ok: false, error: "Ya existe una categoría con un nombre muy parecido. Prueba con otro nombre." };
   }
 
   revalidatePath("/admin/categorias");
@@ -110,7 +110,7 @@ export async function reorderCategoriesAction(input: unknown): Promise<ActionRes
 
   const matches = incoming.length === currentIds.size && incoming.every((cid) => currentIds.has(cid));
   if (!matches) {
-    return { ok: false, error: "El orden no coincide con las categorías actuales. Recargá la página." };
+    return { ok: false, error: "El orden no coincide con las categorías actuales. Recarga la página." };
   }
 
   await db.transaction(async (tx) => {
@@ -136,7 +136,7 @@ export async function deleteCategoryAction(id: number): Promise<ActionResult> {
   if (used) {
     return {
       ok: false,
-      error: "Hay productos en esta categoría. Movelos antes de borrarla.",
+      error: "Hay productos en esta categoría. Muévelos antes de borrarla.",
     };
   }
 
@@ -230,7 +230,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     return { ok: true };
   } catch (error) {
     console.error("[admin] saveProduct", error);
-    return { ok: false, error: "Ya existe un producto con un nombre muy parecido. Probá con otro nombre." };
+    return { ok: false, error: "Ya existe un producto con un nombre muy parecido. Prueba con otro nombre." };
   }
 }
 

@@ -110,6 +110,16 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
+export function CartIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 4h2.5l2 11h10l2-8H7" />
+      <circle cx="9" cy="19" r="1.4" />
+      <circle cx="17" cy="19" r="1.4" />
+    </Svg>
+  );
+}
+
 /** Agarradera de arrastre: dos columnas de puntos, el gesto universal de "reordenar". */
 export function GripIcon({ size = 14, className }: { size?: number; className?: string }) {
   return (
