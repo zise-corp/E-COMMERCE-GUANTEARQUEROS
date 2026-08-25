@@ -400,15 +400,14 @@ export async function getAllProductSlugs(): Promise<string[]> {
   });
 }
 
-/** Categorías raíz para el nav del header. */
+/** Categorías y subcategorías activas para la navegación global. */
 export async function getNavCategories() {
-  return withFallback<{ name: string; slug: string }[]>([], async () =>
-    db
-      .select({ name: categories.name, slug: categories.slug })
-      .from(categories)
-      .where(and(isNull(categories.parentId), eq(categories.active, true)))
-      .orderBy(asc(categories.position), asc(categories.name)),
-  );
+  const tree = await getCategoryTree();
+  return tree.map((category) => ({
+    name: category.name,
+    slug: category.slug,
+    children: category.children.map((child) => ({ name: child.name, slug: child.slug })),
+  }));
 }
 
 /** Búsqueda del overlay del header: por nombre de producto o de marca. */

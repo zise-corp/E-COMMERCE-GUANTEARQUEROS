@@ -4,8 +4,13 @@ import { Wordmark } from "@/components/brand/Wordmark";
 import { CartButton } from "./CartButton";
 import { NavLinks } from "./NavLinks";
 import { SearchButton } from "./SearchOverlay";
+import { MobileMenu } from "./MobileMenu";
 
-export type NavCategory = { name: string; slug: string };
+export type NavCategory = {
+  name: string;
+  slug: string;
+  children?: { name: string; slug: string }[];
+};
 
 /**
  * Header global sticky de 74px. El nav se envuelve antes que salirse:
@@ -18,6 +23,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
           a la pantalla, no respecto al espacio que sobra entre logo y botones
           (que es lo que pasa con un simple flex + ml-auto). */}
       <div className="container-shop flex h-[74px] items-center gap-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+        <MobileMenu categories={categories} dreiSlug={dreiSlug} />
         <Link
           href="/"
           className="flex flex-none items-center gap-1"
@@ -39,13 +45,6 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
         </div>
       </div>
 
-      <div className="border-t border-line-soft lg:hidden">
-        <NavLinks
-          categories={categories}
-          dreiSlug={dreiSlug}
-          className="container-shop flex justify-center py-2"
-        />
-      </div>
     </header>
   );
 }
