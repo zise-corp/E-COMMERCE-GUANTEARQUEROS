@@ -11,7 +11,7 @@ Dominio: `guantearquerosbolivia.com.bo` (tienda) · `/admin` (panel, login propi
 | Estilos | Tailwind CSS (tokens en `tailwind.config.ts`) |
 | DB | Postgres (Neon o Supabase) |
 | ORM | Drizzle ORM + drizzle-kit para migraciones |
-| Imágenes | Cloudinary (cloud `dvbtbadg1`), upload firmado desde el server |
+| Imágenes | ImageKit, subida directa autenticada desde el server |
 | Pagos | YoPago (QR + tarjeta), confirmación por polling y webhook |
 | Auth admin | Cookie de sesión httpOnly + hash Argon2, tabla `admin_users` |
 | Validación | Zod en cada route handler y en los formularios |
@@ -45,16 +45,16 @@ src/
       orders/[id]/status/route.ts
       payments/yopago/route.ts   # crea intento de pago (QR/link)
       payments/yopago/webhook/route.ts
-      admin/upload-signature/route.ts   # firma Cloudinary
+      admin/imagekit-auth/route.ts      # credenciales temporales de ImageKit
   components/
     shop/  ProductCard, ProductGallery, CategoryNav, CampaignStrip,
            CartDrawer, ShippingForm, DeliveryToggle, LocationPicker,
            ConfirmDialog, PaymentMethodPicker, OrderSummary, SupportModal
     admin/ StatCard, SalesChart, StatusBreakdown, DataTable,
-           ProductForm, AttributeRows, CloudinaryDropzone, OrderDetail, StatusStepper
+           ProductForm, AttributeRows, ImageKitDropzone, OrderDetail, StatusStepper
     ui/    Button, Input, Select, Badge, Toggle, Modal, Drawer, Chip
   db/      schema.ts, index.ts, queries/
-  lib/     cloudinary.ts, yopago.ts, session.ts, money.ts, validators.ts
+  lib/     images.ts, yopago.ts, session.ts, money.ts, validators.ts
 ```
 
 ## 3. Catálogo
@@ -87,16 +87,13 @@ Sin listas cerradas ni tablas de opciones: el admin tipea nombre y valor, y la f
 producto los renderiza en el mismo orden. Las tallas seleccionables sí son un campo
 aparte (`products.sizes text[]`) porque afectan al carrito.
 
-## 4. Imágenes (Cloudinary)
+## 4. Imágenes (ImageKit)
 
 - Carpeta `guantearqueros/productos/<slug>`.
-- El browser sube directo a Cloudinary con firma generada en `/api/admin/upload-signature`; la API secret nunca sale del server.
-- Se guarda solo el `public_id`; los tamaños se derivan con transformaciones:
-  - grilla: `f_auto,q_auto,c_fill,w_600,h_450`
-  - ficha: `f_auto,q_auto,c_fill,w_1200,h_1200`
-  - thumb admin/carrito: `f_auto,q_auto,c_fill,w_120,h_120`
-- Variables de entorno: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (server), `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` (client).
-  La API secret que se compartió en el chat conviene rotarla antes de salir a producción.
+- El browser sube directo a ImageKit con credenciales temporales generadas en `/api/admin/imagekit-auth`; la clave privada nunca sale del server.
+- Se guardan el `filePath` y el `fileId`; los tamaños se derivan con transformaciones
+  específicas para grilla, ficha y miniatura.
+- Variables de entorno: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_PUBLIC_KEY` y `IMAGEKIT_PRIVATE_KEY` (solo server).
 
 ## 5. Checkout — comportamiento
 
@@ -139,14 +136,14 @@ el pedido histórico sigue mostrando lo que el cliente compró.
 - `/admin/login` — credenciales propias, fuera de la vista pública. Middleware protege `/admin/*`.
 - **Resumen**: KPIs (ventas del mes, pedidos, ticket promedio, stock crítico), ventas por semana, pedidos por estado, más vendidos.
 - **Categorías**: alta/edición de categorías y subcategorías, orden de aparición.
-- **Productos**: tabla filtrable por categoría, formulario con precio/precio anterior/stock, atributos manuales, subida a Cloudinary, toggles publicado/destacado.
+- **Productos**: tabla filtrable por categoría, formulario con precio/precio anterior/stock, atributos manuales, subida a ImageKit, toggles publicado/destacado.
 - **Pedidos**: lista con filtro por estado y detalle con datos del cliente, campos condicionales de entrega (dirección + mapa clickeable, o CI + email), ítems con precio congelado, total y control de estado `recibido → en_proceso → completado | cancelado`.
 
 ## 8. Rendimiento y SEO
 
 - Home y listados como Server Components con `revalidate: 300`; ficha de producto `generateStaticParams` + revalidación por tag al guardar en el admin.
 - Carrito y checkout como Client Components.
-- `next/image` con loader de Cloudinary; `sizes` explícito en grillas.
+- `next/image` con URLs transformadas de ImageKit; `sizes` explícito en grillas.
 - Metadata por producto y categoría, JSON-LD `Product` con precio y disponibilidad.
 
 ## 9. Prototipos

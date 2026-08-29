@@ -4,15 +4,16 @@ import { useEffect, useState, useTransition } from "react";
 import { saveProductAction } from "@/app/admin/actions";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
+import { TrashIcon } from "@/components/ui/Icons";
 import { Toggle } from "@/components/ui/Toggle";
 import { Portal } from "@/components/ui/Portal";
 import { useDialog } from "@/components/ui/useDialog";
 import type { AdminProductDetail } from "@/db/queries/admin";
 import { slugify } from "@/lib/slug";
-import { CloudinaryDropzone, type ProductImageValue } from "./CloudinaryDropzone";
+import { ImageKitDropzone, type ProductImageValue } from "./ImageKitDropzone";
 
 export type CategoryOption = { id: number; name: string; parentId: number | null };
-export type BrandOption = { id: number; name: string };
+export type BrandOption = { id: number; name: string; isOwnBrand: boolean };
 
 type FormState = {
   name: string;
@@ -99,7 +100,7 @@ export function ProductForm({
 
   // El slug (la URL /p/...) no se muestra ni se edita: lo calcula el server a
   // partir del nombre al crear, y queda fijo al editar. Acá solo hace falta una
-  // carpeta para Cloudinary — la real si el producto ya existe, o una vista
+  // carpeta para ImageKit — la real si el producto ya existe, o una vista
   // previa mientras se está creando (el server puede terminar en otra si el
   // nombre cambió justo antes de guardar; es solo organización, no la URL final).
   const folderSlug = product ? product.slug : slugify(form.name);
@@ -110,8 +111,8 @@ export function ProductForm({
   // del negocio. La lógica de fondo sigue siendo la misma (brandId → la etiqueta
   // azul en la tienda), pero en el formulario se destaca aparte con su propio
   // switch en vez de mezclarse en el desplegable de marcas reales.
-  const dreiBrand = brands.find((b) => b.name === "DREI");
-  const otherBrands = brands.filter((b) => b.name !== "DREI");
+  const dreiBrand = brands.find((b) => b.isOwnBrand);
+  const otherBrands = brands.filter((b) => !b.isOwnBrand);
   const isDrei = dreiBrand !== undefined && form.brandId === dreiBrand.id;
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -142,6 +143,10 @@ export function ProductForm({
     }
     if (form.categoryId === null) {
       setError("Elige una categoría.");
+      return;
+    }
+    if (subs.length > 0 && form.subcategoryId === null) {
+      setError("Elige una subcategoría para clasificar el producto.");
       return;
     }
 
@@ -210,9 +215,9 @@ export function ProductForm({
                 onChange={(e) => set("name", e.target.value)}
               />
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className={subs.length > 0 ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
                 <Select
-                  label="Categoría"
+                  label="Categoría principal"
                   value={form.categoryId === null ? "" : String(form.categoryId)}
                   className="bg-[#0E0E0D]"
                   onChange={(e) =>
@@ -231,21 +236,20 @@ export function ProductForm({
                   ))}
                 </Select>
 
-                <Select
-                  label="Subcategoría"
-                  value={form.subcategoryId === null ? "" : String(form.subcategoryId)}
-                  className="bg-[#0E0E0D]"
-                  onChange={(e) =>
-                    set("subcategoryId", e.target.value ? Number(e.target.value) : null)
-                  }
-                >
-                  <option value="">— Sin subcategoría —</option>
-                  {subs.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                {subs.length > 0 ? (
+                  <Select
+                    label="Subcategoría"
+                    value={form.subcategoryId === null ? "" : String(form.subcategoryId)}
+                    className="bg-[#0E0E0D]"
+                    hint="Obligatoria para esta categoría."
+                    onChange={(e) => set("subcategoryId", e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">— Selecciona dónde clasificarlo —</option>
+                    {subs.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Select>
+                ) : null}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
@@ -340,7 +344,7 @@ export function ProductForm({
                         aria-label={`Quitar atributo ${i + 1}`}
                         className="text-center text-[15px] text-content-faint transition-colors duration-150 hover:text-alert"
                       >
-                        ✕
+                        <TrashIcon size={15} className="mx-auto" />
                       </button>
                     </div>
                   ))}
@@ -355,7 +359,7 @@ export function ProductForm({
             </div>
 
             <div className="flex flex-col gap-3.5">
-              <CloudinaryDropzone
+              <ImageKitDropzone
                 slug={folderSlug}
                 value={form.images}
                 onChange={(next) => set("images", next)}
@@ -365,11 +369,11 @@ export function ProductForm({
                 <div className="border border-drei-line/40 bg-drei/[0.08] p-3.5">
                   <Toggle
                     checked={isDrei}
-                    label="Es un producto DREI"
+                    label={`Es un producto ${dreiBrand.name}`}
                     onChange={(on) => set("brandId", on ? dreiBrand.id : null)}
                   />
                   <p className="mt-2 text-[11px] leading-relaxed text-drei-ink/80">
-                    DREI es la línea propia del negocio, no una marca externa: se muestra en
+                    {dreiBrand.name} es la línea propia del negocio: se muestra en
                     la tienda con su etiqueta azul.
                   </p>
                 </div>

@@ -156,8 +156,18 @@ export type AdminCategoryRow = {
   slug: string;
   position: number;
   active: boolean;
+  imagePath: string | null;
+  imageFileId: string | null;
   productCount: number;
-  subs: { id: number; name: string; slug: string; productCount: number }[];
+  subs: {
+    id: number;
+    name: string;
+    slug: string;
+    active: boolean;
+    imagePath: string | null;
+    imageFileId: string | null;
+    productCount: number;
+  }[];
 };
 
 export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
@@ -190,6 +200,8 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
       slug: r.slug,
       position: r.position,
       active: r.active,
+      imagePath: r.imagePath,
+      imageFileId: r.imageFileId,
       productCount: byCategory.get(r.id) ?? 0,
       subs: rows
         .filter((s) => s.parentId === r.id)
@@ -197,6 +209,9 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
           id: s.id,
           name: s.name,
           slug: s.slug,
+          active: s.active,
+          imagePath: s.imagePath,
+          imageFileId: s.imageFileId,
           productCount: bySub.get(s.id) ?? 0,
         })),
     }));
@@ -274,7 +289,7 @@ export type AdminProductDetail = {
   attributes: { name: string; value: string }[];
   published: boolean;
   featured: boolean;
-  images: { publicId: string; alt: string }[];
+  images: { publicId: string; fileId: string | null; alt: string }[];
 };
 
 export async function getAdminProduct(id: number): Promise<AdminProductDetail | null> {
@@ -282,7 +297,7 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
   if (!row) return null;
 
   const images = await db
-    .select({ publicId: productImages.publicId, alt: productImages.alt })
+    .select({ publicId: productImages.publicId, fileId: productImages.fileId, alt: productImages.alt })
     .from(productImages)
     .where(eq(productImages.productId, id))
     .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id));
@@ -325,9 +340,41 @@ export async function getCategoryOptions() {
 
 export async function getBrandOptions() {
   return db
-    .select({ id: brands.id, name: brands.name })
+    .select({ id: brands.id, name: brands.name, isOwnBrand: brands.isOwnBrand })
     .from(brands)
+    .where(eq(brands.active, true))
     .orderBy(asc(brands.id));
+}
+
+export type AdminBrandRow = {
+  id: number;
+  name: string;
+  slug: string;
+  accentHex: string | null;
+  logoPath: string | null;
+  logoFileId: string | null;
+  active: boolean;
+  isOwnBrand: boolean;
+  productCount: number;
+};
+
+export async function getAdminBrands(): Promise<AdminBrandRow[]> {
+  return db
+    .select({
+      id: brands.id,
+      name: brands.name,
+      slug: brands.slug,
+      accentHex: brands.accentHex,
+      logoPath: brands.logoPath,
+      logoFileId: brands.logoFileId,
+      active: brands.active,
+      isOwnBrand: brands.isOwnBrand,
+      productCount: sql<number>`count(${products.id})::int`,
+    })
+    .from(brands)
+    .leftJoin(products, eq(products.brandId, brands.id))
+    .groupBy(brands.id)
+    .orderBy(asc(brands.name));
 }
 
 export { childCategory, parentCategory };

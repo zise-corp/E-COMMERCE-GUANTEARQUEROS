@@ -22,7 +22,7 @@ export const slug = (s: string) =>
 
 export async function seedCatalog() {
   for (const [name, hex] of BRANDS) {
-    await db.insert(brands).values({ name, slug: slug(name), accentHex: hex }).onConflictDoNothing();
+    await db.insert(brands).values({ name, slug: slug(name), accentHex: hex, isOwnBrand: name === "DREI" }).onConflictDoNothing();
   }
   let pos = 0;
   for (const [parent, subs] of Object.entries(TREE)) {
@@ -68,8 +68,7 @@ export async function ensureOrderNumberSequence() {
    "terminada" antes de cerrar el trato. Las fotos son de stock (LoremFlickr,
    con `lock` para que la imagen quede fija y no cambie en cada visita) — un
    parche temporal a propósito. Cuando el catálogo real suba sus propias fotos
-   a Cloudinary, esta demo se reemplaza entera: no hay que tocar nada de la
-   lógica, `cloudinaryUrl()` ya sabe usar cualquiera de los dos casos. */
+   a ImageKit, esta demo se reemplaza entera: no hay que tocar la lógica de catálogo. */
 
 type DemoProduct = {
   name: string; brandName: string; category: string; sub: string;

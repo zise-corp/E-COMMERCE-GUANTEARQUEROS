@@ -38,7 +38,7 @@ Recrealos con precisión; donde este README y el HTML difieran, manda este READM
 | Estilos | Tailwind CSS v3 con los tokens de `tailwind.config.ts` (incluido) |
 | DB | Postgres (Neon o Supabase) |
 | ORM | Drizzle ORM + drizzle-kit |
-| Imágenes | Cloudinary, cloud `dvbtbadg1` |
+| Imágenes | ImageKit |
 | Pagos | YoPago (QR + tarjeta) |
 | Auth admin | cookie de sesión httpOnly + Argon2, tabla `admin_users` |
 | Validación | Zod en cada route handler y formulario |
@@ -46,7 +46,7 @@ Recrealos con precisión; donde este README y el HTML difieran, manda este READM
 
 No agregues librerías de UI (shadcn, MUI, Chakra). Los componentes se escriben a mano con
 Tailwind: el diseño es angular y de alto contraste, y las librerías genéricas lo redondean.
-Sí podés usar: `zod`, `drizzle-orm`, `next-cloudinary`, `argon2`, `recharts` (solo admin),
+Sí podés usar: `zod`, `drizzle-orm`, `@imagekit/next`, `argon2`, `recharts` (solo admin),
 `react-leaflet` o Google Maps JS API (selector de ubicación).
 
 ## 3. Dirección visual — no negociable
@@ -125,7 +125,7 @@ Resumen de rutas:
 
 API: `POST/PATCH /api/orders`, `PATCH /api/orders/[id]/status`,
 `POST /api/payments/yopago`, `POST /api/payments/yopago/webhook`,
-`POST /api/admin/upload-signature`.
+`GET /api/admin/imagekit-auth`.
 
 Middleware protege `/admin/*` salvo `/admin/login`. El panel es invisible desde la tienda:
 sin links, sin sitemap, `noindex`.
@@ -279,7 +279,7 @@ naranja reservado para acción y estado activo. Tipografía de tabla 13–13.5px
   precio anterior / stock, descripción, y el bloque **"Atributos manuales"** — filas
   `1fr 1.4fr 34px` de dos inputs libres (nombre y valor) más botón de eliminar, y un
   "+ Atributo" que agrega una fila vacía. Placeholders: "Color" / "Blanco con líneas negras".
-  Columna derecha: dropzone de Cloudinary con grilla de 4 miniaturas (la primera marcada
+  Columna derecha: dropzone de ImageKit con grilla de 4 miniaturas (la primera marcada
   "PRINCIPAL"), select de marca, toggles "Publicado en la tienda" y "Destacado en home",
   y guardar/cancelar.
 - **Pedidos**: chips de filtro por estado; tabla `70px 1.4fr 1.2fr 130px 110px 100px 70px` con
@@ -329,19 +329,18 @@ Reglas:
 - Zona de respeto mínima alrededor del logo = altura de la "G".
 - El logo de DREI **no** va en el header global: solo como identificador de su categoría.
 - Fotografía de producto: fondo oscuro, producto centrado, alto contraste. En los prototipos hay
-  imágenes de placeholder de internet; en producción **todas** las imágenes salen de Cloudinary.
+  imágenes de placeholder de internet; en producción **todas** las imágenes salen de ImageKit.
 
-## 10. Cloudinary
+## 10. ImageKit
 
 - Carpeta `guantearqueros/productos/<slug>`.
 - Subida directa desde el browser con **firma generada en el server**
-  (`POST /api/admin/upload-signature`); la API secret nunca se expone al cliente.
-- Se guarda solo el `public_id`. Transformaciones:
-  grilla `f_auto,q_auto,c_fill,w_600,h_450` · ficha `f_auto,q_auto,c_fill,w_1200,h_1200` ·
-  thumb `f_auto,q_auto,c_fill,w_120,h_120`.
-- Env vars: `CLOUDINARY_CLOUD_NAME=dvbtbadg1`, `CLOUDINARY_API_KEY`,
-  `CLOUDINARY_API_SECRET`, `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dvbtbadg1`.
-  **Rotá la API secret antes de producción** (fue compartida en un chat).
+  (`GET /api/admin/imagekit-auth`); la clave privada nunca se expone al cliente.
+- Se guardan el `filePath` y el `fileId`. Las URLs usan transformaciones de ImageKit
+  específicas para grilla, ficha y miniatura.
+- Env vars: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_PUBLIC_KEY`,
+  `IMAGEKIT_PRIVATE_KEY`.
+  La clave privada solo se configura en el servidor y nunca se versiona.
 
 ## 11. Fuera de alcance en esta etapa
 
@@ -366,7 +365,7 @@ Reglas:
 8. `/api/orders` (crear/actualizar) y paso 2 con YoPago en modo sandbox + polling + webhook.
 9. Paso 3 y modal de soporte.
 10. Admin: login + middleware, resumen, categorías, productos (con atributos manuales y
-    Cloudinary), pedidos con detalle y cambio de estado.
+    ImageKit), pedidos con detalle y cambio de estado.
 11. Metadata/SEO, JSON-LD `Product`, `noindex` en `/admin`, deploy en Vercel.
 
 Hacé commits por bloque y andá pidiendo revisión al terminar cada punto.
@@ -376,7 +375,7 @@ Hacé commits por bloque y andá pidiendo revisión al terminar cada punto.
 | Archivo | Qué es |
 |---|---|
 | `README.md` | Este documento — la especificación completa |
-| `ARQUITECTURA.md` | Stack, árbol de carpetas, rutas, API, flujo de checkout, Cloudinary |
+| `ARQUITECTURA.md` | Stack, árbol de carpetas, rutas, API, flujo de checkout, ImageKit |
 | `Design System.dc.html` | Tokens, tipografía, componentes y reglas de uso (abrir en el navegador) |
 | `Guantearqueros Tienda.dc.html` | Prototipo de la tienda pública, incluyendo los 3 pasos del checkout |
 | `Guantearqueros Admin.dc.html` | Prototipo del panel admin (login, resumen, categorías, productos, pedidos) |

@@ -40,11 +40,10 @@ export type CategoryNode = {
   name: string;
   slug: string;
   position: number;
+  imagePath: string | null;
   productCount: number;
   children: CategoryNode[];
 };
-
-const DREI = "DREI";
 
 /* Imagen principal por producto, como subconsulta reutilizable. */
 const primaryImage = sql<string | null>`(
@@ -59,6 +58,7 @@ const cardColumns = {
   slug: products.slug,
   name: products.name,
   brandName: brands.name,
+  brandOwn: brands.isOwnBrand,
   price: products.price,
   compareAtPrice: products.compareAtPrice,
   stock: products.stock,
@@ -71,6 +71,7 @@ type CardRow = {
   slug: string;
   name: string;
   brandName: string | null;
+  brandOwn: boolean | null;
   price: string;
   compareAtPrice: string | null;
   stock: number;
@@ -84,7 +85,7 @@ function toCard(row: CardRow): ProductCard {
     slug: row.slug,
     name: row.name,
     brandName: row.brandName,
-    isDrei: row.brandName === DREI,
+    isDrei: row.brandOwn === true,
     price: row.price,
     compareAtPrice: row.compareAtPrice,
     stock: row.stock,
@@ -105,6 +106,7 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
         slug: categories.slug,
         parentId: categories.parentId,
         position: categories.position,
+        imagePath: categories.imagePath,
       })
       .from(categories)
       .where(eq(categories.active, true))
@@ -137,6 +139,7 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
         name: r.name,
         slug: r.slug,
         position: r.position,
+        imagePath: r.imagePath,
         productCount: byCategory.get(r.id) ?? bySubcategory.get(r.id) ?? 0,
         children: [],
       });
@@ -205,6 +208,7 @@ export async function getBrands() {
           accentHex: brands.accentHex,
         })
         .from(brands)
+        .where(eq(brands.active, true))
         .orderBy(asc(brands.id)),
   );
 }
@@ -221,6 +225,35 @@ export async function getAllProducts(): Promise<ProductCard[]> {
       .where(eq(products.published, true))
       .orderBy(desc(products.featured), desc(products.updatedAt), asc(products.name));
     return rows.map(toCard);
+  });
+}
+
+export type ProductPage = {
+  products: ProductCard[];
+  page: number;
+  pageCount: number;
+  total: number;
+};
+
+/** Página acotada del catálogo para la portada; evita enviar todos los productos. */
+export async function getProductsPage(requestedPage = 1, pageSize = 12): Promise<ProductPage> {
+  return withFallback<ProductPage>({ products: [], page: 1, pageCount: 0, total: 0 }, async () => {
+    const [countRow] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(products)
+      .where(eq(products.published, true));
+    const total = countRow?.total ?? 0;
+    const pageCount = Math.ceil(total / pageSize);
+    const page = pageCount === 0 ? 1 : Math.min(Math.max(1, requestedPage), pageCount);
+    const rows = await db
+      .select(cardColumns)
+      .from(products)
+      .leftJoin(brands, eq(products.brandId, brands.id))
+      .where(eq(products.published, true))
+      .orderBy(desc(products.featured), desc(products.updatedAt), asc(products.name))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    return { products: rows.map(toCard), page, pageCount, total };
   });
 }
 
@@ -342,6 +375,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
         name: products.name,
         description: products.description,
         brandName: brands.name,
+        brandOwn: brands.isOwnBrand,
         price: products.price,
         compareAtPrice: products.compareAtPrice,
         stock: products.stock,
@@ -373,7 +407,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       name: row.name,
       description: row.description,
       brandName: row.brandName,
-      isDrei: row.brandName === DREI,
+      isDrei: row.brandOwn === true,
       price: row.price,
       compareAtPrice: row.compareAtPrice,
       stock: row.stock,

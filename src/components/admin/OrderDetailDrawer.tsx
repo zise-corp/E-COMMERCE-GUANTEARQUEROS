@@ -7,7 +7,7 @@ import { Escudo } from "@/components/brand/Escudo";
 import { Drawer } from "@/components/ui/Drawer";
 import { Spinner } from "@/components/ui/Spinner";
 import type { OrderSummary } from "@/db/queries/orders";
-import { cloudinaryUrl } from "@/lib/images";
+import { imageKitUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { STATUS_META } from "./OrdersManager";
@@ -146,7 +146,7 @@ export function OrderDetailDrawer({
                 <span className="relative block h-[42px] w-[42px] flex-none overflow-hidden bg-ink-950">
                   {i.imagePublicId ? (
                     <Image
-                      src={cloudinaryUrl(i.imagePublicId, "thumb")}
+                      src={imageKitUrl(i.imagePublicId, "thumb")}
                       alt=""
                       fill
                       sizes="42px"

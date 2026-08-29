@@ -146,7 +146,11 @@ export const productSchema = z.object({
   sizes: z.array(z.string().trim().min(1).max(40)).max(40).default([]),
   attributes: z.array(attributeSchema).max(40).default([]),
   images: z
-    .array(z.object({ publicId: z.string().trim().min(1).max(300), alt: z.string().trim().max(200).default("") }))
+    .array(z.object({
+      publicId: z.string().trim().min(1).max(500),
+      fileId: z.string().trim().min(1).max(200).nullable().default(null),
+      alt: z.string().trim().max(200).default(""),
+    }))
     .max(12)
     .default([]),
   published: z.boolean().default(false),
@@ -157,12 +161,23 @@ export const categorySchema = z.object({
   name: z.string().trim().min(2).max(80),
   parentId: z.number().int().positive().nullable().default(null),
   active: z.boolean().default(true),
+  imagePath: z.string().trim().min(1).max(500).nullable().default(null),
+  imageFileId: z.string().trim().min(1).max(200).nullable().default(null),
   // Ni slug ni position vienen del cliente: el slug sale del nombre y el orden
   // se decide arrastrando la fila (ver reorderCategoriesSchema).
 });
 
 export const reorderCategoriesSchema = z.object({
   orderedIds: z.array(z.number().int().positive()).min(1).max(200),
+});
+
+export const brandSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  active: z.boolean().default(true),
+  isOwnBrand: z.boolean().default(false),
+  accentHex: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Usa un color hexadecimal válido.").nullable().default(null),
+  logoPath: z.string().trim().min(1).max(500).nullable().default(null),
+  logoFileId: z.string().trim().min(1).max(200).nullable().default(null),
 });
 
 export const campaignSchema = z.object({

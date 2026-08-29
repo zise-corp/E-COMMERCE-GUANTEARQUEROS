@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Escudo } from "@/components/brand/Escudo";
 import { cn } from "@/lib/cn";
-import { cloudinaryUrl, IMAGE_SIZES, type ImagePreset } from "@/lib/images";
+import { imageKitUrl, IMAGE_SIZES, type ImagePreset } from "@/lib/images";
 
 /**
  * Imagen de producto con el respaldo de marca cuando todavía no hay foto cargada.
@@ -40,7 +40,7 @@ export function ProductImage({
 
   return (
     <Image
-      src={cloudinaryUrl(publicId, preset)}
+      src={imageKitUrl(publicId, preset)}
       alt={alt}
       fill
       sizes={sizes}

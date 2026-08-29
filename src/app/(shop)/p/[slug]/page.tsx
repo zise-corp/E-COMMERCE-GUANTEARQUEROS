@@ -7,7 +7,7 @@ import { ProductGallery } from "@/components/shop/ProductGallery";
 import { LowStockNote } from "@/components/ui/Badge";
 import { Price } from "@/components/ui/Price";
 import { getAllProductSlugs, getProductBySlug } from "@/db/queries/catalog";
-import { cloudinaryUrl } from "@/lib/images";
+import { imageKitUrl } from "@/lib/images";
 import { discountPercent } from "@/lib/money";
 import { site } from "@/lib/site";
 
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Producto" };
 
-  const image = product.imagePublicId ? cloudinaryUrl(product.imagePublicId, "og") : undefined;
+  const image = product.imagePublicId ? imageKitUrl(product.imagePublicId, "og") : undefined;
 
   return {
     title: product.name,
@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: Props) {
     sku: sku(product.id),
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
     ...(product.imagePublicId
-      ? { image: [cloudinaryUrl(product.imagePublicId, "detail")] }
+      ? { image: [imageKitUrl(product.imagePublicId, "detail")] }
       : {}),
     offers: {
       "@type": "Offer",

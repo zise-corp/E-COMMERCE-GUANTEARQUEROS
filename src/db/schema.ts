@@ -31,6 +31,8 @@ export const categories = pgTable("categories", {
   parentId: integer("parent_id").references((): any => categories.id, { onDelete: "cascade" }),
   position: integer("position").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  imagePath: text("image_path"),
+  imageFileId: text("image_file_id"),
 }, (t) => ({ slugUq: uniqueIndex("categories_slug_uq").on(t.slug) }));
 
 export const brands = pgTable("brands", {
@@ -39,6 +41,10 @@ export const brands = pgTable("brands", {
   slug: text("slug").notNull().unique(),
   // acento propio para sub-marcas (DREI usa #1B3A5C); null = usa el naranja de marca
   accentHex: text("accent_hex"),
+  logoPath: text("logo_path"),
+  logoFileId: text("logo_file_id"),
+  active: boolean("active").notNull().default(true),
+  isOwnBrand: boolean("is_own_brand").notNull().default(false),
 });
 
 export const products = pgTable("products", {
@@ -68,7 +74,9 @@ export const products = pgTable("products", {
 export const productImages = pgTable("product_images", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
-  publicId: text("public_id").notNull(),   // Cloudinary public_id
+  // `public_id` se conserva como nombre físico por compatibilidad; guarda el filePath de ImageKit.
+  publicId: text("public_id").notNull(),
+  fileId: text("file_id"),
   alt: text("alt").notNull().default(""),
   position: integer("position").notNull().default(0),
   isPrimary: boolean("is_primary").notNull().default(false),

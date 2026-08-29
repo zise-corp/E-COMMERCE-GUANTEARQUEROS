@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "clean": "node -e \"for(const dir of ['.next','.next-dev'])require('fs').rmSync(dir,{recursive:true,force:true})\"",
@@ -18,8 +18,8 @@
     "verify:sql": "tsx scripts/verify-sql.ts"
   },
   "dependencies": {
+    "@imagekit/next": "^2.1.5",
     "@node-rs/argon2": "^2.0.2",
-    "cloudinary": "^2.5.1",
     "drizzle-orm": "^0.38.3",
     "leaflet": "^1.9.4",
     "next": "15.5.23",

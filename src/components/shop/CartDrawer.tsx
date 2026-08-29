@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Drawer } from "@/components/ui/Drawer";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { formatBs, toNumber } from "@/lib/money";
@@ -49,11 +51,12 @@ export function CartDrawer() {
 
 function ItemsStep() {
   const cart = useCart();
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
 
   function emptyCart() {
-    if (!window.confirm("¿Quieres vaciar todos los productos del carrito?")) return;
     cart.clear();
     cart.setOrderId(null);
+    setConfirmEmpty(false);
   }
 
   if (cart.items.length === 0) {
@@ -72,6 +75,7 @@ function ItemsStep() {
   }
 
   return (
+    <>
     <div className="px-6 py-[18px]">
       <div className="flex items-center justify-between border-b border-ink-800 pb-2.5">
         <span className="text-[11.5px] text-content-dim">
@@ -79,7 +83,7 @@ function ItemsStep() {
         </span>
         <button
           type="button"
-          onClick={emptyCart}
+          onClick={() => setConfirmEmpty(true)}
           className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:text-alert focus-visible:text-alert"
         >
           Vaciar carrito
@@ -140,5 +144,14 @@ function ItemsStep() {
         })}
       </ul>
     </div>
+    <ConfirmModal
+      open={confirmEmpty}
+      title="Vaciar carrito"
+      description="¿Quieres quitar todos los productos del carrito?"
+      confirmLabel="Vaciar carrito"
+      onClose={() => setConfirmEmpty(false)}
+      onConfirm={emptyCart}
+    />
+    </>
   );
 }

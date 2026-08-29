@@ -22,6 +22,27 @@
       "when": 1787620244123,
       "tag": "0002_sucursal-envio",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787965377050,
+      "tag": "0003_imagekit",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787966597381,
+      "tag": "0004_category-images",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787968530911,
+      "tag": "0005_brands-admin",
+      "breakpoints": true
     }
   ]
 }

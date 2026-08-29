@@ -1,50 +1,40 @@
-/**
- * URLs de Cloudinary. En la base solo se guarda el `public_id`; los tamaños se
- * derivan con transformaciones, así una sola subida sirve para toda la tienda.
- *
- * Este módulo es seguro en el cliente: solo usa el cloud name público.
- */
+/** URLs y transformaciones de ImageKit. Este módulo solo usa el endpoint público. */
+const IMAGEKIT_ENDPOINT = (
+  process.env["NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT"] ?? "https://ik.imagekit.io/zisebyte"
+).replace(/\/$/, "");
 
-const CLOUD =
-  process.env["NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME"] ??
-  process.env["CLOUDINARY_CLOUD_NAME"] ??
-  "dvbtbadg1";
-
-export const CLOUDINARY_FOLDER = "guantearqueros/productos";
+export const IMAGEKIT_FOLDER = "/guantearqueros/productos";
 
 export const IMAGE_PRESETS = {
   /** Grilla de listado, 4:3. */
-  grid: "f_auto,q_auto,c_fill,w_600,h_450",
+  grid: "f-auto,q-auto,c-at_max,w-600,h-450,cm-pad_resize,bg-0A0A0A",
   /** Card cuadrada (destacados de la home). */
-  square: "f_auto,q_auto,c_fill,w_600,h_600",
+  square: "f-auto,q-auto,c-at_max,w-600,h-600,cm-pad_resize,bg-0A0A0A",
   /** Ficha de producto. */
-  detail: "f_auto,q_auto,c_fill,w_1200,h_1200",
+  detail: "f-auto,q-auto,c-at_max,w-1200,h-1200,cm-pad_resize,bg-0A0A0A",
   /** Miniatura de admin, carrito y detalle de pedido. */
-  thumb: "f_auto,q_auto,c_fill,w_120,h_120",
+  thumb: "f-auto,q-auto,c-at_max,w-120,h-120,cm-pad_resize,bg-0A0A0A",
   /** Card de categoría, vertical. */
-  category: "f_auto,q_auto,c_fill,w_600,h_800",
+  category: "f-auto,q-auto,c-at_max,w-600,h-800,cm-pad_resize,bg-0A0A0A",
   /** Imagen social. */
-  og: "f_auto,q_auto,c_fill,w_1200,h_630",
+  og: "f-auto,q-auto,c-maintain_ratio,w-1200,h-630",
 } as const;
 
 export type ImagePreset = keyof typeof IMAGE_PRESETS;
 
-export function cloudinaryUrl(publicId: string, preset: ImagePreset = "grid"): string {
-  if (publicId.startsWith("/")) return publicId;
-  // DEMO temporal: mientras no hay fotos reales subidas, algunas filas de
-  // product_images guardan una URL externa completa en vez de un public_id de
-  // Cloudinary (ver seedDemoProducts). Esa URL se usa tal cual, sin pasarla por
-  // la transformación de Cloudinary porque no aplica a un host ajeno. Cuando el
-  // catálogo real reemplace estas filas, este branch deja de activarse solo.
-  if (/^https?:\/\//.test(publicId)) return publicId;
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/${IMAGE_PRESETS[preset]}/${publicId}`;
+export function imageKitUrl(filePath: string, preset: ImagePreset = "grid"): string {
+  if (/^https?:\/\//.test(filePath)) return filePath;
+  // Los recursos locales de la demo deben seguir saliendo desde /public.
+  if (filePath.startsWith("/") && !filePath.startsWith(`${IMAGEKIT_FOLDER}/`)) return filePath;
+  const path = filePath.startsWith("/") ? filePath : `/${filePath}`;
+  return `${IMAGEKIT_ENDPOINT}/tr:${IMAGE_PRESETS[preset]}${path}`;
 }
 
 /**
  * DEMO temporal: foto de stock determinística (mismo `lock` = misma imagen
  * siempre, nunca cambia entre visitas). La usan el seed de productos y los
  * huecos decorativos de la home (hero, cards de categoría, bloque DREI)
- * mientras el catálogo no tiene fotos reales en Cloudinary.
+ * mientras el catálogo todavía no tiene fotos reales.
  */
 export function demoStockPhoto(keyword: string, lock: number): string {
   return `https://loremflickr.com/720/720/${keyword}/all?lock=${lock}`;

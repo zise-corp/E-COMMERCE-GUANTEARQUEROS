@@ -4,10 +4,11 @@ import { DreiWordmark } from "@/components/brand/DreiWordmark";
 import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
+import { Pagination } from "@/components/shop/Pagination";
 import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
-import { getAllProducts, getBrands, getCategoryTree } from "@/db/queries/catalog";
+import { getProductsPage, getBrands, getCategoryTree } from "@/db/queries/catalog";
 
 /**
  * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
@@ -32,10 +33,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default async function HomePage() {
-  const [categories, products, brands] = await Promise.all([
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ pagina?: string }> }) {
+  const { pagina } = await searchParams;
+  const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
+  const [categories, productPage, brands] = await Promise.all([
     getCategoryTree(),
-    getAllProducts(),
+    getProductsPage(requestedPage, 12),
     getBrands(),
   ]);
 
@@ -54,7 +57,7 @@ export default async function HomePage() {
           />
           <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
             {categories.map((c) => {
-              const demoPhoto = CATEGORY_DEMO_PHOTO[c.slug];
+              const demoPhoto = c.imagePath ?? CATEGORY_DEMO_PHOTO[c.slug];
               return (
               <Link
                 key={c.id}
@@ -104,16 +107,17 @@ export default async function HomePage() {
           title="Todos los productos"
           aside={
             <span className="text-content-dim">
-              {products.length} {products.length === 1 ? "producto" : "productos"}
+              {productPage.total} {productPage.total === 1 ? "producto" : "productos"}
             </span>
           }
         />
         <ProductGrid
-          products={products}
+          products={productPage.products}
           columns={4}
           aspect="1/1"
           emptyMessage="Todavía no hay productos publicados. Agrégalos desde el panel."
         />
+        <Pagination page={productPage.page} pageCount={productPage.pageCount} />
       </section>
 
       <DreiBlock slug={poleras?.slug ?? null} />

@@ -9,6 +9,7 @@ import { logoutAction } from "@/app/admin/actions";
 const NAV = [
   { href: "/admin", label: "Resumen", badge: null },
   { href: "/admin/categorias", label: "Categorías", badge: "categories" },
+  { href: "/admin/marcas", label: "Marcas", badge: null },
   { href: "/admin/productos", label: "Productos", badge: "products" },
   { href: "/admin/pedidos", label: "Pedidos", badge: "newOrders" },
   { href: "/admin/ajustes", label: "Envíos y descuentos", badge: null },

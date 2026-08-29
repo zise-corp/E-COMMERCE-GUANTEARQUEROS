@@ -1,10 +1,10 @@
 "use server";
 
-import { eq, isNull, sql } from "drizzle-orm";
+import { eq, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
-import { categories, productImages, products } from "@/db/schema";
+import { brands, categories, productImages, products } from "@/db/schema";
 import { setOrderStatus } from "@/db/queries/orders";
 import { setCampaign, setCheckoutSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
@@ -12,6 +12,7 @@ import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
 import {
   campaignSchema,
+  brandSchema,
   checkoutSettingsSchema,
   categorySchema,
   orderStatusSchema,
@@ -47,6 +48,11 @@ export async function saveCategoryAction(
 
   const values = parsed.data;
   const nextSlug = slugify(values.name);
+  // Las subcategorías son navegación textual dentro de una categoría principal;
+  // nunca conservan ni aceptan una imagen propia.
+  const categoryImage = values.parentId === null
+    ? { imagePath: values.imagePath, imageFileId: values.imageFileId }
+    : { imagePath: null, imageFileId: null };
 
   if (values.parentId === null && isReservedCategorySlug(nextSlug)) {
     return {
@@ -67,6 +73,24 @@ export async function saveCategoryAction(
     if (id !== undefined && values.parentId === id) {
       return { ok: false, error: "Una categoría no puede ser su propio padre." };
     }
+    if (id !== undefined) {
+      const [child] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.parentId, id))
+        .limit(1);
+      const [assignedProduct] = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.categoryId, id))
+        .limit(1);
+      if (child || assignedProduct) {
+        return {
+          ok: false,
+          error: "Mueve primero sus productos y subcategorías antes de convertirla en subcategoría.",
+        };
+      }
+    }
   }
 
   try {
@@ -83,13 +107,19 @@ export async function saveCategoryAction(
         parentId: values.parentId,
         position: siblings?.n ?? 0,
         active: values.active,
+        ...categoryImage,
       });
     } else {
       // Editar: el nombre y la visibilidad cambian. El slug queda fijo para no
       // romper la URL ya publicada, y el orden se toca solo arrastrando la fila.
       await db
         .update(categories)
-        .set({ name: values.name, parentId: values.parentId, active: values.active })
+        .set({
+          name: values.name,
+          parentId: values.parentId,
+          active: values.active,
+          ...categoryImage,
+        })
         .where(eq(categories.id, id));
     }
   } catch (error) {
@@ -139,7 +169,7 @@ export async function deleteCategoryAction(id: number): Promise<ActionResult> {
   const [used] = await db
     .select({ id: products.id })
     .from(products)
-    .where(eq(products.categoryId, id))
+    .where(or(eq(products.categoryId, id), eq(products.subcategoryId, id)))
     .limit(1);
 
   if (used) {
@@ -151,6 +181,50 @@ export async function deleteCategoryAction(id: number): Promise<ActionResult> {
 
   await db.delete(categories).where(eq(categories.id, id));
   revalidatePath("/admin/categorias");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/* ── Marcas ─────────────────────────────────────────────────────────────── */
+
+export async function saveBrandAction(input: unknown, id?: number): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = brandSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+  const values = parsed.data;
+  try {
+    await db.transaction(async (tx) => {
+      if (values.isOwnBrand) {
+        await tx.update(brands).set({ isOwnBrand: false });
+      }
+      const data = {
+        name: values.name,
+        accentHex: values.accentHex,
+        logoPath: values.logoPath,
+        logoFileId: values.logoFileId,
+        active: values.active,
+        isOwnBrand: values.isOwnBrand,
+      };
+      if (id === undefined) await tx.insert(brands).values({ ...data, slug: slugify(values.name) });
+      else await tx.update(brands).set(data).where(eq(brands.id, id));
+    });
+  } catch (error) {
+    console.error("[admin] saveBrand", error);
+    return { ok: false, error: "Ya existe una marca con un nombre muy parecido." };
+  }
+  revalidatePath("/admin/marcas");
+  revalidatePath("/admin/productos");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function deleteBrandAction(id: number): Promise<ActionResult> {
+  await requireAdmin();
+  const [used] = await db.select({ id: products.id }).from(products).where(eq(products.brandId, id)).limit(1);
+  if (used) return { ok: false, error: "Esta marca tiene productos. Cámbialos de marca antes de eliminarla." };
+  await db.delete(brands).where(eq(brands.id, id));
+  revalidatePath("/admin/marcas");
+  revalidatePath("/admin/productos");
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -172,6 +246,26 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
   const v = parsed.data;
   if (v.compareAtPrice !== null && v.compareAtPrice <= v.price) {
     return { ok: false, error: "El precio anterior tiene que ser mayor al precio actual." };
+  }
+
+  const selectedCategory = await db.query.categories.findFirst({
+    where: eq(categories.id, v.categoryId),
+  });
+  if (!selectedCategory || selectedCategory.parentId !== null) {
+    return { ok: false, error: "Elige una categoría principal válida." };
+  }
+  const children = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, v.categoryId));
+  if (children.length > 0 && v.subcategoryId === null) {
+    return { ok: false, error: "Esta categoría requiere elegir una subcategoría." };
+  }
+  if (
+    v.subcategoryId !== null &&
+    !children.some((subcategory) => subcategory.id === v.subcategoryId)
+  ) {
+    return { ok: false, error: "La subcategoría no pertenece a la categoría seleccionada." };
   }
 
   const values = {
@@ -224,6 +318,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
           v.images.map((img, i) => ({
             productId: target as number,
             publicId: img.publicId,
+            fileId: img.fileId,
             alt: img.alt || v.name,
             position: i,
             isPrimary: i === 0,

@@ -10,7 +10,7 @@ un tema aparte sino una marca del catálogo con su tag azul.
 | Framework | Next.js 15 (App Router) + TypeScript strict |
 | Estilos | Tailwind CSS v3 con los tokens del design system |
 | Base | Postgres + Drizzle ORM |
-| Imágenes | Cloudinary (`dvbtbadg1`), subida firmada desde el server |
+| Imágenes | ImageKit, subida directa autenticada desde el panel |
 | Pagos | YoPago (QR + tarjeta), webhook + polling |
 | Auth admin | cookie httpOnly firmada (HMAC) + Argon2id |
 | Validación | Zod en cada endpoint, server action y formulario |
@@ -63,10 +63,9 @@ placeholder de marca. Se borran desde el panel cuando ya no hagan falta.
 |---|---|---|
 | `DATABASE_URL` | Postgres (Neon o Supabase), con `sslmode=require` | sí |
 | `ADMIN_SESSION_SECRET` | Firma de las cookies de sesión y de pedido | sí |
-| `CLOUDINARY_CLOUD_NAME` | `dvbtbadg1` | sí |
-| `CLOUDINARY_API_KEY` | Firma de subidas | para subir fotos |
-| `CLOUDINARY_API_SECRET` | Firma de subidas — **nunca sale del server** | para subir fotos |
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | `dvbtbadg1` | sí |
+| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público `https://ik.imagekit.io/...` | sí |
+| `IMAGEKIT_PUBLIC_KEY` | Identifica la cuenta durante la subida | para subir fotos |
+| `IMAGEKIT_PRIVATE_KEY` | Firma credenciales temporales — **nunca sale del server** | para subir fotos |
 | `YOPAGO_MODE` | `sandbox` (default) o `live` | no |
 | `YOPAGO_API_URL` · `YOPAGO_API_KEY` · `YOPAGO_SECRET` · `YOPAGO_WEBHOOK_SECRET` | Pasarela real | solo en `live` |
 | `NEXT_PUBLIC_SITE_URL` | Dominio público, para canonical/sitemap/webhook | sí en producción |
@@ -78,8 +77,8 @@ El secreto de sesión se genera así:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-> **Rotá `CLOUDINARY_API_SECRET` antes de salir a producción.** La clave que circuló
-> por chat hay que darla de baja desde el panel de Cloudinary y generar una nueva.
+> La clave `IMAGEKIT_PRIVATE_KEY` es exclusivamente del servidor. Nunca debe usar el
+> prefijo `NEXT_PUBLIC_` ni incluirse en commits.
 
 Sin `DATABASE_URL` el proyecto igual compila: las páginas públicas se renderizan
 vacías y avisan por consola. Es a propósito, para que un clon recién bajado buildee.
@@ -194,6 +193,6 @@ vuelve a verificar la sesión, sin confiar en que el middleware ya filtró.
   Cuando lleguen los archivos, van a `public/brand/` como
   `wordmark-guantearqueros.svg` y `drei-athletic.svg`, y se ponen en `true` los flags de
   `src/lib/brand.ts`. El escudo sí es el real, vectorizado del PNG original.
-- **Credenciales de Cloudinary** (key + secret nuevos) y **de YoPago**.
-- **Fotos de producto**: se suben desde el panel, van a
-  `guantearqueros/productos/<slug>`.
+- **Credenciales de YoPago** para reemplazar el simulador por la pasarela real.
+- **Fotos de producto**: se suben desde el panel a ImageKit y van a
+  `/guantearqueros/productos/<slug>`.

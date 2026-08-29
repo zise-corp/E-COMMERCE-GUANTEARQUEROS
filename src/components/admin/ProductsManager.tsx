@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteProductAction } from "@/app/admin/actions";
 import { Chip } from "@/components/ui/Chip";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { EditIcon, TrashIcon } from "@/components/ui/Icons";
 import { Escudo } from "@/components/brand/Escudo";
 import type { AdminProductDetail, AdminProductRow } from "@/db/queries/admin";
 import { cn } from "@/lib/cn";
-import { cloudinaryUrl } from "@/lib/images";
+import { imageKitUrl } from "@/lib/images";
 import { formatBs } from "@/lib/money";
 import { ProductForm, type BrandOption, type CategoryOption } from "./ProductForm";
 
@@ -30,6 +32,7 @@ export function ProductsManager({
   const [formOpen, setFormOpen] = useState(Boolean(openNew));
   const [editing, setEditing] = useState<AdminProductDetail | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminProductRow | null>(null);
   const [, startTransition] = useTransition();
 
   const roots = categories.filter((c) => c.parentId === null);
@@ -50,15 +53,14 @@ export function ProductsManager({
   }
 
   function remove(row: AdminProductRow) {
-    if (
-      !window.confirm(
-        `¿Borrar “${row.name}”?\n\nLos pedidos que ya lo incluyen conservan el nombre y el precio congelados.`,
-      )
-    ) {
-      return;
-    }
+    setDeleteTarget(row);
+  }
+
+  function confirmRemove() {
+    if (!deleteTarget) return;
     startTransition(async () => {
-      await deleteProductAction(row.id);
+      await deleteProductAction(deleteTarget.id);
+      setDeleteTarget(null);
       router.refresh();
     });
   }
@@ -72,16 +74,6 @@ export function ProductsManager({
               {label}
             </Chip>
           ))}
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(null);
-              setFormOpen(true);
-            }}
-            className="ml-auto bg-brand px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-ink-950 transition-colors duration-150 hover:bg-brand-hot"
-          >
-            + Nuevo producto
-          </button>
         </div>
 
         <div className="hidden gap-3.5 border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[52px_2fr_1fr_1fr_90px_100px_100px]">
@@ -108,7 +100,7 @@ export function ProductsManager({
             <div className="relative h-10 w-10 overflow-hidden bg-ink-950">
               {p.imagePublicId ? (
                 <Image
-                  src={cloudinaryUrl(p.imagePublicId, "thumb")}
+                  src={imageKitUrl(p.imagePublicId, "thumb")}
                   alt=""
                   fill
                   sizes="40px"
@@ -158,17 +150,20 @@ export function ProductsManager({
                 type="button"
                 onClick={() => void edit(p.id)}
                 disabled={loadingId === p.id}
-                className="text-[11.5px] text-content-muted transition-colors duration-150 hover:text-brand disabled:opacity-50"
+                aria-label={`Editar ${p.name}`}
+                title={`Editar ${p.name}`}
+                className="flex h-7 w-7 items-center justify-center text-content-muted transition-colors duration-150 hover:text-brand disabled:opacity-50"
               >
-                {loadingId === p.id ? "Abriendo…" : "Editar"}
+                <EditIcon size={16} />
               </button>
               <button
                 type="button"
                 onClick={() => remove(p)}
                 aria-label={`Borrar ${p.name}`}
-                className="text-[11.5px] text-content-faint transition-colors duration-150 hover:text-alert"
+                title={`Borrar ${p.name}`}
+                className="flex h-7 w-7 items-center justify-center text-content-faint transition-colors duration-150 hover:text-alert"
               >
-                ✕
+                <TrashIcon size={16} />
               </button>
             </div>
           </div>
@@ -185,6 +180,13 @@ export function ProductsManager({
         product={editing}
         categories={categories}
         brands={brands}
+      />
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        title="Eliminar producto"
+        description={deleteTarget ? `¿Quieres eliminar “${deleteTarget.name}”? Los pedidos existentes conservarán su nombre y precio.` : ""}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmRemove}
       />
     </>
   );
