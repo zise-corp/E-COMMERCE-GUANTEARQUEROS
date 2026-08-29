@@ -53,6 +53,13 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
+  useEffect(() => {
+    if (openNew) {
+      setError(null);
+      setForm(blank(openNew, rows));
+    }
+  }, [openNew, rows]);
+
   const subcategories: SubcategoryRow[] = rows.flatMap((parent) =>
     parent.subs.map((subcategory) => ({ ...subcategory, parentId: parent.id, parentName: parent.name })),
   );

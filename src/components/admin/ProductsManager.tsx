@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { deleteProductAction } from "@/app/admin/actions";
 import { Chip } from "@/components/ui/Chip";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -34,6 +34,13 @@ export function ProductsManager({
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminProductRow | null>(null);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (openNew) {
+      setEditing(null);
+      setFormOpen(true);
+    }
+  }, [openNew]);
 
   const roots = categories.filter((c) => c.parentId === null);
   const visible = filter === "Todos" ? rows : rows.filter((r) => r.categoryName === filter);

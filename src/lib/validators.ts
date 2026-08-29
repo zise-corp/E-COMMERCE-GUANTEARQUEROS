@@ -176,8 +176,6 @@ export const brandSchema = z.object({
   active: z.boolean().default(true),
   isOwnBrand: z.boolean().default(false),
   accentHex: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Usa un color hexadecimal válido.").nullable().default(null),
-  logoPath: z.string().trim().min(1).max(500).nullable().default(null),
-  logoFileId: z.string().trim().min(1).max(200).nullable().default(null),
 });
 
 export const campaignSchema = z.object({

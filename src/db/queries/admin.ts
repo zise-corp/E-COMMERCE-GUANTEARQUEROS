@@ -351,8 +351,6 @@ export type AdminBrandRow = {
   name: string;
   slug: string;
   accentHex: string | null;
-  logoPath: string | null;
-  logoFileId: string | null;
   active: boolean;
   isOwnBrand: boolean;
   productCount: number;
@@ -365,8 +363,6 @@ export async function getAdminBrands(): Promise<AdminBrandRow[]> {
       name: brands.name,
       slug: brands.slug,
       accentHex: brands.accentHex,
-      logoPath: brands.logoPath,
-      logoFileId: brands.logoFileId,
       active: brands.active,
       isOwnBrand: brands.isOwnBrand,
       productCount: sql<number>`count(${products.id})::int`,

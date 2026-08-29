@@ -93,7 +93,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             {brands.map((b) => (
               <span
                 key={b.id}
-                className="font-display text-[22px] uppercase tracking-[0.06em] text-[#4A4845] transition-colors duration-150 skew-fast hover:text-content"
+                className="font-display text-[22px] uppercase tracking-[0.06em] text-[#4A4845] transition-colors skew-fast hover:text-content"
               >
                 {b.name}
               </span>

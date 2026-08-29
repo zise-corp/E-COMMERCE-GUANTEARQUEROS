@@ -16,6 +16,11 @@ let lockDepth = 0;
 export function useDialog(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -37,7 +42,7 @@ export function useDialog(open: boolean, onClose: () => void) {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !ref.current) return;
@@ -67,7 +72,7 @@ export function useDialog(open: boolean, onClose: () => void) {
       }
       restoreTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return ref;
 }

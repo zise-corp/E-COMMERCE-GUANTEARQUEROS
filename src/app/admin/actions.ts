@@ -200,8 +200,6 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
       const data = {
         name: values.name,
         accentHex: values.accentHex,
-        logoPath: values.logoPath,
-        logoFileId: values.logoFileId,
         active: values.active,
         isOwnBrand: values.isOwnBrand,
       };

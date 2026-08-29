@@ -41,8 +41,6 @@ export const brands = pgTable("brands", {
   slug: text("slug").notNull().unique(),
   // acento propio para sub-marcas (DREI usa #1B3A5C); null = usa el naranja de marca
   accentHex: text("accent_hex"),
-  logoPath: text("logo_path"),
-  logoFileId: text("logo_file_id"),
   active: boolean("active").notNull().default(true),
   isOwnBrand: boolean("is_own_brand").notNull().default(false),
 });

@@ -43,6 +43,13 @@
       "when": 1787968530911,
       "tag": "0005_brands-admin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787969736781,
+      "tag": "0006_remove-brand-images",
+      "breakpoints": true
     }
   ]
 }
