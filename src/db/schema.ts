@@ -43,6 +43,7 @@ export const brands = pgTable("brands", {
   accentHex: text("accent_hex"),
   active: boolean("active").notNull().default(true),
   isOwnBrand: boolean("is_own_brand").notNull().default(false),
+  position: integer("position").notNull().default(0),
 });
 
 export const products = pgTable("products", {

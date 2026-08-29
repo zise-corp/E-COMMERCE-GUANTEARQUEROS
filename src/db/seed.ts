@@ -11,6 +11,14 @@ const TREE: Record<string, string[]> = {
   Canilleras: ["Con tobillera", "Placa simple"],
 };
 
+const CATEGORY_IMAGES: Record<string, string> = {
+  guantes: "/demo-products/guantes.png",
+  poleras: "/demo-products/poleras.png",
+  botas: "/demo-products/botas.png",
+  pelotas: "/demo-products/pelotas.png",
+  canilleras: "/demo-products/canilleras.png",
+};
+
 const BRANDS: [string, string | null][] = [
   ["Buffon", null], ["Uhlsport", null], ["HO Soccer", null],
   ["Elite", null], ["GXP", null], ["DREI", "#1B3A5C"],
@@ -21,14 +29,15 @@ export const slug = (s: string) =>
    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export async function seedCatalog() {
-  for (const [name, hex] of BRANDS) {
-    await db.insert(brands).values({ name, slug: slug(name), accentHex: hex, isOwnBrand: name === "DREI" }).onConflictDoNothing();
+  for (let brandPosition = 0; brandPosition < BRANDS.length; brandPosition++) {
+    const [name, hex] = BRANDS[brandPosition]!;
+    await db.insert(brands).values({ name, slug: slug(name), accentHex: hex, isOwnBrand: name === "DREI", position: brandPosition }).onConflictDoNothing();
   }
   let pos = 0;
   for (const [parent, subs] of Object.entries(TREE)) {
     const parentSlug = slug(parent);
     const [inserted] = await db.insert(categories)
-      .values({ name: parent, slug: parentSlug, position: pos++ })
+      .values({ name: parent, slug: parentSlug, position: pos++, imagePath: CATEGORY_IMAGES[parentSlug] ?? null })
       .onConflictDoNothing().returning();
 
     // Si la categoría ya existía, `returning()` viene vacío: la buscamos igual para

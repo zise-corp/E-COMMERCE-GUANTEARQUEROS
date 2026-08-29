@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { TrashIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { imageKitUrl, IMAGEKIT_FOLDER } from "@/lib/images";
+import { SquareImageCropper } from "./SquareImageCropper";
 
 export type ProductImageValue = { publicId: string; fileId: string | null; alt: string };
 
@@ -27,6 +28,7 @@ export function ImageKitDropzone({
   maxImages = MAX_IMAGES,
   label = "Imágenes · ImageKit",
   assetTag = "producto",
+  squareCrop = false,
 }: {
   slug: string;
   value: ProductImageValue[];
@@ -35,11 +37,14 @@ export function ImageKitDropzone({
   maxImages?: number;
   label?: string;
   assetTag?: string;
+  /** Abre un editor manual y normaliza la imagen a un JPG cuadrado antes de subirla. */
+  squareCrop?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropSource, setCropSource] = useState<{ file: File; url: string } | null>(null);
 
   const upload = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files);
@@ -103,6 +108,40 @@ export function ImageKitDropzone({
     }
   }, [slug, value, onChange, folder, maxImages, assetTag]);
 
+  const chooseFiles = useCallback((files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (!squareCrop) {
+      void upload(list);
+      return;
+    }
+    const file = list[0];
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) {
+      setError(`“${file.name}” no es una imagen admitida (JPG, PNG, WebP o AVIF).`);
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setError(`“${file.name}” pesa más de 10 MB.`);
+      return;
+    }
+    if (!slug) {
+      setError("Pon primero el nombre de la categoría para continuar.");
+      return;
+    }
+    if (value.length >= maxImages) {
+      setError("Quita la imagen actual antes de subir otra.");
+      return;
+    }
+    setError(null);
+    setCropSource({ file, url: URL.createObjectURL(file) });
+    if (inputRef.current) inputRef.current.value = "";
+  }, [squareCrop, upload, slug, value.length, maxImages]);
+
+  function closeCropper() {
+    if (cropSource) URL.revokeObjectURL(cropSource.url);
+    setCropSource(null);
+  }
+
   return (
     <div>
       <p className="mb-2 text-[10.5px] uppercase tracking-[0.16em] text-content-dim">
@@ -114,7 +153,7 @@ export function ImageKitDropzone({
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
-          void upload(event.dataTransfer.files);
+          chooseFiles(event.dataTransfer.files);
         }}
         className={cn(
           "border border-dashed p-[22px] text-center transition-colors duration-150",
@@ -143,9 +182,9 @@ export function ImageKitDropzone({
           ref={inputRef}
           type="file"
           accept={ACCEPTED.join(",")}
-          multiple
+          multiple={!squareCrop}
           className="sr-only"
-          onChange={(event) => event.target.files && void upload(event.target.files)}
+          onChange={(event) => event.target.files && chooseFiles(event.target.files)}
         />
       </div>
 
@@ -183,6 +222,18 @@ export function ImageKitDropzone({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {cropSource ? (
+        <SquareImageCropper
+          source={cropSource.url}
+          fileName={cropSource.file.name}
+          onCancel={closeCropper}
+          onConfirm={async (file) => {
+            closeCropper();
+            await upload([file]);
+          }}
+        />
       ) : null}
     </div>
   );

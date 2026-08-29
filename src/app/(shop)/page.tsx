@@ -6,6 +6,7 @@ import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
 import { Pagination } from "@/components/shop/Pagination";
 import { StoreLocations } from "@/components/shop/StoreLocations";
+import { ContactSection } from "@/components/shop/ContactSection";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
 import { getProductsPage, getBrands, getCategoryTree } from "@/db/queries/catalog";
@@ -16,14 +17,6 @@ import { getProductsPage, getBrands, getCategoryTree } from "@/db/queries/catalo
  * array) porque las categorías se pueden reordenar arrastrando en el admin —
  * si una categoría nueva no está en este mapa, simplemente no muestra foto.
  */
-const CATEGORY_DEMO_PHOTO: Record<string, string> = {
-  guantes: "/demo-products/guantes.png",
-  poleras: "/demo-products/poleras.png",
-  botas: "/demo-products/botas.png",
-  pelotas: "/demo-products/pelotas.png",
-  canilleras: "/demo-products/canilleras.png",
-};
-
 const HERO_IMAGE =
   "https://contents.mediadecathlon.com/p2585609/k$c266853b5915b6b1850da5d51f4b8b9f/guantes-de-arquero-de-futbol-nino-f100-superesist-rojo-azul.jpg";
 
@@ -57,12 +50,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           />
           <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
             {categories.map((c) => {
-              const demoPhoto = c.imagePath ?? CATEGORY_DEMO_PHOTO[c.slug];
+              const demoPhoto = c.imagePath;
               return (
               <Link
                 key={c.id}
                 href={`/${c.slug}`}
-                className="group relative block h-[260px] overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
+                className="group relative block aspect-square overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
               >
                 <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
                   <ProductImage
@@ -122,6 +115,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       <DreiBlock slug={poleras?.slug ?? null} />
       <StoreLocations />
+      <ContactSection />
     </>
   );
 }

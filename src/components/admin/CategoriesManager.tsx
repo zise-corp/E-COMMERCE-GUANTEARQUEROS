@@ -153,7 +153,7 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
               <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.active} label="Visible en la tienda" onChange={(active) => onChange({ ...form, active })} /></div>
             </div>
 
-            {isPrincipal ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" /> : null}
+            {isPrincipal ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" squareCrop /> : null}
           </div>
 
           <div className="border-t border-ink-700 px-6 py-5">

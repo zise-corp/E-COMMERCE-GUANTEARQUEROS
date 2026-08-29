@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { Display } from "@/components/ui/Heading";
-import { ArrowRightIcon, PinIcon, WhatsappIcon } from "@/components/ui/Icons";
+import { ArrowRightIcon, PinIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
-import { displayWhatsapp, whatsappLink } from "@/lib/site";
 
 const LOCATIONS = [
   {
@@ -99,15 +98,6 @@ export function StoreLocations() {
 
           <div className="border-t border-line p-5 sm:p-6">
             <p className="text-xs text-content-faint tabular">{coordinates}</p>
-            <a
-              href={whatsappLink("Hola, quisiera información sobre sus sucursales.")}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex w-fit items-center gap-2 text-sm font-bold text-content transition-colors hover:text-brand"
-            >
-              <WhatsappIcon size={16} className="text-brand" />
-              {displayWhatsapp()}
-            </a>
             <div className="mt-4 flex flex-wrap gap-2">
               <a
                 href={selected.mapsUrl}

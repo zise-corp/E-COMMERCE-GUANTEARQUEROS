@@ -343,7 +343,7 @@ export async function getBrandOptions() {
     .select({ id: brands.id, name: brands.name, isOwnBrand: brands.isOwnBrand })
     .from(brands)
     .where(eq(brands.active, true))
-    .orderBy(asc(brands.id));
+    .orderBy(asc(brands.position), asc(brands.name));
 }
 
 export type AdminBrandRow = {
@@ -353,6 +353,7 @@ export type AdminBrandRow = {
   accentHex: string | null;
   active: boolean;
   isOwnBrand: boolean;
+  position: number;
   productCount: number;
 };
 
@@ -365,12 +366,13 @@ export async function getAdminBrands(): Promise<AdminBrandRow[]> {
       accentHex: brands.accentHex,
       active: brands.active,
       isOwnBrand: brands.isOwnBrand,
+      position: brands.position,
       productCount: sql<number>`count(${products.id})::int`,
     })
     .from(brands)
     .leftJoin(products, eq(products.brandId, brands.id))
     .groupBy(brands.id)
-    .orderBy(asc(brands.name));
+    .orderBy(asc(brands.position), asc(brands.name));
 }
 
 export { childCategory, parentCategory };

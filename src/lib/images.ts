@@ -4,18 +4,20 @@ const IMAGEKIT_ENDPOINT = (
 ).replace(/\/$/, "");
 
 export const IMAGEKIT_FOLDER = "/guantearqueros/productos";
+const IMAGEKIT_ROOT = "/guantearqueros/";
+
 
 export const IMAGE_PRESETS = {
   /** Grilla de listado, 4:3. */
-  grid: "f-auto,q-auto,c-at_max,w-600,h-450,cm-pad_resize,bg-0A0A0A",
+  grid: "f-auto,q-auto,c-at_least,w-600,h-450",
   /** Card cuadrada (destacados de la home). */
-  square: "f-auto,q-auto,c-at_max,w-600,h-600,cm-pad_resize,bg-0A0A0A",
+  square: "f-auto,q-auto,c-at_least,w-600,h-600",
   /** Ficha de producto. */
-  detail: "f-auto,q-auto,c-at_max,w-1200,h-1200,cm-pad_resize,bg-0A0A0A",
+  detail: "f-auto,q-auto,c-at_least,w-1200,h-1200",
   /** Miniatura de admin, carrito y detalle de pedido. */
-  thumb: "f-auto,q-auto,c-at_max,w-120,h-120,cm-pad_resize,bg-0A0A0A",
-  /** Card de categoría, vertical. */
-  category: "f-auto,q-auto,c-at_max,w-600,h-800,cm-pad_resize,bg-0A0A0A",
+  thumb: "f-auto,q-auto,c-at_least,w-120,h-120",
+  /** Card de categoría, cuadrada. */
+  category: "f-auto,q-auto,c-at_least,w-600,h-600",
   /** Imagen social. */
   og: "f-auto,q-auto,c-maintain_ratio,w-1200,h-630",
 } as const;
@@ -25,7 +27,7 @@ export type ImagePreset = keyof typeof IMAGE_PRESETS;
 export function imageKitUrl(filePath: string, preset: ImagePreset = "grid"): string {
   if (/^https?:\/\//.test(filePath)) return filePath;
   // Los recursos locales de la demo deben seguir saliendo desde /public.
-  if (filePath.startsWith("/") && !filePath.startsWith(`${IMAGEKIT_FOLDER}/`)) return filePath;
+  if (filePath.startsWith("/") && !filePath.startsWith(IMAGEKIT_ROOT)) return filePath;
   const path = filePath.startsWith("/") ? filePath : `/${filePath}`;
   return `${IMAGEKIT_ENDPOINT}/tr:${IMAGE_PRESETS[preset]}${path}`;
 }

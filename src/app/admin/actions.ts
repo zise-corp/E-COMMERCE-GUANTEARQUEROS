@@ -18,6 +18,7 @@ import {
   orderStatusSchema,
   productSchema,
   reorderCategoriesSchema,
+  reorderBrandsSchema,
 } from "@/lib/validators";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -203,7 +204,10 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
         active: values.active,
         isOwnBrand: values.isOwnBrand,
       };
-      if (id === undefined) await tx.insert(brands).values({ ...data, slug: slugify(values.name) });
+      if (id === undefined) {
+        const [count] = await tx.select({ n: sql<number>`count(*)::int` }).from(brands);
+        await tx.insert(brands).values({ ...data, slug: slugify(values.name), position: count?.n ?? 0 });
+      }
       else await tx.update(brands).set(data).where(eq(brands.id, id));
     });
   } catch (error) {
@@ -221,6 +225,27 @@ export async function deleteBrandAction(id: number): Promise<ActionResult> {
   const [used] = await db.select({ id: products.id }).from(products).where(eq(products.brandId, id)).limit(1);
   if (used) return { ok: false, error: "Esta marca tiene productos. Cámbialos de marca antes de eliminarla." };
   await db.delete(brands).where(eq(brands.id, id));
+  revalidatePath("/admin/marcas");
+  revalidatePath("/admin/productos");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function reorderBrandsAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = reorderBrandsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Orden inválido." };
+  const current = await db.select({ id: brands.id }).from(brands);
+  const ids = new Set(current.map((brand) => brand.id));
+  const incoming = parsed.data.orderedIds;
+  if (incoming.length !== ids.size || !incoming.every((id) => ids.has(id))) {
+    return { ok: false, error: "El orden no coincide con las marcas actuales. Recarga la página." };
+  }
+  await db.transaction(async (tx) => {
+    for (let position = 0; position < incoming.length; position++) {
+      await tx.update(brands).set({ position }).where(eq(brands.id, incoming[position]!));
+    }
+  });
   revalidatePath("/admin/marcas");
   revalidatePath("/admin/productos");
   revalidatePath("/", "layout");

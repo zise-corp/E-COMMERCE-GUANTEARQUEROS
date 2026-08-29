@@ -178,6 +178,10 @@ export const brandSchema = z.object({
   accentHex: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Usa un color hexadecimal válido.").nullable().default(null),
 });
 
+export const reorderBrandsSchema = z.object({
+  orderedIds: z.array(z.number().int().positive()).min(1).max(200),
+});
+
 export const campaignSchema = z.object({
   enabled: z.boolean(),
   messages: z.array(z.string().trim().min(1).max(80)).min(1).max(6),

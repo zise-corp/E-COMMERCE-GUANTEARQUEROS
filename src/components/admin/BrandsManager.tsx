@@ -1,31 +1,72 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { deleteBrandAction, saveBrandAction } from "@/app/admin/actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { deleteBrandAction, reorderBrandsAction, saveBrandAction } from "@/app/admin/actions";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input } from "@/components/ui/Field";
-import { CloseIcon, EditIcon, TrashIcon } from "@/components/ui/Icons";
+import { CloseIcon, EditIcon, GripIcon, TrashIcon } from "@/components/ui/Icons";
 import { Portal } from "@/components/ui/Portal";
 import { Toggle } from "@/components/ui/Toggle";
 import { useDialog } from "@/components/ui/useDialog";
 import type { AdminBrandRow } from "@/db/queries/admin";
+import { cn } from "@/lib/cn";
 
 type Editing = Omit<AdminBrandRow, "productCount">;
 
 export function BrandsManager({ rows, openNew = false }: { rows: AdminBrandRow[]; openNew?: boolean }) {
   const router = useRouter();
-  const [form, setForm] = useState<Editing | null>(() => openNew ? { id: 0, name: "", slug: "", accentHex: null, active: true, isOwnBrand: false } : null);
+  const [form, setForm] = useState<Editing | null>(() => openNew ? { id: 0, name: "", slug: "", accentHex: null, active: true, isOwnBrand: false, position: rows.length } : null);
   const [target, setTarget] = useState<AdminBrandRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [order, setOrder] = useState(() => rows.map((row) => row.id));
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const orderRef = useRef(order);
+  const rowRefs = useRef(new Map<number, HTMLDivElement>());
 
   useEffect(() => {
     if (openNew) {
       setError(null);
-      setForm({ id: 0, name: "", slug: "", accentHex: null, active: true, isOwnBrand: false });
+      setForm({ id: 0, name: "", slug: "", accentHex: null, active: true, isOwnBrand: false, position: rows.length });
     }
-  }, [openNew]);
+  }, [openNew, rows.length]);
+
+  useEffect(() => {
+    const ids = rows.map((row) => row.id);
+    setOrder(ids);
+    orderRef.current = ids;
+  }, [rows]);
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const ordered = order.map((id) => byId.get(id)).filter((row): row is AdminBrandRow => Boolean(row));
+
+  function startDrag(event: React.PointerEvent<HTMLButtonElement>, id: number) {
+    event.preventDefault();
+    setDraggingId(id);
+    function move(pointer: PointerEvent) {
+      const remaining = orderRef.current.filter((brandId) => brandId !== id);
+      let index = remaining.length;
+      for (let position = 0; position < remaining.length; position++) {
+        const element = rowRefs.current.get(remaining[position]!);
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          if (pointer.clientY < rect.top + rect.height / 2) { index = position; break; }
+        }
+      }
+      const next = remaining.slice();
+      next.splice(index, 0, id);
+      if (next.join(",") !== orderRef.current.join(",")) { orderRef.current = next; setOrder(next); }
+    }
+    function up() {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setDraggingId(null);
+      startTransition(async () => { await reorderBrandsAction({ orderedIds: orderRef.current }); router.refresh(); });
+    }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
 
   function close() { setForm(null); setError(null); router.replace("/admin/marcas"); }
   function save() {
@@ -47,10 +88,11 @@ export function BrandsManager({ rows, openNew = false }: { rows: AdminBrandRow[]
 
   return <>
     <div className="border border-ink-700 bg-ink-850">
-      <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[1.6fr_1fr_100px_90px_80px] lg:gap-3.5"><span>Marca</span><span>Tipo</span><span>Productos</span><span>Estado</span><span /></div>
+      <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[28px_1.6fr_1fr_100px_90px_80px] lg:gap-3.5"><span /><span>Marca</span><span>Tipo</span><span>Productos</span><span>Estado</span><span /></div>
       {error && !form ? <p className="border-b border-ink-700 px-5 py-3 text-[12px] text-alert-soft">{error}</p> : null}
       {rows.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay marcas.</p> : null}
-      {rows.map((row) => <div key={row.id} className="grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[1.6fr_1fr_100px_90px_80px]">
+      {ordered.map((row) => <div key={row.id} ref={(element) => { if (element) rowRefs.current.set(row.id, element); else rowRefs.current.delete(row.id); }} className={cn("grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[28px_1.6fr_1fr_100px_90px_80px]", draggingId === row.id && "relative z-10 border-brand bg-[#171716] shadow-card")}>
+        <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>
         <div><p className="text-[13.5px] font-bold">{row.name}</p><p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p></div>
         <span className={row.isOwnBrand ? "text-[11px] font-extrabold uppercase tracking-[0.1em] text-drei-ink" : "text-[13px] text-content-muted"}>{row.isOwnBrand ? "Marca propia" : "Marca externa"}</span>
         <span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span><span className={row.active ? "text-[11px] uppercase text-state-ok" : "text-[11px] uppercase text-content-faint"}>{row.active ? "Visible" : "Oculta"}</span>

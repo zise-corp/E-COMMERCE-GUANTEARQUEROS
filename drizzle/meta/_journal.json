@@ -50,6 +50,20 @@
       "when": 1787969736781,
       "tag": "0006_remove-brand-images",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787972603353,
+      "tag": "0007_brand-order",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787973600000,
+      "tag": "0008_category-initial-images",
+      "breakpoints": true
     }
   ]
 }

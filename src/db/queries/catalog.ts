@@ -209,7 +209,7 @@ export async function getBrands() {
         })
         .from(brands)
         .where(eq(brands.active, true))
-        .orderBy(asc(brands.id)),
+        .orderBy(asc(brands.position), asc(brands.name)),
   );
 }
 
