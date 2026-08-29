@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { deleteProductAction } from "@/app/admin/actions";
 import { Chip } from "@/components/ui/Chip";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useToast } from "@/components/ui/Toast";
 import { EditIcon, TrashIcon } from "@/components/ui/Icons";
 import { Escudo } from "@/components/brand/Escudo";
 import type { AdminProductDetail, AdminProductRow } from "@/db/queries/admin";
@@ -28,12 +29,13 @@ export function ProductsManager({
   openNew?: boolean;
 }) {
   const router = useRouter();
+  const { show } = useToast();
   const [filter, setFilter] = useState<string>("Todos");
   const [formOpen, setFormOpen] = useState(Boolean(openNew));
   const [editing, setEditing] = useState<AdminProductDetail | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminProductRow | null>(null);
-  const [, startTransition] = useTransition();
+  const [deleting, startTransition] = useTransition();
 
   useEffect(() => {
     if (openNew) {
@@ -53,7 +55,9 @@ export function ProductsManager({
       if (data.ok && data.product) {
         setEditing(data.product);
         setFormOpen(true);
-      }
+      } else show("No pudimos cargar el producto.", "error");
+    } catch {
+      show("No pudimos cargar el producto.", "error");
     } finally {
       setLoadingId(null);
     }
@@ -66,8 +70,10 @@ export function ProductsManager({
   function confirmRemove() {
     if (!deleteTarget) return;
     startTransition(async () => {
-      await deleteProductAction(deleteTarget.id);
+      const result = await deleteProductAction(deleteTarget.id);
+      if (!result.ok) { show(result.error, "error"); return; }
       setDeleteTarget(null);
+      show("Producto eliminado.");
       router.refresh();
     });
   }
@@ -192,6 +198,7 @@ export function ProductsManager({
         open={Boolean(deleteTarget)}
         title="Eliminar producto"
         description={deleteTarget ? `¿Quieres eliminar “${deleteTarget.name}”? Los pedidos existentes conservarán su nombre y precio.` : ""}
+        busy={deleting}
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmRemove}
       />

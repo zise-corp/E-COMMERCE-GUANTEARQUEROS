@@ -8,6 +8,7 @@ import { logoutAction } from "@/app/admin/actions";
 
 const NAV = [
   { href: "/admin", label: "Resumen", badge: null },
+  { href: "/admin/inicio", label: "Inicio", badge: null },
   { href: "/admin/categorias", label: "Categorías", badge: "categories" },
   { href: "/admin/marcas", label: "Marcas", badge: null },
   { href: "/admin/productos", label: "Productos", badge: "products" },

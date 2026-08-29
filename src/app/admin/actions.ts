@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
 import { setOrderStatus } from "@/db/queries/orders";
-import { setCampaign, setCheckoutSettings } from "@/db/queries/settings";
+import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
@@ -14,6 +14,7 @@ import {
   campaignSchema,
   brandSchema,
   checkoutSettingsSchema,
+  homeSettingsSchema,
   categorySchema,
   orderStatusSchema,
   productSchema,
@@ -410,5 +411,28 @@ export async function saveCheckoutSettingsAction(input: unknown): Promise<Action
   await setCheckoutSettings(parsed.data);
   revalidatePath("/admin/ajustes");
   revalidatePath("/checkout/envio");
+  return { ok: true };
+}
+
+export async function saveHomeSettingsAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = homeSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa la configuración del Inicio." };
+  }
+
+  if (parsed.data.heroProductId !== null) {
+    const [product] = await db
+      .select({ id: products.id })
+      .from(products)
+      .innerJoin(productImages, eq(productImages.productId, products.id))
+      .where(eq(products.id, parsed.data.heroProductId))
+      .limit(1);
+    if (!product) return { ok: false, error: "El producto elegido ya no existe o no tiene imágenes." };
+  }
+
+  await setHomeSettings(parsed.data);
+  revalidatePath("/");
+  revalidatePath("/admin/inicio");
   return { ok: true };
 }

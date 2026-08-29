@@ -71,7 +71,7 @@ function MobileMenuDrawer({
           <div className="flex h-[74px] flex-none items-center gap-3 border-b border-line px-5">
             <Escudo width={30} height={36} />
             <div className="min-w-0 flex-1">
-              <p className="font-display text-lg uppercase skew-fast-6">Categorías</p>
+              <p className="font-display text-lg uppercase skew-fast-6">Menú</p>
               <p className="text-[10.5px] uppercase tracking-[0.14em] text-content-dim">Guantearqueros Bolivia</p>
             </div>
             <button type="button" onClick={onClose} aria-label="Cerrar menú" className="p-2 text-content-dim hover:text-brand">
@@ -80,7 +80,23 @@ function MobileMenuDrawer({
           </div>
 
           <nav className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-            <MenuLink href="/" active={pathname === "/"} onClick={onClose}>Inicio · Todos los productos</MenuLink>
+            <details className="group" open={pathname === "/"}>
+              <summary className={cn(
+                "flex min-h-[44px] cursor-pointer list-none items-center justify-between border-l-2 px-3 text-[13.5px] font-extrabold uppercase tracking-[0.07em] marker:hidden [&::-webkit-details-marker]:hidden",
+                pathname === "/" ? "border-brand bg-brand/[0.08] text-brand" : "border-transparent text-content",
+              )}>
+                Inicio
+                <span className="-mt-1 mr-1 size-2 rotate-45 border-b border-r border-current transition-transform group-open:mt-1 group-open:rotate-[225deg]" />
+              </summary>
+              <div className="mb-2 ml-3 border-l border-line-strong pl-3">
+                <HomeSectionLink href="/" onClick={onClose}>Inicio</HomeSectionLink>
+                <HomeSectionLink href="/#categorias" onClick={onClose}>Categorías</HomeSectionLink>
+                <HomeSectionLink href="/#marcas" onClick={onClose}>Marcas</HomeSectionLink>
+                <HomeSectionLink href="/#productos" onClick={onClose}>Todos los productos</HomeSectionLink>
+                <HomeSectionLink href="/#tiendas-fisicas" onClick={onClose}>Tiendas físicas</HomeSectionLink>
+                <HomeSectionLink href="/#contacto" onClick={onClose}>Contacto</HomeSectionLink>
+              </div>
+            </details>
 
             <div className="mt-3 border-t border-line-soft pt-2">
               {categories.map((category) => {
@@ -125,6 +141,7 @@ function MobileMenuDrawer({
                 DREI Athletic
               </Link>
             ) : null}
+
           </nav>
 
           <div className="border-t border-line px-5 py-4 text-[11.5px] leading-relaxed text-content-dim">
@@ -134,6 +151,14 @@ function MobileMenuDrawer({
         <button type="button" tabIndex={-1} aria-label="Cerrar menú" onClick={onClose} className="absolute inset-0 bg-black/75 backdrop-blur-[2px] animate-fade-in" />
       </div>
     </Portal>
+  );
+}
+
+function HomeSectionLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link href={href} onClick={onClick} className="block py-2 text-[12.5px] font-semibold text-content-dim transition-colors hover:text-brand">
+      {children}
+    </Link>
   );
 }
 

@@ -6,8 +6,6 @@ import { CloseIcon } from "@/components/ui/Icons";
 import { Portal } from "@/components/ui/Portal";
 import { useDialog } from "@/components/ui/useDialog";
 
-const OUTPUT_SIZE = 1200;
-
 async function loadImage(source: string): Promise<HTMLImageElement> {
   const image = new window.Image();
   image.src = source;
@@ -15,33 +13,43 @@ async function loadImage(source: string): Promise<HTMLImageElement> {
   return image;
 }
 
-async function createSquareFile(source: string, area: Area, originalName: string): Promise<File> {
+async function createCroppedFile(source: string, area: Area, originalName: string, outputWidth: number, outputHeight: number): Promise<File> {
   const image = await loadImage(source);
   const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE;
-  canvas.height = OUTPUT_SIZE;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("No se pudo preparar la imagen.");
 
   context.fillStyle = "#0A0A09";
-  context.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+  context.fillRect(0, 0, outputWidth, outputHeight);
+  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, outputWidth, outputHeight);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((result) => result ? resolve(result) : reject(new Error("No se pudo recortar la imagen.")), "image/jpeg", 0.92);
   });
   const baseName = originalName.replace(/\.[^.]+$/, "") || "categoria";
-  return new File([blob], `${baseName}-cuadrada.jpg`, { type: "image/jpeg" });
+  return new File([blob], `${baseName}-recortada.jpg`, { type: "image/jpeg" });
 }
 
 export function SquareImageCropper({
   source,
   fileName,
+  aspect = 1,
+  outputWidth = 1200,
+  outputHeight = 1200,
+  eyebrow = "Imagen de categoría",
+  title = "Ajustar encuadre",
   onCancel,
   onConfirm,
 }: {
   source: string;
   fileName: string;
+  aspect?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  eyebrow?: string;
+  title?: string;
   onCancel: () => void;
   onConfirm: (file: File) => void | Promise<void>;
 }) {
@@ -58,7 +66,7 @@ export function SquareImageCropper({
     setProcessing(true);
     setError(null);
     try {
-      await onConfirm(await createSquareFile(source, pixels, fileName));
+      await onConfirm(await createCroppedFile(source, pixels, fileName, outputWidth, outputHeight));
     } catch {
       setError("No pudimos preparar el recorte. Prueba con otra imagen.");
       setProcessing(false);
@@ -72,8 +80,8 @@ export function SquareImageCropper({
         <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Ajustar imagen cuadrada" tabIndex={-1} className="relative w-full max-w-[720px] border border-line-strong bg-ink-850 outline-none">
           <div className="flex items-center justify-between border-b border-ink-700 px-5 py-4 sm:px-6">
             <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">Imagen de categoría</p>
-              <h2 className="mt-1 font-display text-2xl uppercase skew-fast-6">Ajustar encuadre</h2>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{eyebrow}</p>
+              <h2 className="mt-1 font-display text-2xl uppercase skew-fast-6">{title}</h2>
             </div>
             <button type="button" onClick={onCancel} aria-label="Cerrar" className="p-1 text-content-dim transition-colors hover:text-brand"><CloseIcon size={19} /></button>
           </div>
@@ -81,7 +89,7 @@ export function SquareImageCropper({
           <div className="p-4 sm:p-6">
             <p className="mb-3 text-[12px] leading-relaxed text-content-muted">Arrastra la imagen dentro del cuadro y usa el zoom hasta obtener el encuadre deseado.</p>
             <div className="relative h-[min(58vh,520px)] min-h-[300px] overflow-hidden bg-ink-950">
-              <Cropper image={source} crop={crop} zoom={zoom} aspect={1} cropShape="rect" showGrid objectFit="cover" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} />
+              <Cropper image={source} crop={crop} zoom={zoom} aspect={aspect} cropShape="rect" showGrid objectFit="cover" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} />
             </div>
             <label className="mt-4 flex items-center gap-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-content-dim">
               Zoom

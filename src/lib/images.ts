@@ -18,6 +18,8 @@ export const IMAGE_PRESETS = {
   thumb: "f-auto,q-auto,c-at_least,w-120,h-120",
   /** Card de categoría, cuadrada. */
   category: "f-auto,q-auto,c-at_least,w-600,h-600",
+  /** Banner horizontal del bloque DREI. */
+  wide: "f-auto,q-auto,c-at_least,w-1600,h-900",
   /** Imagen social. */
   og: "f-auto,q-auto,c-maintain_ratio,w-1200,h-630",
 } as const;
@@ -49,4 +51,5 @@ export const IMAGE_SIZES = {
   detail: "(max-width: 1024px) 100vw, 660px",
   thumb: "120px",
   category: "(max-width: 640px) 50vw, 260px",
+  wide: "(max-width: 1024px) 100vw, 620px",
 } as const;

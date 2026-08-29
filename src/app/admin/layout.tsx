@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getAdminCounts } from "@/db/queries/admin";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: { default: "Panel", template: "%s · Panel Guantearqueros" },
@@ -19,11 +20,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const counts = await getAdminCounts();
 
   return (
-    <AdminShell
-      user={{ username: session.username, role: session.role }}
-      counts={counts}
-    >
-      {children}
-    </AdminShell>
+    <ToastProvider>
+      <AdminShell user={{ username: session.username, role: session.role }} counts={counts}>
+        {children}
+      </AdminShell>
+    </ToastProvider>
   );
 }

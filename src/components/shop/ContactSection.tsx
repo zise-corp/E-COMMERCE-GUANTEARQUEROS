@@ -6,8 +6,8 @@ const CONTACT_MESSAGE = "Hola, necesito ayuda o información de Guantearqueros B
 
 export function ContactSection() {
   return (
-    <section className="container-shop mb-16" aria-labelledby="contact-title">
-      <div className="relative overflow-hidden border border-brand bg-ink-900 px-6 py-8 clip-corner sm:px-9 sm:py-10 lg:px-12">
+    <section id="contacto" className="container-shop mb-16 scroll-mt-28" aria-labelledby="contact-title">
+      <div className="relative overflow-hidden border border-brand bg-ink-900 px-6 py-8 sm:px-9 sm:py-10 lg:px-12">
         <div className="pointer-events-none absolute -right-20 -top-28 size-80 rounded-full bg-brand/[0.12] blur-3xl" />
         <div className="relative grid items-center gap-8 lg:grid-cols-[1fr_auto]">
           <div className="max-w-[720px]">

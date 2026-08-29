@@ -8,6 +8,7 @@ import { TrashIcon } from "@/components/ui/Icons";
 import { Toggle } from "@/components/ui/Toggle";
 import { Portal } from "@/components/ui/Portal";
 import { useDialog } from "@/components/ui/useDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { AdminProductDetail } from "@/db/queries/admin";
 import { slugify } from "@/lib/slug";
 import { ImageKitDropzone, type ProductImageValue } from "./ImageKitDropzone";
@@ -85,6 +86,7 @@ export function ProductForm({
   const [form, setForm] = useState<FormState>(() => toForm(product, roots[0]?.id ?? null));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { show } = useToast();
   const ref = useDialog(open, onClose);
 
   useEffect(() => {
@@ -176,6 +178,7 @@ export function ProductForm({
         setError(result.error);
         return;
       }
+      show(product ? "Producto actualizado." : "Producto creado.");
       onSaved();
       onClose();
     });

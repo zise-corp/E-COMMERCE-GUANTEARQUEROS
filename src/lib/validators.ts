@@ -208,6 +208,12 @@ export const checkoutSettingsSchema = z.object({
   }),
 });
 
+export const homeSettingsSchema = z.object({
+  heroProductId: z.number().int().positive().nullable(),
+  dreiImagePath: z.string().trim().min(1).max(500).nullable(),
+  dreiImageFileId: z.string().trim().min(1).max(200).nullable(),
+});
+
 export const uploadSignatureSchema = z.object({
   slug: z.string().trim().min(1).max(180).regex(/^[a-z0-9-]+$/),
 });

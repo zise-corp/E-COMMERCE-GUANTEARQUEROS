@@ -45,6 +45,36 @@ export type CategoryNode = {
   children: CategoryNode[];
 };
 
+export type HomeHeroProduct = {
+  id: number;
+  slug: string;
+  name: string;
+  price: string;
+  compareAtPrice: string | null;
+  imagePublicId: string;
+};
+
+export async function getHomeHeroProduct(productId: number | null): Promise<HomeHeroProduct | null> {
+  if (productId === null) return null;
+  return withFallback<HomeHeroProduct | null>(null, async () => {
+    const [row] = await db
+      .select({
+        id: products.id,
+        slug: products.slug,
+        name: products.name,
+        price: products.price,
+        compareAtPrice: products.compareAtPrice,
+        imagePublicId: productImages.publicId,
+      })
+      .from(products)
+      .innerJoin(productImages, eq(productImages.productId, products.id))
+      .where(eq(products.id, productId))
+      .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id))
+      .limit(1);
+    return row ?? null;
+  });
+}
+
 /* Imagen principal por producto, como subconsulta reutilizable. */
 const primaryImage = sql<string | null>`(
   SELECT pi.public_id FROM ${productImages} pi

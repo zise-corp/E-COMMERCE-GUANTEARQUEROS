@@ -18,11 +18,13 @@ export const site = {
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearquerosbolivia.com.bo",
   /** Solo dígitos, formato internacional: se usa en el link de wa.me. */
   supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "59161235265",
+  dreiWhatsapp: process.env.NEXT_PUBLIC_DREI_WHATSAPP ?? "59162507981",
   social: {
     facebook: "https://www.facebook.com/guantearqueros.bolivia",
-    facebookSecondary: "https://www.facebook.com/profile.php?id=61552525021314",
     instagram: "https://www.instagram.com/guantearquerosbolivia_oficial",
     tiktok: "https://www.tiktok.com/@guantearqueros.bo",
+    dreiFacebook: "https://www.facebook.com/profile.php?id=61552525021314",
+    dreiInstagram: "https://www.instagram.com/drei_bolivia_",
   },
 } as const;
 
@@ -35,8 +37,8 @@ export function displayWhatsapp(digits: string = site.supportWhatsapp): string {
   return `+${d}`;
 }
 
-export function whatsappLink(message: string): string {
-  return `https://wa.me/${site.supportWhatsapp}?text=${encodeURIComponent(message)}`;
+export function whatsappLink(message: string, digits: string = site.supportWhatsapp): string {
+  return `https://wa.me/${digits.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
 }
 
 /** Los 10 departamentos/ciudades de despacho, en el orden del prototipo. */

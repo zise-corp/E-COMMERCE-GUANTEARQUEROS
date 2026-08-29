@@ -41,7 +41,7 @@ export function StoreLocations() {
   const embedUrl = `https://www.google.com/maps?q=${coordinates}&z=17&output=embed`;
 
   return (
-    <section className="container-shop mb-16" aria-labelledby="store-locations-title">
+    <section id="tiendas-fisicas" className="container-shop mb-16 scroll-mt-28" aria-labelledby="store-locations-title">
       <div className="mb-6 flex items-end justify-between gap-4 border-b border-line pb-4">
         <div>
           <p className="label-xs tracking-[0.18em] text-brand">Tiendas físicas</p>

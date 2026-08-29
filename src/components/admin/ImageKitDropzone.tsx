@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import { TrashIcon } from "@/components/ui/Icons";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { imageKitUrl, IMAGEKIT_FOLDER } from "@/lib/images";
 import { SquareImageCropper } from "./SquareImageCropper";
@@ -29,6 +30,7 @@ export function ImageKitDropzone({
   label = "Imágenes · ImageKit",
   assetTag = "producto",
   squareCrop = false,
+  wideCrop = false,
 }: {
   slug: string;
   value: ProductImageValue[];
@@ -39,12 +41,15 @@ export function ImageKitDropzone({
   assetTag?: string;
   /** Abre un editor manual y normaliza la imagen a un JPG cuadrado antes de subirla. */
   squareCrop?: boolean;
+  /** Editor horizontal 16:9 para banners de la portada. */
+  wideCrop?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cropSource, setCropSource] = useState<{ file: File; url: string } | null>(null);
+  const { show } = useToast();
 
   const upload = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files);
@@ -99,18 +104,21 @@ export function ImageKitDropzone({
         }
         uploaded.push({ publicId: result.filePath, fileId: result.fileId, alt: "" });
       }
-      if (uploaded.length > 0) onChange([...value, ...uploaded]);
+      if (uploaded.length > 0) {
+        onChange([...value, ...uploaded]);
+        show(`${uploaded.length === 1 ? "Imagen subida" : `${uploaded.length} imágenes subidas`}. Guarda los cambios para aplicarla${uploaded.length === 1 ? "" : "s"}.`);
+      }
     } catch {
       setError("No pudimos subir las imágenes. Revisa tu conexión e inténtalo otra vez.");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
-  }, [slug, value, onChange, folder, maxImages, assetTag]);
+  }, [slug, value, onChange, folder, maxImages, assetTag, show]);
 
   const chooseFiles = useCallback((files: FileList | File[]) => {
     const list = Array.from(files);
-    if (!squareCrop) {
+    if (!squareCrop && !wideCrop) {
       void upload(list);
       return;
     }
@@ -135,7 +143,7 @@ export function ImageKitDropzone({
     setError(null);
     setCropSource({ file, url: URL.createObjectURL(file) });
     if (inputRef.current) inputRef.current.value = "";
-  }, [squareCrop, upload, slug, value.length, maxImages]);
+  }, [squareCrop, wideCrop, upload, slug, value.length, maxImages]);
 
   function closeCropper() {
     if (cropSource) URL.revokeObjectURL(cropSource.url);
@@ -182,7 +190,7 @@ export function ImageKitDropzone({
           ref={inputRef}
           type="file"
           accept={ACCEPTED.join(",")}
-          multiple={!squareCrop}
+          multiple={!squareCrop && !wideCrop}
           className="sr-only"
           onChange={(event) => event.target.files && chooseFiles(event.target.files)}
         />
@@ -191,10 +199,10 @@ export function ImageKitDropzone({
       {error ? <p role="alert" className="mt-2 text-[11.5px] text-alert-soft">{error}</p> : null}
 
       {value.length > 0 ? (
-        <div className="mt-2.5 grid grid-cols-4 gap-2">
+        <div className={cn("mt-2.5 grid gap-2", wideCrop ? "grid-cols-1" : "grid-cols-4")}>
           {value.map((img, index) => (
-            <div key={`${img.fileId ?? img.publicId}-${index}`} className={cn("relative aspect-square border", index === 0 ? "border-brand" : "border-line-strong")}>
-              <Image src={imageKitUrl(img.publicId, "thumb")} alt="" fill sizes="120px" className="object-cover" />
+            <div key={`${img.fileId ?? img.publicId}-${index}`} className={cn("relative border", wideCrop ? "aspect-video" : "aspect-square", index === 0 ? "border-brand" : "border-line-strong")}>
+              <Image src={imageKitUrl(img.publicId, wideCrop ? "wide" : "thumb")} alt="" fill sizes={wideCrop ? "620px" : "120px"} className="object-cover" />
               <button
                 type="button"
                 onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
@@ -228,6 +236,11 @@ export function ImageKitDropzone({
         <SquareImageCropper
           source={cropSource.url}
           fileName={cropSource.file.name}
+          aspect={wideCrop ? 16 / 9 : 1}
+          outputWidth={wideCrop ? 1600 : 1200}
+          outputHeight={wideCrop ? 900 : 1200}
+          eyebrow={wideCrop ? "Imagen del bloque DREI" : "Imagen de categoría"}
+          title={wideCrop ? "Ajustar imagen horizontal" : "Ajustar encuadre"}
           onCancel={closeCropper}
           onConfirm={async (file) => {
             closeCropper();

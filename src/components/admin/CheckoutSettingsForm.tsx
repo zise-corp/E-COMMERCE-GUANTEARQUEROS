@@ -3,12 +3,14 @@
 import { useState, useTransition } from "react";
 import { saveCheckoutSettingsAction } from "@/app/admin/actions";
 import type { CheckoutSettings, DiscountCode } from "@/db/queries/settings";
+import { useToast } from "@/components/ui/Toast";
 
 export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings }) {
   const [shippingPrice, setShippingPrice] = useState(String(initial.shippingPrice));
   const [discounts, setDiscounts] = useState(initial.discounts);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const { show } = useToast();
 
   function update(index: number, patch: Partial<DiscountCode>) {
     setDiscounts((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
@@ -21,7 +23,8 @@ export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings })
         shippingPrice: Number(shippingPrice),
         discounts: discounts.map((item) => ({ ...item, value: Number(item.value) })),
       });
-      setMessage({ ok: result.ok, text: result.ok ? "Configuración guardada." : result.error });
+      if (result.ok) { setMessage(null); show("Configuración guardada."); }
+      else setMessage({ ok: false, text: result.error });
     });
   }
 
@@ -86,7 +89,7 @@ export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings })
         </div>
       </section>
 
-      {message ? <p className={message.ok ? "text-sm text-state-ok" : "text-sm text-alert-soft"}>{message.text}</p> : null}
+      {message ? <p role="alert" className="text-sm text-alert-soft">{message.text}</p> : null}
       <button type="button" disabled={pending} onClick={save} className="bg-brand px-6 py-3.5 text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink-950 hover:bg-brand-hot disabled:opacity-60">
         {pending ? "Guardando…" : "Guardar configuración"}
       </button>

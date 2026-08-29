@@ -29,25 +29,33 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
           <p className="mt-3.5 max-w-[300px] text-[13.5px] leading-relaxed text-content-dim">
             Guantes de arquero, indumentaria DREI Athletic y accesorios. {site.city}, {site.country}.
           </p>
-          <div className="mt-5 flex items-center gap-2" aria-label="Redes sociales">
-            <SocialLink href={site.social.facebook} label="Facebook de Guantearqueros Bolivia">
-              <FacebookIcon size={18} />
-            </SocialLink>
-            <SocialLink href={site.social.facebookSecondary} label="Segunda página de Facebook">
-              <FacebookIcon size={18} />
-            </SocialLink>
-            <SocialLink href={site.social.instagram} label="Instagram de Guantearqueros Bolivia">
-              <InstagramIcon size={18} />
-            </SocialLink>
-            <SocialLink href={site.social.tiktok} label="TikTok de Guantearqueros Bolivia">
-              <TiktokIcon size={18} />
-            </SocialLink>
-            <SocialLink
-              href={whatsappLink("Hola, quisiera información sobre sus productos.")}
-              label="Contactar por WhatsApp"
-            >
-              <WhatsappIcon size={18} />
-            </SocialLink>
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <SocialGroup title="Guantearqueros" label="Redes sociales de Guantearqueros">
+              <SocialLink href={site.social.facebook} label="Facebook de Guantearqueros Bolivia">
+                <FacebookIcon size={18} />
+              </SocialLink>
+              <SocialLink href={site.social.instagram} label="Instagram de Guantearqueros Bolivia">
+                <InstagramIcon size={18} />
+              </SocialLink>
+              <SocialLink href={site.social.tiktok} label="TikTok de Guantearqueros Bolivia">
+                <TiktokIcon size={18} />
+              </SocialLink>
+              <SocialLink href={whatsappLink("Hola, quisiera información sobre sus productos.")} label="WhatsApp de Guantearqueros">
+                <WhatsappIcon size={18} />
+              </SocialLink>
+            </SocialGroup>
+
+            <SocialGroup title="DREI" label="Redes sociales de DREI Bolivia">
+              <SocialLink href={site.social.dreiFacebook} label="Facebook de DREI Bolivia">
+                <FacebookIcon size={18} />
+              </SocialLink>
+              <SocialLink href={site.social.dreiInstagram} label="Instagram de DREI Bolivia">
+                <InstagramIcon size={18} />
+              </SocialLink>
+              <SocialLink href={whatsappLink("Hola, quisiera información sobre DREI Bolivia.", site.dreiWhatsapp)} label="WhatsApp de DREI Bolivia">
+                <WhatsappIcon size={18} />
+              </SocialLink>
+            </SocialGroup>
           </div>
         </div>
 
@@ -84,6 +92,15 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+function SocialGroup({ title, label, children }: { title: string; label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="mb-2.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-content-muted">{title}</h2>
+      <div className="flex flex-wrap items-center gap-2" aria-label={label}>{children}</div>
+    </div>
   );
 }
 

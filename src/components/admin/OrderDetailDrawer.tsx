@@ -6,6 +6,7 @@ import { setOrderStatusAction } from "@/app/admin/actions";
 import { Escudo } from "@/components/brand/Escudo";
 import { Drawer } from "@/components/ui/Drawer";
 import { Spinner } from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
 import type { OrderSummary } from "@/db/queries/orders";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
@@ -34,6 +35,7 @@ export function OrderDetailDrawer({
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
+  const { show } = useToast();
 
   useEffect(() => {
     if (orderId === null) {
@@ -62,8 +64,9 @@ export function OrderDetailDrawer({
       const result = await setOrderStatusAction(order.id, next);
       if (result.ok) {
         setOrder({ ...order, status: next });
+        show(`Pedido marcado como ${STATUS_META[next].label.toLowerCase()}.`);
         onChanged();
-      }
+      } else show(result.error, "error");
     });
   }
 

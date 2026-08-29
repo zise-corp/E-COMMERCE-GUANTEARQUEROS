@@ -5,6 +5,7 @@ import { saveCampaignAction } from "@/app/admin/actions";
 import { Toggle } from "@/components/ui/Toggle";
 import { Input } from "@/components/ui/Field";
 import type { CampaignSettings } from "@/db/queries/settings";
+import { useToast } from "@/components/ui/Toast";
 
 /** Control de la franja de campaña de la tienda. */
 export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
@@ -14,6 +15,7 @@ export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
   );
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const { show } = useToast();
 
   function save(nextEnabled = enabled, nextMessages = messages) {
     const clean = nextMessages.map((m) => m.trim()).filter(Boolean);
@@ -24,7 +26,8 @@ export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
     setFeedback(null);
     startTransition(async () => {
       const result = await saveCampaignAction({ enabled: nextEnabled, messages: clean });
-      setFeedback(result.ok ? "Guardado." : result.error);
+      if (result.ok) { setFeedback(null); show("Franja de campaña actualizada."); }
+      else setFeedback(result.error);
     });
   }
 
@@ -95,7 +98,7 @@ export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
       </div>
 
       {feedback ? (
-        <p className="mt-2.5 text-[11.5px] text-content-muted" role="status">
+        <p className="mt-2.5 text-[11.5px] text-alert-soft" role="alert">
           {feedback}
         </p>
       ) : null}

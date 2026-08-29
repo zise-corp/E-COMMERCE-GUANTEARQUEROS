@@ -13,6 +13,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Portal } from "@/components/ui/Portal";
 import { Toggle } from "@/components/ui/Toggle";
 import { useDialog } from "@/components/ui/useDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { AdminCategoryRow } from "@/db/queries/admin";
 import { cn } from "@/lib/cn";
 import { imageKitUrl } from "@/lib/images";
@@ -47,6 +48,7 @@ function blank(kind: CategoryKind, rows: AdminCategoryRow[]): Editing {
 
 export function CategoriesManager({ rows, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; openNew?: CategoryKind | null; initialView?: View }) {
   const router = useRouter();
+  const { show } = useToast();
   const view = initialView;
   const [form, setForm] = useState<Editing | null>(() => openNew ? blank(openNew, rows) : null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,8 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
 
   function save() {
     if (!form) return;
+    const wasEditing = form.id !== undefined;
+    const label = form.kind === "principal" ? "Categoría" : "Subcategoría";
     setError(null);
     startTransition(async () => {
       const result = await saveCategoryAction({
@@ -87,6 +91,7 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
       }, form.id);
       if (!result.ok) { setError(result.error); return; }
       setForm(null);
+      show(`${label} ${wasEditing ? "actualizada" : "creada"}.`);
       router.replace(`/admin/categorias?vista=${view}`);
     });
   }
@@ -100,8 +105,8 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
     setError(null);
     startTransition(async () => {
       const result = await deleteCategoryAction(deleteTarget.id);
-      if (!result.ok) setError(result.error);
-      else { setDeleteTarget(null); router.refresh(); }
+      if (!result.ok) { setError(result.error); show(result.error, "error"); }
+      else { setDeleteTarget(null); show("Clasificación eliminada."); router.refresh(); }
     });
   }
 
@@ -168,6 +173,7 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
 
 function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; onEdit: (row: AdminCategoryRow) => void; onRemove: (id: number, name: string) => void }) {
   const router = useRouter();
+  const { show } = useToast();
   const [order, setOrder] = useState(() => rows.map((row) => row.id));
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const orderRef = useRef(order);
@@ -185,7 +191,7 @@ function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; 
       for (let position = 0; position < remaining.length; position++) { const element = rowRefs.current.get(remaining[position]!); if (element) { const rect = element.getBoundingClientRect(); if (pointer.clientY < rect.top + rect.height / 2) { index = position; break; } } }
       const next = remaining.slice(); next.splice(index, 0, id); if (next.join(",") !== orderRef.current.join(",")) { orderRef.current = next; setOrder(next); }
     }
-    function up() { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); setDraggingId(null); startPersist(async () => { await reorderCategoriesAction({ orderedIds: orderRef.current }); router.refresh(); }); }
+    function up() { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); setDraggingId(null); startPersist(async () => { const result = await reorderCategoriesAction({ orderedIds: orderRef.current }); if (result.ok) { show("Orden de categorías actualizado."); router.refresh(); } else show(result.error, "error"); }); }
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   }
 

@@ -9,7 +9,8 @@ import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ContactSection } from "@/components/shop/ContactSection";
 import { ButtonLink } from "@/components/ui/Button";
 import { Display, SectionHeader } from "@/components/ui/Heading";
-import { getProductsPage, getBrands, getCategoryTree } from "@/db/queries/catalog";
+import { getProductsPage, getBrands, getCategoryTree, getHomeHeroProduct } from "@/db/queries/catalog";
+import { getHomeSettings } from "@/db/queries/settings";
 
 /**
  * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
@@ -29,10 +30,12 @@ export const metadata: Metadata = {
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ pagina?: string }> }) {
   const { pagina } = await searchParams;
   const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
-  const [categories, productPage, brands] = await Promise.all([
+  const homeSettings = await getHomeSettings();
+  const [categories, productPage, brands, heroProduct] = await Promise.all([
     getCategoryTree(),
     getProductsPage(requestedPage, 12),
     getBrands(),
+    getHomeHeroProduct(homeSettings.heroProductId),
   ]);
 
   const guantes = categories.find((c) => c.slug === "guantes") ?? categories[0];
@@ -40,10 +43,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <Hero guantesSlug={guantes?.slug ?? null} dreiSlug={poleras?.slug ?? null} />
+      <Hero guantesSlug={guantes?.slug ?? null} dreiSlug={poleras?.slug ?? null} product={heroProduct} />
 
       {categories.length > 0 ? (
-        <section className="container-shop py-11">
+        <section id="categorias" className="container-shop scroll-mt-28 py-11">
           <SectionHeader
             title="Categorías"
             aside={`${categories.length} ${categories.length === 1 ? "línea activa" : "líneas activas"}`}
@@ -81,7 +84,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       ) : null}
 
       {brands.length > 0 ? (
-        <section className="border-y border-line bg-ink-900">
+        <section id="marcas" className="scroll-mt-28 border-y border-line bg-ink-900">
           <div className="container-shop flex flex-wrap items-center justify-between gap-5 py-[26px]">
             {brands.map((b) => (
               <span
@@ -94,6 +97,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         </section>
       ) : null}
+
+      <DreiBlock slug={poleras?.slug ?? null} imagePath={homeSettings.dreiImagePath} />
 
       <section id="productos" className="container-shop scroll-mt-28 py-14">
         <SectionHeader
@@ -113,14 +118,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Pagination page={productPage.page} pageCount={productPage.pageCount} />
       </section>
 
-      <DreiBlock slug={poleras?.slug ?? null} />
       <StoreLocations />
       <ContactSection />
     </>
   );
 }
 
-function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug: string | null }) {
+function Hero({ guantesSlug, dreiSlug, product }: { guantesSlug: string | null; dreiSlug: string | null; product: Awaited<ReturnType<typeof getHomeHeroProduct>> }) {
+  const price = product ? Number.parseFloat(product.price) : 0;
+  const compareAt = product?.compareAtPrice ? Number.parseFloat(product.compareAtPrice) : 0;
+  const discount = compareAt > price && price > 0 ? Math.round(((compareAt - price) / compareAt) * 100) : null;
   return (
     <section className="container-shop grid items-center gap-10 pb-8 pt-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)] lg:pb-8 lg:pt-8">
       <div className="animate-rise">
@@ -171,8 +178,8 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
         />
         <div className="relative aspect-square overflow-hidden border border-line clip-hero">
           <ProductImage
-            publicId={HERO_IMAGE}
-            alt="Guantes de arquero rojos y azules"
+            publicId={product?.imagePublicId ?? HERO_IMAGE}
+            alt={product?.name ?? "Guantes de arquero rojos y azules"}
             preset="square"
             priority
           />
@@ -184,19 +191,21 @@ function Hero({ guantesSlug, dreiSlug }: { guantesSlug: string | null; dreiSlug:
             }}
             aria-hidden
           />
-          <p className="absolute bottom-[26px] left-0 bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
-            Hasta 30% OFF
-          </p>
+          {discount ? (
+            <p className="absolute bottom-[26px] left-0 bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
+              {discount}% OFF
+            </p>
+          ) : null}
         </div>
       </div>
     </section>
   );
 }
 
-function DreiBlock({ slug }: { slug: string | null }) {
+function DreiBlock({ slug, imagePath }: { slug: string | null; imagePath: string | null }) {
   if (!slug) return null;
   return (
-    <section className="container-shop mb-16">
+    <section id="drei" className="container-shop my-16 scroll-mt-28">
       <div
         className="grid items-center overflow-hidden border border-[#234666] lg:grid-cols-[1fr_0.8fr]"
         style={{ background: "linear-gradient(100deg, #10233A 0%, #0D0D0C 62%)" }}
@@ -216,9 +225,9 @@ function DreiBlock({ slug }: { slug: string | null }) {
         </div>
         <div className="relative h-[220px] bg-drei/20 lg:h-[330px]">
           <ProductImage
-            publicId="/demo-products/poleras.png"
+            publicId={imagePath}
             alt="Indumentaria DREI Athletic"
-            preset="category"
+            preset="wide"
           />
         </div>
       </div>

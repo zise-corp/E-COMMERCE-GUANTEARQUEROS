@@ -9,6 +9,7 @@ import { CloseIcon, EditIcon, GripIcon, TrashIcon } from "@/components/ui/Icons"
 import { Portal } from "@/components/ui/Portal";
 import { Toggle } from "@/components/ui/Toggle";
 import { useDialog } from "@/components/ui/useDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { AdminBrandRow } from "@/db/queries/admin";
 import { cn } from "@/lib/cn";
 
@@ -16,6 +17,7 @@ type Editing = Omit<AdminBrandRow, "productCount">;
 
 export function BrandsManager({ rows, openNew = false }: { rows: AdminBrandRow[]; openNew?: boolean }) {
   const router = useRouter();
+  const { show } = useToast();
   const [form, setForm] = useState<Editing | null>(() => openNew ? { id: 0, name: "", slug: "", accentHex: null, active: true, isOwnBrand: false, position: rows.length } : null);
   const [target, setTarget] = useState<AdminBrandRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export function BrandsManager({ rows, openNew = false }: { rows: AdminBrandRow[]
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       setDraggingId(null);
-      startTransition(async () => { await reorderBrandsAction({ orderedIds: orderRef.current }); router.refresh(); });
+      startTransition(async () => { const result = await reorderBrandsAction({ orderedIds: orderRef.current }); if (result.ok) { show("Orden de marcas actualizado."); router.refresh(); } else show(result.error, "error"); });
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -71,18 +73,19 @@ export function BrandsManager({ rows, openNew = false }: { rows: AdminBrandRow[]
   function close() { setForm(null); setError(null); router.replace("/admin/marcas"); }
   function save() {
     if (!form) return;
+    const wasEditing = Boolean(form.id);
     startTransition(async () => {
       const result = await saveBrandAction({ name: form.name, accentHex: form.accentHex, active: form.active, isOwnBrand: form.isOwnBrand }, form.id || undefined);
       if (!result.ok) { setError(result.error); return; }
-      close(); router.refresh();
+      close(); show(`Marca ${wasEditing ? "actualizada" : "creada"}.`); router.refresh();
     });
   }
   function remove() {
     if (!target) return;
     startTransition(async () => {
       const result = await deleteBrandAction(target.id);
-      if (!result.ok) { setError(result.error); setTarget(null); return; }
-      setTarget(null); router.refresh();
+      if (!result.ok) { setError(result.error); setTarget(null); show(result.error, "error"); return; }
+      setTarget(null); show("Marca eliminada."); router.refresh();
     });
   }
 

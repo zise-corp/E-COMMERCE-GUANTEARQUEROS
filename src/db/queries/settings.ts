@@ -10,6 +10,19 @@ export type CampaignSettings = {
 
 export const CAMPAIGN_KEY = "campaign";
 export const CHECKOUT_KEY = "checkout";
+export const HOME_KEY = "home";
+
+export type HomeSettings = {
+  heroProductId: number | null;
+  dreiImagePath: string | null;
+  dreiImageFileId: string | null;
+};
+
+export const HOME_DEFAULT: HomeSettings = {
+  heroProductId: null,
+  dreiImagePath: "/demo-products/poleras.png",
+  dreiImageFileId: null,
+};
 
 export type DiscountCode = {
   code: string;
@@ -82,6 +95,37 @@ export async function setCheckoutSettings(next: CheckoutSettings): Promise<void>
   await db
     .insert(siteSettings)
     .values({ key: CHECKOUT_KEY, value: next })
+    .onConflictDoUpdate({
+      target: siteSettings.key,
+      set: { value: next, updatedAt: new Date() },
+    });
+}
+
+function isHomeSettings(value: unknown): value is HomeSettings {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    (v["heroProductId"] === null || (typeof v["heroProductId"] === "number" && Number.isInteger(v["heroProductId"]))) &&
+    (v["dreiImagePath"] === null || typeof v["dreiImagePath"] === "string") &&
+    (v["dreiImageFileId"] === null || typeof v["dreiImageFileId"] === "string")
+  );
+}
+
+export async function getHomeSettings(): Promise<HomeSettings> {
+  return withFallback<HomeSettings>(HOME_DEFAULT, async () => {
+    const [row] = await db
+      .select({ value: siteSettings.value })
+      .from(siteSettings)
+      .where(eq(siteSettings.key, HOME_KEY))
+      .limit(1);
+    return row && isHomeSettings(row.value) ? row.value : HOME_DEFAULT;
+  });
+}
+
+export async function setHomeSettings(next: HomeSettings): Promise<void> {
+  await db
+    .insert(siteSettings)
+    .values({ key: HOME_KEY, value: next })
     .onConflictDoUpdate({
       target: siteSettings.key,
       set: { value: next, updatedAt: new Date() },
