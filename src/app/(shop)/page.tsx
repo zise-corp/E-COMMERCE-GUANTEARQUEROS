@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { DreiWordmark } from "@/components/brand/DreiWordmark";
 import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
@@ -7,8 +6,9 @@ import { ProductImage } from "@/components/shop/ProductImage";
 import { Pagination } from "@/components/shop/Pagination";
 import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ContactSection } from "@/components/shop/ContactSection";
+import { CategoryCarousel } from "@/components/shop/CategoryCarousel";
 import { ButtonLink } from "@/components/ui/Button";
-import { Display, SectionHeader } from "@/components/ui/Heading";
+import { SectionHeader } from "@/components/ui/Heading";
 import { getProductsPage, getBrands, getCategoryTree, getHomeHeroProduct } from "@/db/queries/catalog";
 import { getHomeSettings } from "@/db/queries/settings";
 
@@ -51,35 +51,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             title="Categorías"
             aside={`${categories.length} ${categories.length === 1 ? "línea activa" : "líneas activas"}`}
           />
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
-            {categories.map((c) => {
-              const demoPhoto = c.imagePath;
-              return (
-              <Link
-                key={c.id}
-                href={`/${c.slug}`}
-                className="group relative block aspect-square overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
-              >
-                <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
-                  <ProductImage
-                    publicId={demoPhoto ?? null}
-                    alt=""
-                    preset="category"
-                  />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-ink-950/95 from-[8%] to-ink-950/[0.15] to-[70%]" />
-                <div className="absolute inset-x-4 bottom-4">
-                  <Display as="h3" size="sm" className="text-2xl">
-                    {c.name}
-                  </Display>
-                  <p className="mt-1 text-[11.5px] uppercase tracking-[0.14em] text-brand">
-                    {c.productCount} {c.productCount === 1 ? "producto" : "productos"}
-                  </p>
-                </div>
-              </Link>
-              );
-            })}
-          </div>
+          <CategoryCarousel categories={categories} />
         </section>
       ) : null}
 

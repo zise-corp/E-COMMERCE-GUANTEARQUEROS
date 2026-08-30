@@ -9,6 +9,8 @@ const TREE: Record<string, string[]> = {
   Botas: ["Césped firme", "Futsal"],
   Pelotas: ["N°4", "N°5"],
   Canilleras: ["Con tobillera", "Placa simple"],
+  Accesorios: [],
+  Medias: [],
 };
 
 const CATEGORY_IMAGES: Record<string, string> = {
