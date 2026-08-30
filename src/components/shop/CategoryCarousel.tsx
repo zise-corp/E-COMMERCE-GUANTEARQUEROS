@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@/components/ui/Icons";
 import { Display } from "@/components/ui/Heading";
 import { ProductImage } from "./ProductImage";
+import { cn } from "@/lib/cn";
 
 type HomeCategory = {
   id: number;
@@ -12,6 +13,7 @@ type HomeCategory = {
   slug: string;
   imagePath: string | null;
   productCount: number;
+  highlighted: boolean;
 };
 
 const CAROUSEL_THRESHOLD = 6;
@@ -56,16 +58,27 @@ export function CategoryCarousel({ categories }: { categories: HomeCategory[] })
             : "grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]"
         }
       >
-        {categories.map((category) => (
-          <Link
+        {categories.map((category) => {
+          const isOffers = category.slug === "ofertas" && category.highlighted;
+          const isNew = category.slug === "nuevos" && category.highlighted;
+          return <Link
             key={category.id}
             href={`/${category.slug}`}
-            className="group relative block aspect-square snap-start overflow-hidden border border-line transition-colors duration-150 clip-corner hover:border-brand"
+            className={cn(
+              "group relative block aspect-square snap-start overflow-hidden border transition-colors duration-150 clip-corner",
+              isOffers
+                ? "border-brand bg-brand/[0.08] shadow-[0_0_28px_rgba(250,42,0,0.28)] hover:border-brand-hot"
+                : isNew
+                  ? "border-[#39BDF8] bg-[#39BDF8]/[0.08] shadow-[0_0_28px_rgba(57,189,248,0.2)] hover:border-[#7DD3FC]"
+                : "border-line hover:border-brand",
+            )}
           >
             <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
               <ProductImage publicId={category.imagePath} alt="" preset="category" />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-ink-950/95 from-[8%] to-ink-950/[0.15] to-[70%]" />
+            {isOffers ? <span className="absolute left-3 top-3 bg-brand px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-ink-950">Descuentos</span> : null}
+            {isNew ? <span className="absolute left-3 top-3 bg-[#39BDF8] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-ink-950">Nuevo</span> : null}
             <div className="absolute inset-x-4 bottom-4">
               <Display as="h3" size="sm" className="text-2xl">
                 {category.name}
@@ -74,8 +87,8 @@ export function CategoryCarousel({ categories }: { categories: HomeCategory[] })
                 {category.productCount} {category.productCount === 1 ? "producto" : "productos"}
               </p>
             </div>
-          </Link>
-        ))}
+          </Link>;
+        })}
       </div>
 
       {isCarousel ? (

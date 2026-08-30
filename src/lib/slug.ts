@@ -26,7 +26,12 @@ export const RESERVED_CATEGORY_SLUGS = new Set([
   "opengraph-image",
   "favicon.ico",
   "_next",
+  "ofertas",
+  "nuevos",
 ]);
+
+/** Categorías virtuales administradas por el sistema, no por el catálogo manual. */
+export const SYSTEM_CATEGORY_SLUGS = new Set(["ofertas", "nuevos"]);
 
 export function isReservedCategorySlug(slug: string): boolean {
   return RESERVED_CATEGORY_SLUGS.has(slug.toLowerCase());

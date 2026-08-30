@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core";
 import { db, withFallback } from "../index";
 import { brands, categories, productImages, products } from "../schema";
+import { getDreiNavVisibility } from "./settings";
 
 /** `categories` se une dos veces (categoría y subcategoría): hacen falta alias. */
 const parentCategory = alias(categories, "cat");
@@ -17,6 +18,7 @@ export type ProductCard = {
   name: string;
   brandName: string | null;
   isDrei: boolean;
+  isNew: boolean;
   price: string;
   compareAtPrice: string | null;
   stock: number;
@@ -41,6 +43,7 @@ export type CategoryNode = {
   slug: string;
   position: number;
   imagePath: string | null;
+  highlighted: boolean;
   productCount: number;
   children: CategoryNode[];
 };
@@ -89,6 +92,7 @@ const cardColumns = {
   name: products.name,
   brandName: brands.name,
   brandOwn: brands.isOwnBrand,
+  isNew: products.isNew,
   price: products.price,
   compareAtPrice: products.compareAtPrice,
   stock: products.stock,
@@ -102,6 +106,7 @@ type CardRow = {
   name: string;
   brandName: string | null;
   brandOwn: boolean | null;
+  isNew: boolean;
   price: string;
   compareAtPrice: string | null;
   stock: number;
@@ -116,6 +121,7 @@ function toCard(row: CardRow): ProductCard {
     name: row.name,
     brandName: row.brandName,
     isDrei: row.brandOwn === true,
+    isNew: row.isNew,
     price: row.price,
     compareAtPrice: row.compareAtPrice,
     stock: row.stock,
@@ -137,6 +143,7 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
         parentId: categories.parentId,
         position: categories.position,
         imagePath: categories.imagePath,
+        highlighted: categories.highlighted,
       })
       .from(categories)
       .where(eq(categories.active, true))
@@ -152,6 +159,20 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
       .where(eq(products.published, true))
       .groupBy(products.categoryId, products.subcategoryId);
 
+    const [offerCountRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(
+        eq(products.published, true),
+        sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`,
+      ));
+    const offerCount = offerCountRow?.n ?? 0;
+    const [newCountRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(eq(products.published, true), eq(products.isNew, true)));
+    const newCount = newCountRow?.n ?? 0;
+
     const byCategory = new Map<number, number>();
     const bySubcategory = new Map<number, number>();
     for (const c of counts) {
@@ -164,13 +185,20 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
     const roots: CategoryNode[] = [];
     const nodes = new Map<number, CategoryNode>();
     for (const r of rows) {
+      if (r.slug === "ofertas" && offerCount === 0) continue;
+      if (r.slug === "nuevos" && newCount === 0) continue;
       nodes.set(r.id, {
         id: r.id,
         name: r.name,
         slug: r.slug,
         position: r.position,
         imagePath: r.imagePath,
-        productCount: byCategory.get(r.id) ?? bySubcategory.get(r.id) ?? 0,
+        highlighted: r.highlighted,
+        productCount: r.slug === "ofertas"
+          ? offerCount
+          : r.slug === "nuevos"
+            ? newCount
+            : byCategory.get(r.id) ?? bySubcategory.get(r.id) ?? 0,
         children: [],
       });
     }
@@ -241,6 +269,11 @@ export async function getBrands() {
         .where(eq(brands.active, true))
         .orderBy(asc(brands.position), asc(brands.name)),
   );
+}
+
+/** Estado público de la marca propia; controla todos los accesos a DREI. */
+export async function isDreiVisible(): Promise<boolean> {
+  return getDreiNavVisibility();
 }
 
 /* ── Productos ────────────────────────────────────────────────────────────── */
@@ -316,7 +349,11 @@ export async function getProductsByCategory(
     if (!cat) return [];
 
     const scope =
-      cat.parentId === null
+      categorySlug === "ofertas" && !subcategorySlug
+        ? sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`
+        : categorySlug === "nuevos" && !subcategorySlug
+          ? eq(products.isNew, true)
+        : cat.parentId === null
         ? eq(products.categoryId, cat.id)
         : eq(products.subcategoryId, cat.id);
 
@@ -365,7 +402,11 @@ export async function getCategoryFacets(
       if (!cat) return { sizes: [], brandNames: [], maxPrice: 900 };
 
       const scope =
-        cat.parentId === null
+        categorySlug === "ofertas" && !subcategorySlug
+          ? sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`
+          : categorySlug === "nuevos" && !subcategorySlug
+            ? eq(products.isNew, true)
+          : cat.parentId === null
           ? eq(products.categoryId, cat.id)
           : eq(products.subcategoryId, cat.id);
 
@@ -406,6 +447,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
         description: products.description,
         brandName: brands.name,
         brandOwn: brands.isOwnBrand,
+        isNew: products.isNew,
         price: products.price,
         compareAtPrice: products.compareAtPrice,
         stock: products.stock,
@@ -438,6 +480,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       description: row.description,
       brandName: row.brandName,
       isDrei: row.brandOwn === true,
+      isNew: row.isNew,
       price: row.price,
       compareAtPrice: row.compareAtPrice,
       stock: row.stock,
@@ -470,6 +513,7 @@ export async function getNavCategories() {
   return tree.map((category) => ({
     name: category.name,
     slug: category.slug,
+    highlighted: category.highlighted,
     children: category.children.map((child) => ({ name: child.name, slug: child.slug })),
   }));
 }

@@ -9,6 +9,7 @@ import { MobileMenu } from "./MobileMenu";
 export type NavCategory = {
   name: string;
   slug: string;
+  highlighted: boolean;
   children?: { name: string; slug: string }[];
 };
 

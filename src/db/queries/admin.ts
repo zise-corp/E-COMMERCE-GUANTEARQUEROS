@@ -10,6 +10,7 @@ import {
   productImages,
   products,
 } from "../schema";
+import { getDreiNavVisibility } from "./settings";
 
 const parentCategory = alias(categories, "cat");
 const childCategory = alias(categories, "sub");
@@ -156,6 +157,7 @@ export type AdminCategoryRow = {
   slug: string;
   position: number;
   active: boolean;
+  highlighted: boolean;
   imagePath: string | null;
   imageFileId: string | null;
   productCount: number;
@@ -164,6 +166,7 @@ export type AdminCategoryRow = {
     name: string;
     slug: string;
     active: boolean;
+    highlighted: boolean;
     imagePath: string | null;
     imageFileId: string | null;
     productCount: number;
@@ -192,6 +195,18 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
     if (c.subcategoryId !== null) bySub.set(c.subcategoryId, (bySub.get(c.subcategoryId) ?? 0) + c.n);
   }
 
+  const [offerCountRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(products)
+    .where(and(
+      eq(products.published, true),
+      sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`,
+    ));
+  const [newCountRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(products)
+    .where(and(eq(products.published, true), eq(products.isNew, true)));
+
   return rows
     .filter((r) => r.parentId === null)
     .map((r) => ({
@@ -199,17 +214,21 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
       name: r.name,
       slug: r.slug,
       position: r.position,
-      active: r.active,
+        active: r.active,
+        highlighted: r.highlighted,
       imagePath: r.imagePath,
       imageFileId: r.imageFileId,
-      productCount: byCategory.get(r.id) ?? 0,
+        productCount: r.slug === "ofertas"
+          ? (offerCountRow?.n ?? 0)
+          : r.slug === "nuevos" ? (newCountRow?.n ?? 0) : (byCategory.get(r.id) ?? 0),
       subs: rows
         .filter((s) => s.parentId === r.id)
         .map((s) => ({
           id: s.id,
           name: s.name,
           slug: s.slug,
-          active: s.active,
+            active: s.active,
+            highlighted: s.highlighted,
           imagePath: s.imagePath,
           imageFileId: s.imageFileId,
           productCount: bySub.get(s.id) ?? 0,
@@ -230,6 +249,7 @@ export type AdminProductRow = {
   attributeCount: number;
   published: boolean;
   featured: boolean;
+  isNew: boolean;
   imagePublicId: string | null;
 };
 
@@ -246,6 +266,7 @@ export async function getAdminProducts(categoryId?: number): Promise<AdminProduc
       attributes: products.attributes,
       published: products.published,
       featured: products.featured,
+      isNew: products.isNew,
       imagePublicId: sql<string | null>`(
         SELECT pi.public_id FROM ${productImages} pi
         WHERE pi.product_id = ${products.id}
@@ -270,6 +291,7 @@ export async function getAdminProducts(categoryId?: number): Promise<AdminProduc
     attributeCount: (r.attributes ?? []).length,
     published: r.published,
     featured: r.featured,
+    isNew: r.isNew,
     imagePublicId: r.imagePublicId,
   }));
 }
@@ -289,6 +311,7 @@ export type AdminProductDetail = {
   attributes: { name: string; value: string }[];
   published: boolean;
   featured: boolean;
+  isNew: boolean;
   images: { publicId: string; fileId: string | null; alt: string }[];
 };
 
@@ -317,6 +340,7 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
     attributes: row.attributes ?? [],
     published: row.published,
     featured: row.featured,
+    isNew: row.isNew,
     images,
   };
 }
@@ -324,16 +348,17 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
 /** Categorías planas para los selects del formulario. */
 export async function getCategoryOptions() {
   const rows = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      parentId: categories.parentId,
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        parentId: categories.parentId,
     })
     .from(categories)
     .orderBy(asc(categories.position), asc(categories.name));
 
-  return {
-    roots: rows.filter((r) => r.parentId === null),
+    return {
+      roots: rows.filter((r) => r.parentId === null && r.slug !== "ofertas" && r.slug !== "nuevos"),
     subs: rows.filter((r) => r.parentId !== null),
   };
 }
@@ -373,6 +398,10 @@ export async function getAdminBrands(): Promise<AdminBrandRow[]> {
     .leftJoin(products, eq(products.brandId, brands.id))
     .groupBy(brands.id)
     .orderBy(asc(brands.position), asc(brands.name));
+}
+
+export async function getAdminDreiVisibility() {
+  return { active: await getDreiNavVisibility() };
 }
 
 export { childCategory, parentCategory };

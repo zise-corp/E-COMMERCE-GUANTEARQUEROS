@@ -11,6 +11,28 @@ export type CampaignSettings = {
 export const CAMPAIGN_KEY = "campaign";
 export const CHECKOUT_KEY = "checkout";
 export const HOME_KEY = "home";
+export const DREI_NAV_KEY = "drei_nav";
+
+export async function getDreiNavVisibility(): Promise<boolean> {
+  return withFallback(true, async () => {
+    const [row] = await db
+      .select({ value: siteSettings.value })
+      .from(siteSettings)
+      .where(eq(siteSettings.key, DREI_NAV_KEY))
+      .limit(1);
+    return typeof row?.value === "boolean" ? row.value : true;
+  });
+}
+
+export async function setDreiNavVisibility(active: boolean): Promise<void> {
+  await db
+    .insert(siteSettings)
+    .values({ key: DREI_NAV_KEY, value: active })
+    .onConflictDoUpdate({
+      target: siteSettings.key,
+      set: { value: active, updatedAt: new Date() },
+    });
+}
 
 export type HomeSettings = {
   heroProductId: number | null;

@@ -41,7 +41,10 @@ export function ProductCard({
             priority={priority}
           />
 
-          {off !== null ? <DiscountBadge percent={off} className="absolute left-0 top-0" /> : null}
+          <div className="absolute left-0 top-0 flex flex-col items-start gap-1">
+            {product.isNew ? <span className="bg-[#39BDF8] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-ink-950">Nuevo</span> : null}
+            {off !== null ? <DiscountBadge percent={off} /> : null}
+          </div>
 
           {product.isDrei ? (
             <DreiTag className="absolute right-2.5 top-2.5" />

@@ -64,6 +64,20 @@
       "when": 1787973600000,
       "tag": "0008_category-initial-images",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788122432704,
+      "tag": "0009_short_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788122971123,
+      "tag": "0010_great_nekra",
+      "breakpoints": true
     }
   ]
 }

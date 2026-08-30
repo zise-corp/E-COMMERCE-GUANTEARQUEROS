@@ -52,22 +52,9 @@ export function NavLinks({ categories, dreiSlug, className }: { categories: NavC
         </div>
       </details>
 
-      {categories.map((category) => {
-        const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
-        return (
-          <Link
-            key={category.slug}
-            href={`/${category.slug}`}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "whitespace-nowrap border-b-2 py-1.5 text-[12.5px] font-bold uppercase tracking-[0.06em] transition-colors duration-150",
-              active ? "border-brand text-brand" : "border-transparent hover:border-brand hover:text-brand",
-            )}
-          >
-            {category.name}
-          </Link>
-        );
-      })}
+      {categories.filter((category) => !isProtected(category)).map((category) => (
+        <NavCategoryLink key={category.slug} category={category} pathname={pathname} />
+      ))}
 
       {dreiSlug ? (
         <Link
@@ -82,6 +69,34 @@ export function NavLinks({ categories, dreiSlug, className }: { categories: NavC
           DREI
         </Link>
       ) : null}
+
+      {categories.filter(isProtected).map((category) => (
+        <NavCategoryLink key={category.slug} category={category} pathname={pathname} />
+      ))}
     </nav>
+  );
+}
+
+function isProtected(category: NavCategory) {
+  return category.slug === "ofertas" || category.slug === "nuevos";
+}
+
+function NavCategoryLink({ category, pathname }: { category: NavCategory; pathname: string }) {
+  const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
+  return (
+    <Link
+      href={`/${category.slug}`}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "whitespace-nowrap border-b-2 py-1.5 text-[12.5px] font-bold uppercase tracking-[0.06em] transition-colors duration-150",
+        category.highlighted && category.slug === "ofertas"
+          ? "border-brand bg-brand px-2.5 text-ink-950 hover:bg-brand-hot"
+          : category.highlighted && category.slug === "nuevos"
+            ? "border-[#39BDF8] bg-[#39BDF8] px-2.5 text-ink-950 hover:bg-[#7DD3FC]"
+            : active ? "border-brand text-brand" : "border-transparent hover:border-brand hover:text-brand",
+      )}
+    >
+      {category.name}
+    </Link>
   );
 }

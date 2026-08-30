@@ -31,6 +31,7 @@ export const categories = pgTable("categories", {
   parentId: integer("parent_id").references((): any => categories.id, { onDelete: "cascade" }),
   position: integer("position").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  highlighted: boolean("highlighted").notNull().default(true),
   imagePath: text("image_path"),
   imageFileId: text("image_file_id"),
 }, (t) => ({ slugUq: uniqueIndex("categories_slug_uq").on(t.slug) }));
@@ -63,6 +64,7 @@ export const products = pgTable("products", {
   attributes: jsonb("attributes").$type<{ name: string; value: string }[]>().notNull().default([]),
   published: boolean("published").notNull().default(false),
   featured: boolean("featured").notNull().default(false),
+  isNew: boolean("is_new").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({

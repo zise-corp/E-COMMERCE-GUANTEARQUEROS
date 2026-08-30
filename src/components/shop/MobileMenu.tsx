@@ -104,7 +104,7 @@ function MobileMenuDrawer({
                 return (
                   <div key={category.slug} className="border-b border-line-soft py-1.5">
                     <MenuLink href={`/${category.slug}`} active={active} onClick={onClose}>
-                      {category.name}
+                      <span className={category.highlighted && category.slug === "ofertas" ? "text-brand" : category.highlighted && category.slug === "nuevos" ? "text-[#39BDF8]" : undefined}>{category.name}</span>
                     </MenuLink>
                     {category.children && category.children.length > 0 ? (
                       <div className="mb-1 ml-3 border-l border-line-strong pl-3">

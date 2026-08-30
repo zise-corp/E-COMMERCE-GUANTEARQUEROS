@@ -30,6 +30,7 @@ type FormState = {
   images: ProductImageValue[];
   published: boolean;
   featured: boolean;
+  isNew: boolean;
 };
 
 function toForm(product: AdminProductDetail | null, defaultCategoryId: number | null): FormState {
@@ -48,6 +49,7 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
       images: [],
       published: false,
       featured: false,
+      isNew: false,
     };
   }
   return {
@@ -64,6 +66,7 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     images: product.images,
     published: product.published,
     featured: product.featured,
+    isNew: product.isNew,
   };
 }
 
@@ -170,6 +173,7 @@ export function ProductForm({
       images: form.images,
       published: form.published,
       featured: form.featured,
+      isNew: form.isNew,
     };
 
     startTransition(async () => {
@@ -408,6 +412,11 @@ export function ProductForm({
                   checked={form.featured}
                   label="Destacado en home"
                   onChange={(next) => set("featured", next)}
+                />
+                <Toggle
+                  checked={form.isNew}
+                  label="Marcar como producto nuevo"
+                  onChange={(next) => set("isNew", next)}
                 />
               </div>
 

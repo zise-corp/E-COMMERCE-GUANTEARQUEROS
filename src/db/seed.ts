@@ -35,6 +35,20 @@ export async function seedCatalog() {
     const [name, hex] = BRANDS[brandPosition]!;
     await db.insert(brands).values({ name, slug: slug(name), accentHex: hex, isOwnBrand: name === "DREI", position: brandPosition }).onConflictDoNothing();
   }
+  // Categoría virtual: sus productos se calculan por precio y nunca se asignan a mano.
+  await db.insert(categories).values({
+    name: "Ofertas",
+    slug: "ofertas",
+    position: -1,
+    active: true,
+  }).onConflictDoNothing();
+  await db.insert(categories).values({
+    name: "Nuevos",
+    slug: "nuevos",
+    position: -2,
+    active: true,
+  }).onConflictDoNothing();
+
   let pos = 0;
   for (const [parent, subs] of Object.entries(TREE)) {
     const parentSlug = slug(parent);

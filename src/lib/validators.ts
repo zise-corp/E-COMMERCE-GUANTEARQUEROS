@@ -155,12 +155,14 @@ export const productSchema = z.object({
     .default([]),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
+  isNew: z.boolean().default(false),
 });
 
 export const categorySchema = z.object({
   name: z.string().trim().min(2).max(80),
   parentId: z.number().int().positive().nullable().default(null),
   active: z.boolean().default(true),
+  highlighted: z.boolean().default(true),
   imagePath: z.string().trim().min(1).max(500).nullable().default(null),
   imageFileId: z.string().trim().min(1).max(200).nullable().default(null),
   // Ni slug ni position vienen del cliente: el slug sale del nombre y el orden

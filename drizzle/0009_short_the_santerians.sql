@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "is_new" boolean DEFAULT false NOT NULL;

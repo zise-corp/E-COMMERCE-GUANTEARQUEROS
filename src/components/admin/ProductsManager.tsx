@@ -139,6 +139,11 @@ export function ProductsManager({
                     destacado
                   </span>
                 ) : null}
+                {p.isNew ? (
+                  <span className="ml-2 text-[10px] uppercase tracking-[0.12em] text-[#39BDF8]">
+                    nuevo
+                  </span>
+                ) : null}
               </p>
               <p className="mt-0.5 text-[11px] text-content-faint">
                 GQ-{String(p.id).padStart(4, "0")} · {p.attributeCount}{" "}

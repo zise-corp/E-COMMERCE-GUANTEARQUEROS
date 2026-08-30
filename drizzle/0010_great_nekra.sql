@@ -1,0 +1,1 @@
+ALTER TABLE "categories" ADD COLUMN "highlighted" boolean DEFAULT true NOT NULL;

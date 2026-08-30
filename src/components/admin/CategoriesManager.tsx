@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteCategoryAction, reorderCategoriesAction, saveCategoryAction } from "@/app/admin/actions";
+import { deleteCategoryAction, reorderCategoriesAction, saveCategoryAction, setDreiVisibilityAction } from "@/app/admin/actions";
 import { Escudo } from "@/components/brand/Escudo";
 import { ImageKitDropzone, type ProductImageValue } from "@/components/admin/ImageKitDropzone";
 import { Input, Select } from "@/components/ui/Field";
@@ -18,6 +18,7 @@ import type { AdminCategoryRow } from "@/db/queries/admin";
 import { cn } from "@/lib/cn";
 import { imageKitUrl } from "@/lib/images";
 import { slugify } from "@/lib/slug";
+import { SYSTEM_CATEGORY_SLUGS } from "@/lib/slug";
 
 type View = "principales" | "subcategorias";
 type CategoryKind = "principal" | "subcategoria";
@@ -30,6 +31,7 @@ type Editing = {
   name: string;
   parentId: number | null;
   active: boolean;
+  highlighted: boolean;
   imagePath: string | null;
   imageFileId: string | null;
 };
@@ -41,12 +43,13 @@ function blank(kind: CategoryKind, rows: AdminCategoryRow[]): Editing {
     name: "",
     parentId: kind === "subcategoria" ? rows[0]?.id ?? null : null,
     active: true,
+    highlighted: true,
     imagePath: null,
     imageFileId: null,
   };
 }
 
-export function CategoriesManager({ rows, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; openNew?: CategoryKind | null; initialView?: View }) {
+export function CategoriesManager({ rows, drei, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; drei: { active: boolean } | null; openNew?: CategoryKind | null; initialView?: View }) {
   const router = useRouter();
   const { show } = useToast();
   const view = initialView;
@@ -68,12 +71,12 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
 
   function editPrincipal(row: AdminCategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, imagePath: row.imagePath, imageFileId: row.imageFileId });
+    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, highlighted: row.highlighted, imagePath: row.imagePath, imageFileId: row.imageFileId });
   }
 
   function editSubcategory(row: SubcategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, parentId: row.parentId, active: row.active, imagePath: null, imageFileId: null });
+    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, parentId: row.parentId, active: row.active, highlighted: row.highlighted, imagePath: null, imageFileId: null });
   }
 
   function save() {
@@ -86,6 +89,7 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
         name: form.name,
         parentId: form.kind === "principal" ? null : form.parentId,
         active: form.active,
+        highlighted: form.highlighted,
         imagePath: form.kind === "principal" ? form.imagePath : null,
         imageFileId: form.kind === "principal" ? form.imageFileId : null,
       }, form.id);
@@ -100,6 +104,15 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
     setDeleteTarget({ id, name });
   }
 
+  function toggleDrei(active: boolean) {
+    startTransition(async () => {
+      const result = await setDreiVisibilityAction(active);
+      if (!result.ok) { show(result.error, "error"); return; }
+      show(`DREI ${active ? "activado" : "desactivado"}.`);
+      router.refresh();
+    });
+  }
+
   function confirmRemove() {
     if (!deleteTarget) return;
     setError(null);
@@ -112,6 +125,15 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
 
   return (
     <>
+      {drei ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border border-drei-line/50 bg-drei/[0.08] px-5 py-4">
+          <div>
+            <p className="font-display text-xl uppercase text-drei-line skew-fast-6">DREI Athletic</p>
+            <p className="mt-1 text-[11.5px] text-content-dim">Acceso protegido · controla únicamente si DREI aparece en el Navbar.</p>
+          </div>
+          <Toggle checked={drei.active} label="Visible en el Navbar" onChange={toggleDrei} />
+        </div>
+      ) : null}
       <div className="border border-ink-700 bg-ink-850">
         <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 px-5 py-3">
           <Tab active={view === "principales"} href="/admin/categorias?vista=principales">Categorías principales <span className="ml-1 tabular">{rows.length}</span></Tab>
@@ -122,7 +144,7 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
         {view === "principales" ? <PrincipalTable rows={rows} onEdit={editPrincipal} onRemove={remove} /> : <SubcategoryTable rows={subcategories} onEdit={editSubcategory} onRemove={remove} />}
       </div>
 
-      <CategoryFormModal form={form} roots={rows} pending={pending} error={error} onChange={setForm} onClose={() => { setForm(null); setError(null); router.replace(`/admin/categorias?vista=${view}`); }} onSave={save} />
+      <CategoryFormModal form={form} roots={rows.filter((row) => !SYSTEM_CATEGORY_SLUGS.has(row.slug))} pending={pending} error={error} onChange={setForm} onClose={() => { setForm(null); setError(null); router.replace(`/admin/categorias?vista=${view}`); }} onSave={save} />
       <ConfirmModal open={Boolean(deleteTarget)} title="Eliminar clasificación" description={deleteTarget ? `¿Quieres eliminar “${deleteTarget.name}”? Esta acción no se puede deshacer.` : ""} busy={pending} onClose={() => setDeleteTarget(null)} onConfirm={confirmRemove} />
     </>
   );
@@ -136,6 +158,7 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
   const ref = useDialog(Boolean(form), onClose);
   if (!form) return null;
   const isPrincipal = form.kind === "principal";
+  const isSystemCategory = form.slug !== null && SYSTEM_CATEGORY_SLUGS.has(form.slug);
   const imageValue: ProductImageValue[] = form.imagePath ? [{ publicId: form.imagePath, fileId: form.imageFileId, alt: form.name }] : [];
 
   return (
@@ -149,16 +172,17 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
 
           <div className={cn("grid items-start gap-5 p-6", isPrincipal && "md:grid-cols-[1fr_0.9fr]")}>
             <div className="flex flex-col gap-3.5">
-              <Input label={isPrincipal ? "Nombre de la categoría" : "Nombre de la subcategoría"} placeholder={isPrincipal ? "Ej. Accesorios" : "Ej. Entrenamiento"} value={form.name} className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, name: event.target.value })} />
+              <Input label={isPrincipal ? "Nombre de la categoría" : "Nombre de la subcategoría"} placeholder={isPrincipal ? "Ej. Accesorios" : "Ej. Entrenamiento"} value={form.name} disabled={isSystemCategory} className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, name: event.target.value })} />
               {!isPrincipal ? (
                 <Select label="Ubicar dentro de" value={form.parentId === null ? "" : String(form.parentId)} className="bg-[#0E0E0D]" hint="Organizará los productos dentro de esta categoría." onChange={(event) => onChange({ ...form, parentId: event.target.value ? Number(event.target.value) : null })}>
                   <option value="">— Selecciona una categoría —</option>{roots.map((root) => <option key={root.id} value={root.id}>{root.name}</option>)}
                 </Select>
-              ) : <p className="border-l-2 border-brand bg-brand/[0.06] px-3 py-2.5 text-[11.5px] leading-relaxed text-content-muted">Aparecerá en el menú principal y en las tarjetas de categorías de la tienda.</p>}
+              ) : <p className="border-l-2 border-brand bg-brand/[0.06] px-3 py-2.5 text-[11.5px] leading-relaxed text-content-muted">{isSystemCategory ? (form.slug === "ofertas" ? "Categoría automática del sistema. Reúne los productos publicados cuyo precio anterior es mayor al actual; únicamente puedes controlar su visibilidad." : "Categoría automática del sistema. Reúne los productos publicados que marques como nuevos; únicamente puedes controlar su visibilidad.") : "Aparecerá en el menú principal y en las tarjetas de categorías de la tienda."}</p>}
               <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.active} label="Visible en la tienda" onChange={(active) => onChange({ ...form, active })} /></div>
+              {isSystemCategory ? <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.highlighted} label="Resaltar en la tienda" onChange={(highlighted) => onChange({ ...form, highlighted })} /></div> : null}
             </div>
 
-            {isPrincipal ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" squareCrop /> : null}
+            {isPrincipal && !isSystemCategory ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" squareCrop /> : null}
           </div>
 
           <div className="border-t border-ink-700 px-6 py-5">
@@ -199,10 +223,10 @@ function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; 
     <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px] lg:gap-3.5"><span /><span /><span>Categoría principal</span><span>Subcategorías</span><span>Productos</span><span /></div>
     {ordered.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay categorías principales.</p> : null}
     {ordered.map((row) => <div key={row.id} ref={(element) => { if (element) rowRefs.current.set(row.id, element); else rowRefs.current.delete(row.id); }} className={cn("grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px]", draggingId === row.id && "relative z-10 border-brand bg-[#171716] shadow-card")}>
-      <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>
+      {SYSTEM_CATEGORY_SLUGS.has(row.slug) ? <span /> : <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>}
       <div className="relative h-10 w-10 overflow-hidden bg-ink-950">{row.imagePath ? <Image src={imageKitUrl(row.imagePath, "thumb")} alt="" fill sizes="40px" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center"><Escudo width={16} height={19} className="opacity-20" title="" /></span>}</div>
       <div className="min-w-0"><p className="truncate text-[13.5px] font-bold">{row.name}{!row.active ? <span className="ml-2 text-[9.5px] uppercase tracking-[0.12em] text-content-faint">oculta</span> : null}</p><p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p></div>
-      <span className="text-[13px] text-content-muted">{row.subs.length}</span><span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span><Actions name={row.name} onEdit={() => onEdit(row)} onRemove={() => onRemove(row.id, row.name)} />
+      <span className="text-[13px] text-content-muted">{SYSTEM_CATEGORY_SLUGS.has(row.slug) ? "Automática" : row.subs.length}</span><span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span><Actions name={row.name} onEdit={() => onEdit(row)} onRemove={SYSTEM_CATEGORY_SLUGS.has(row.slug) ? undefined : () => onRemove(row.id, row.name)} />
     </div>)}</div>;
 }
 
@@ -215,6 +239,6 @@ function SubcategoryTable({ rows, onEdit, onRemove }: { rows: SubcategoryRow[]; 
     </div>)}</div>;
 }
 
-function Actions({ name, onEdit, onRemove }: { name: string; onEdit: () => void; onRemove: () => void }) {
-  return <div className="flex justify-end gap-2"><button type="button" onClick={onEdit} aria-label={`Editar ${name}`} title={`Editar ${name}`} className="flex h-7 w-7 items-center justify-center text-content-muted transition-colors hover:text-brand"><EditIcon size={16} /></button><button type="button" onClick={onRemove} aria-label={`Borrar ${name}`} title={`Borrar ${name}`} className="flex h-7 w-7 items-center justify-center text-content-faint transition-colors hover:text-alert"><TrashIcon size={16} /></button></div>;
+function Actions({ name, onEdit, onRemove }: { name: string; onEdit: () => void; onRemove?: () => void }) {
+  return <div className="flex justify-end gap-2"><button type="button" onClick={onEdit} aria-label={`Editar ${name}`} title={`Editar ${name}`} className="flex h-7 w-7 items-center justify-center text-content-muted transition-colors hover:text-brand"><EditIcon size={16} /></button>{onRemove ? <button type="button" onClick={onRemove} aria-label={`Borrar ${name}`} title={`Borrar ${name}`} className="flex h-7 w-7 items-center justify-center text-content-faint transition-colors hover:text-alert"><TrashIcon size={16} /></button> : null}</div>;
 }

@@ -6,10 +6,11 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
 import { setOrderStatus } from "@/db/queries/orders";
-import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
+import { setCampaign, setCheckoutSettings, setDreiNavVisibility, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
+import { SYSTEM_CATEGORY_SLUGS } from "@/lib/slug";
 import {
   campaignSchema,
   brandSchema,
@@ -50,6 +51,16 @@ export async function saveCategoryAction(
 
   const values = parsed.data;
   const nextSlug = slugify(values.name);
+
+  if (id !== undefined) {
+    const current = await db.query.categories.findFirst({ where: eq(categories.id, id) });
+    if (current && SYSTEM_CATEGORY_SLUGS.has(current.slug)) {
+      await db.update(categories).set({ active: values.active, highlighted: values.highlighted }).where(eq(categories.id, id));
+      revalidatePath("/admin/categorias");
+      revalidatePath("/", "layout");
+      return { ok: true };
+    }
+  }
   // Las subcategorías son navegación textual dentro de una categoría principal;
   // nunca conservan ni aceptan una imagen propia.
   const categoryImage = values.parentId === null
@@ -69,6 +80,9 @@ export async function saveCategoryAction(
       where: eq(categories.id, values.parentId),
     });
     if (!parent) return { ok: false, error: "La categoría padre no existe." };
+    if (SYSTEM_CATEGORY_SLUGS.has(parent.slug)) {
+      return { ok: false, error: `${parent.name} no admite subcategorías porque se completa automáticamente.` };
+    }
     if (parent.parentId !== null) {
       return { ok: false, error: "Solo se admiten dos niveles: categoría y subcategoría." };
     }
@@ -154,11 +168,17 @@ export async function reorderCategoriesAction(input: unknown): Promise<ActionRes
     return { ok: false, error: "El orden no coincide con las categorías actuales. Recarga la página." };
   }
 
-  await db.transaction(async (tx) => {
-    for (let i = 0; i < incoming.length; i++) {
-      await tx.update(categories).set({ position: i }).where(eq(categories.id, incoming[i]!));
-    }
-  });
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < incoming.length; i++) {
+        const categoryId = incoming[i]!;
+        const category = await tx.query.categories.findFirst({ where: eq(categories.id, categoryId) });
+        const systemPosition = category?.slug === "nuevos" ? -2 : -1;
+        await tx
+          .update(categories)
+          .set({ position: category && SYSTEM_CATEGORY_SLUGS.has(category.slug) ? systemPosition : i })
+          .where(eq(categories.id, categoryId));
+      }
+    });
 
   revalidatePath("/admin/categorias");
   revalidatePath("/", "layout");
@@ -167,6 +187,11 @@ export async function reorderCategoriesAction(input: unknown): Promise<ActionRes
 
 export async function deleteCategoryAction(id: number): Promise<ActionResult> {
   await requireAdmin();
+
+  const category = await db.query.categories.findFirst({ where: eq(categories.id, id) });
+  if (category && SYSTEM_CATEGORY_SLUGS.has(category.slug)) {
+    return { ok: false, error: `${category.name} es una categoría del sistema y no se puede eliminar. Puedes ocultarla desactivándola.` };
+  }
 
   const [used] = await db
     .select({ id: products.id })
@@ -217,6 +242,17 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
   }
   revalidatePath("/admin/marcas");
   revalidatePath("/admin/productos");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function setDreiVisibilityAction(active: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  if (typeof active !== "boolean") return { ok: false, error: "Estado inválido." };
+
+  await setDreiNavVisibility(active);
+  revalidatePath("/admin/categorias");
+  revalidatePath("/admin/marcas");
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -305,6 +341,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     attributes: v.attributes,
     published: v.published,
     featured: v.featured,
+    isNew: v.isNew,
     updatedAt: new Date(),
   };
 
