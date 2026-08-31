@@ -10,6 +10,9 @@ export type ShippingValues = {
   name: string;
   phone: string;
   note: string;
+  invoiceRequested: boolean;
+  businessName: string;
+  taxId: string;
   mode: "" | "pickup" | "delivery";
   department: Department | null;
   address: string;
@@ -24,6 +27,9 @@ export const emptyShipping: ShippingValues = {
   name: "",
   phone: "",
   note: "",
+  invoiceRequested: false,
+  businessName: "",
+  taxId: "",
   mode: "",
   department: null,
   address: "",
@@ -128,6 +134,49 @@ export function ShippingForm({
         error={err("note")}
         onChange={(e) => set("note", e.target.value)}
       />
+
+      <div className="mt-1 border border-line-strong bg-ink-950 p-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={value.invoiceRequested}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                invoiceRequested: event.target.checked,
+                ...(!event.target.checked ? { businessName: "", taxId: "" } : {}),
+              })
+            }
+            className="mt-0.5 h-4 w-4 accent-brand"
+          />
+          <span>
+            <span className="block text-[13.5px] font-extrabold text-content">¿Deseas factura?</span>
+            <span className="mt-0.5 block text-[11.5px] text-content-dim">Marca esta opción para ingresar tus datos de facturación.</span>
+          </span>
+        </label>
+
+        {value.invoiceRequested ? (
+          <div className="mt-4 grid gap-3 border-t border-ink-800 pt-4 sm:grid-cols-2 animate-rise">
+            <Input
+              label="Razón Social"
+              required
+              placeholder="Nombre o empresa"
+              value={value.businessName}
+              error={err("businessName")}
+              onChange={(event) => set("businessName", event.target.value)}
+            />
+            <Input
+              label="NIT"
+              required
+              inputMode="numeric"
+              placeholder="Número de NIT"
+              value={value.taxId}
+              error={err("taxId")}
+              onChange={(event) => set("taxId", event.target.value)}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <Select
         label="Departamento"

@@ -11,7 +11,7 @@ export default async function AdminHomePage() {
   const [settings, allProducts] = await Promise.all([getHomeSettings(), getAdminProducts()]);
   const products = allProducts
     .filter((product): product is typeof product & { imagePublicId: string } => Boolean(product.imagePublicId))
-    .map(({ id, name, categoryName, imagePublicId }) => ({ id, name, categoryName, imagePublicId }));
+    .map(({ id, name, categoryName, brandName, imagePublicId }) => ({ id, name, categoryName, brandName, imagePublicId }));
 
   return (
     <>

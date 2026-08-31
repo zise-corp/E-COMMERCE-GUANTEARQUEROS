@@ -166,6 +166,9 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
         customerName: shipping.name,
         customerPhone: shipping.phone,
         note: shipping.note || null,
+        invoiceRequested: shipping.invoiceRequested,
+        businessName: shipping.invoiceRequested ? shipping.businessName : null,
+        taxId: shipping.invoiceRequested ? shipping.taxId : null,
         ...deliveryColumns(shipping),
         total: toDbNumeric(pricing.total),
       })
@@ -227,6 +230,9 @@ export async function updateOrder(
         customerName: shipping.name,
         customerPhone: shipping.phone,
         note: shipping.note || null,
+        invoiceRequested: shipping.invoiceRequested,
+        businessName: shipping.invoiceRequested ? shipping.businessName : null,
+        taxId: shipping.invoiceRequested ? shipping.taxId : null,
         ...deliveryColumns(shipping),
         total: toDbNumeric(pricing.total),
         updatedAt: new Date(),
@@ -257,6 +263,9 @@ export type OrderSummary = {
   customerName: string;
   customerPhone: string;
   note: string | null;
+  invoiceRequested: boolean;
+  businessName: string | null;
+  taxId: string | null;
   mode: "pickup" | "delivery";
   department: string | null;
   address: string | null;

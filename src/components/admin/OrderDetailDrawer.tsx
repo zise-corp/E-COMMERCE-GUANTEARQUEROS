@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { OrderSummary } from "@/db/queries/orders";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
-import { LOCAL_DEPARTMENT } from "@/lib/site";
+import { LOCAL_DEPARTMENT, whatsappLink } from "@/lib/site";
 import { STATUS_META } from "./OrdersManager";
 import { OrderLocationMap } from "./OrderLocationMap";
 
@@ -71,6 +71,12 @@ export function OrderDetailDrawer({
   }
 
   const isLocal = order?.mode === "delivery" && order.department === LOCAL_DEPARTMENT;
+  const customerWhatsapp = order
+    ? whatsappLink(
+        `Hola ${order.customerName}, te contactamos de Guantearqueros Bolivia por tu pedido #${order.number}.`,
+        normalizeBolivianPhone(order.customerPhone),
+      )
+    : "";
 
   const deliveryRows: { k: string; v: string }[] = !order
     ? []
@@ -120,11 +126,31 @@ export function OrderDetailDrawer({
         <div className="flex flex-col gap-5 px-6 pb-10 pt-[22px]">
           <Section title="Cliente">
             <Row k="Nombre" v={order.customerName} />
-            <Row k="Teléfono" v={order.customerPhone} />
+            <Row
+              k="Teléfono"
+              v={
+                <a
+                  href={customerWhatsapp}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir conversación en WhatsApp"
+                  className="inline-flex flex-wrap items-center gap-2 text-state-ok underline decoration-state-ok/40 underline-offset-4 transition-colors hover:text-brand"
+                >
+                  <span>{order.customerPhone}</span>
+                </a>
+              }
+            />
             <Row k="Nota" v={order.note || "—"} />
             <Row k="Pago" v={PAYMENT_LABEL[order.paymentStatus]} />
             {order.paymentRef ? <Row k="TX ID" v={order.paymentRef} /> : null}
           </Section>
+
+          {order.invoiceRequested ? (
+            <Section title="Facturación solicitada">
+              <Row k="Razón Social" v={order.businessName || "—"} />
+              <Row k="NIT" v={order.taxId || "—"} />
+            </Section>
+          ) : null}
 
           <Section title="Entrega">
             {deliveryRows.map((r) => (
@@ -229,11 +255,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 border-b border-line-soft py-[9px] text-[13.5px] sm:grid-cols-[150px_1fr]">
       <span className="text-content-dim">{k}</span>
       <span className="break-words font-semibold">{v}</span>
     </div>
   );
+}
+
+function normalizeBolivianPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 8) return `591${digits}`;
+  if (digits.length === 9 && digits.startsWith("0")) return `591${digits.slice(1)}`;
+  return digits;
 }

@@ -87,6 +87,13 @@ export function ConfirmOrderModal({
     ...(discountAmount > 0 ? [{ k: `Descuento · ${discountCode}`, v: `− ${formatBs(discountAmount)}` }] : []),
     { k: "Total", v: formatBs(Math.max(0, cart.subtotal + shippingPrice - discountAmount)) },
     { k: "Cliente", v: shipping.name || "Sin nombre" },
+    ...(shipping.invoiceRequested
+      ? [
+          { k: "Factura", v: "Sí" },
+          { k: "Razón Social", v: shipping.businessName },
+          { k: "NIT", v: shipping.taxId },
+        ]
+      : []),
   ];
 
   return (

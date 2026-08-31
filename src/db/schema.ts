@@ -90,6 +90,9 @@ export const orders = pgTable("orders", {
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   note: text("note"),
+  invoiceRequested: boolean("invoice_requested").notNull().default(false),
+  businessName: text("business_name"),
+  taxId: text("tax_id"),
 
   mode: deliveryMode("mode").notNull().default("pickup"),
   // condicionales de entrega

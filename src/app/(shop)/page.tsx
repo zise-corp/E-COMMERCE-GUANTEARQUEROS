@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DreiWordmark } from "@/components/brand/DreiWordmark";
 import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
@@ -148,10 +149,37 @@ function Hero({ guantesSlug, dreiSlug, product }: { guantesSlug: string | null; 
           }}
           aria-hidden
         />
-        <div className="relative aspect-square overflow-hidden border border-line clip-hero">
+        {product ? (
+          <Link
+            href={`/p/${product.slug}`}
+            aria-label={`Ver producto ${product.name}`}
+            className="group relative block aspect-square overflow-hidden border border-line transition-colors hover:border-brand focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 clip-hero"
+          >
+            <ProductImage
+              publicId={product.imagePublicId}
+              alt={product.name}
+              preset="square"
+              priority
+            />
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(200deg, rgba(10,10,10,0) 35%, rgba(10,10,10,0.85) 100%)" }}
+              aria-hidden
+            />
+            <span className="absolute right-0 top-0 bg-brand px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-950 transition-colors group-hover:bg-brand-hot">
+              Ver producto
+            </span>
+            {discount ? (
+              <p className="absolute bottom-[26px] left-0 bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
+                {discount}% OFF
+              </p>
+            ) : null}
+          </Link>
+        ) : (
+          <div className="relative aspect-square overflow-hidden border border-line clip-hero">
           <ProductImage
-            publicId={product?.imagePublicId ?? HERO_IMAGE}
-            alt={product?.name ?? "Guantes de arquero rojos y azules"}
+            publicId={HERO_IMAGE}
+            alt="Guantes de arquero rojos y azules"
             preset="square"
             priority
           />
@@ -163,12 +191,8 @@ function Hero({ guantesSlug, dreiSlug, product }: { guantesSlug: string | null; 
             }}
             aria-hidden
           />
-          {discount ? (
-            <p className="absolute bottom-[26px] left-0 bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
-              {discount}% OFF
-            </p>
-          ) : null}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );

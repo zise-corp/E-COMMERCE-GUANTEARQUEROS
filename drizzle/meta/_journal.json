@@ -78,6 +78,13 @@
       "when": 1788122971123,
       "tag": "0010_great_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788133829166,
+      "tag": "0011_foamy_william_stryker",
+      "breakpoints": true
     }
   ]
 }

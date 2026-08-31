@@ -18,6 +18,9 @@ export const shippingSchema = z
     name: trimmed(120).min(2, "Escribe tu nombre."),
     phone: phoneSchema,
     note: trimmed(500).optional().default(""),
+    invoiceRequested: z.boolean().default(false),
+    businessName: trimmed(160).optional().default(""),
+    taxId: trimmed(40).optional().default(""),
     mode: z.enum(["pickup", "delivery"], {
       errorMap: () => ({ message: "Elige retiro en local o entrega." }),
     }),
@@ -32,6 +35,15 @@ export const shippingSchema = z
       .default(""),
   })
   .superRefine((v, ctx) => {
+    if (v.invoiceRequested) {
+      if (v.businessName.trim().length < 2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["businessName"], message: "Escribe la razón social." });
+      }
+      if (v.taxId.trim().length < 4) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["taxId"], message: "Escribe un NIT válido." });
+      }
+    }
+
     if (!v.department) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Elige el departamento." });
       return;
