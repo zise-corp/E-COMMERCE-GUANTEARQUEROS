@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatBs, toNumber } from "@/lib/money";
+import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { CheckoutSteps } from "./CheckoutSteps";
 import { ConfirmOrderModal } from "./ConfirmOrderModal";
 import { useCart } from "./CartProvider";
@@ -17,7 +18,7 @@ import {
 
 const SHIPPING_KEY = "gq.shipping.v1";
 
-export function ShippingCheckout({ shippingPrice }: { shippingPrice: number }) {
+export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { localDeliveryPrice: number; transportPrice: number }) {
   const cart = useCart();
   const [shipping, setShipping] = useState<ShippingValues>(emptyShipping);
   const [hydrated, setHydrated] = useState(false);
@@ -102,7 +103,11 @@ export function ShippingCheckout({ shippingPrice }: { shippingPrice: number }) {
   }
 
   const activeDiscount = discount?.subtotal === cart.subtotal ? discount : null;
-  const effectiveShipping = shipping.mode === "pickup" ? 0 : shippingPrice;
+  const effectiveShipping = !shipping.department || shipping.mode === "pickup"
+    ? 0
+    : shipping.department === LOCAL_DEPARTMENT
+      ? localDeliveryPrice
+      : transportPrice;
   const total = Math.max(0, cart.subtotal + effectiveShipping - (activeDiscount?.amount ?? 0));
 
   if (!cart.ready || !hydrated) {
@@ -185,10 +190,12 @@ export function ShippingCheckout({ shippingPrice }: { shippingPrice: number }) {
 
           <div className="mt-4 space-y-2 border-t border-ink-800 pt-4 text-[13px]">
             <div className="flex justify-between"><span className="text-content-dim">Subtotal</span><span>{formatBs(cart.subtotal)}</span></div>
-            {shipping.mode === "pickup" ? (
+            {!shipping.department ? (
+              <div className="flex justify-between"><span className="text-content-dim">Envío</span><span className="text-content-dim">Por definir</span></div>
+            ) : shipping.mode === "pickup" ? (
               <div className="flex justify-between"><span className="text-content-dim">Retiro en el local</span><span className="text-state-ok">Sin costo</span></div>
             ) : (
-              <div className="flex justify-between"><span className="text-content-dim">Envío</span><span>{formatBs(shippingPrice)}</span></div>
+              <div className="flex justify-between"><span className="text-content-dim">{shipping.department === LOCAL_DEPARTMENT ? "Envío a domicilio" : "Envío por transporte"}</span><span>{formatBs(effectiveShipping)}</span></div>
             )}
             {activeDiscount ? (
               <div className="flex justify-between text-state-ok"><span>Descuento · {activeDiscount.code}</span><span>− {formatBs(activeDiscount.amount)}</span></div>

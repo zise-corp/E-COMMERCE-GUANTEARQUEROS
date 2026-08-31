@@ -31,7 +31,11 @@ export default async function PaymentPage() {
     (sum, item) => sum + Number(item.unitPrice) * item.quantity,
     0,
   );
-  const shipping = order.mode === "pickup" ? 0 : settings.shippingPrice;
+  const shipping = order.mode === "pickup"
+    ? 0
+    : order.department === "La Paz"
+      ? settings.localDeliveryPrice
+      : settings.transportPrice;
   const discount = Math.max(0, subtotal + shipping - Number(order.total));
 
   return (

@@ -99,11 +99,15 @@ export type OrderPricing = {
 export async function calculateOrderPricing(
   lines: PricedLine[],
   rawCode = "",
-  chargeShipping = true,
+  shippingData: Pick<ShippingOutput, "mode" | "department"> | null = null,
 ): Promise<OrderPricing> {
   const settings = await getCheckoutSettings();
   const subtotal = Number(totalOf(lines));
-  const shipping = chargeShipping ? Math.max(0, settings.shippingPrice) : 0;
+  const shipping = !shippingData || shippingData.mode === "pickup"
+    ? 0
+    : shippingData.department === LOCAL_DEPARTMENT
+      ? Math.max(0, settings.localDeliveryPrice)
+      : Math.max(0, settings.transportPrice);
   const code = rawCode.trim().toUpperCase();
   const match = code ? settings.discounts.find((item) => item.active && item.code.toUpperCase() === code) : null;
   const rawDiscount = match
@@ -163,7 +167,7 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
       .insert(orders)
       .values({
         number,
-        customerName: shipping.name,
+        customerName: `${shipping.name} ${shipping.lastName}`.trim(),
         customerPhone: shipping.phone,
         note: shipping.note || null,
         invoiceRequested: shipping.invoiceRequested,
@@ -227,7 +231,7 @@ export async function updateOrder(
     await tx
       .update(orders)
       .set({
-        customerName: shipping.name,
+        customerName: `${shipping.name} ${shipping.lastName}`.trim(),
         customerPhone: shipping.phone,
         note: shipping.note || null,
         invoiceRequested: shipping.invoiceRequested,

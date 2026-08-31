@@ -54,11 +54,12 @@ export type DiscountCode = {
 };
 
 export type CheckoutSettings = {
-  shippingPrice: number;
+  localDeliveryPrice: number;
+  transportPrice: number;
   discounts: DiscountCode[];
 };
 
-export const CHECKOUT_DEFAULT: CheckoutSettings = { shippingPrice: 30, discounts: [] };
+export const CHECKOUT_DEFAULT: CheckoutSettings = { localDeliveryPrice: 30, transportPrice: 30, discounts: [] };
 
 export const CAMPAIGN_DEFAULT: CampaignSettings = {
   enabled: true,
@@ -96,10 +97,18 @@ export async function setCampaign(next: CampaignSettings): Promise<void> {
     });
 }
 
-function isCheckout(value: unknown): value is CheckoutSettings {
-  if (typeof value !== "object" || value === null) return false;
+function parseCheckout(value: unknown): CheckoutSettings | null {
+  if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
-  return typeof v["shippingPrice"] === "number" && Array.isArray(v["discounts"]);
+  if (!Array.isArray(v["discounts"])) return null;
+  if (typeof v["localDeliveryPrice"] === "number" && typeof v["transportPrice"] === "number") {
+    return { localDeliveryPrice: v["localDeliveryPrice"], transportPrice: v["transportPrice"], discounts: v["discounts"] as DiscountCode[] };
+  }
+  // Compatibilidad con la configuración anterior, que tenía una sola tarifa.
+  if (typeof v["shippingPrice"] === "number") {
+    return { localDeliveryPrice: v["shippingPrice"], transportPrice: v["shippingPrice"], discounts: v["discounts"] as DiscountCode[] };
+  }
+  return null;
 }
 
 export async function getCheckoutSettings(): Promise<CheckoutSettings> {
@@ -109,7 +118,7 @@ export async function getCheckoutSettings(): Promise<CheckoutSettings> {
       .from(siteSettings)
       .where(eq(siteSettings.key, CHECKOUT_KEY))
       .limit(1);
-    return row && isCheckout(row.value) ? row.value : CHECKOUT_DEFAULT;
+    return row ? (parseCheckout(row.value) ?? CHECKOUT_DEFAULT) : CHECKOUT_DEFAULT;
   });
 }
 

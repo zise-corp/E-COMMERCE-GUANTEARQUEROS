@@ -86,7 +86,7 @@ export function ConfirmOrderModal({
       : [{ k: "Envío", v: formatBs(shippingPrice) }]),
     ...(discountAmount > 0 ? [{ k: `Descuento · ${discountCode}`, v: `− ${formatBs(discountAmount)}` }] : []),
     { k: "Total", v: formatBs(Math.max(0, cart.subtotal + shippingPrice - discountAmount)) },
-    { k: "Cliente", v: shipping.name || "Sin nombre" },
+    { k: "Cliente", v: `${shipping.name} ${shipping.lastName}`.trim() || "Sin nombre" },
     ...(shipping.invoiceRequested
       ? [
           { k: "Factura", v: "Sí" },

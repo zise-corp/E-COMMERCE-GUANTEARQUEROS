@@ -6,7 +6,8 @@ import type { CheckoutSettings, DiscountCode } from "@/db/queries/settings";
 import { useToast } from "@/components/ui/Toast";
 
 export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings }) {
-  const [shippingPrice, setShippingPrice] = useState(String(initial.shippingPrice));
+  const [localDeliveryPrice, setLocalDeliveryPrice] = useState(String(initial.localDeliveryPrice));
+  const [transportPrice, setTransportPrice] = useState(String(initial.transportPrice));
   const [discounts, setDiscounts] = useState(initial.discounts);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -20,7 +21,8 @@ export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings })
     setMessage(null);
     startTransition(async () => {
       const result = await saveCheckoutSettingsAction({
-        shippingPrice: Number(shippingPrice),
+        localDeliveryPrice: Number(localDeliveryPrice),
+        transportPrice: Number(transportPrice),
         discounts: discounts.map((item) => ({ ...item, value: Number(item.value) })),
       });
       if (result.ok) { setMessage(null); show("Configuración guardada."); }
@@ -31,19 +33,25 @@ export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings })
   return (
     <div className="space-y-5">
       <section className="border border-ink-700 bg-ink-850 p-5">
-        <h2 className="text-[14px] font-extrabold uppercase tracking-[0.08em]">Precio de envío</h2>
-        <p className="mt-1 text-[12px] text-content-dim">Se suma al subtotal de cada pedido.</p>
-        <label className="mt-4 block max-w-xs">
-          <span className="label-xs mb-1.5 block text-content-dim">Costo en Bs</span>
+        <h2 className="text-[14px] font-extrabold uppercase tracking-[0.08em]">Precios de envío</h2>
+        <p className="mt-1 text-[12px] text-content-dim">El retiro en la sucursal de La Paz siempre es gratuito.</p>
+        <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="label-xs mb-1.5 block text-content-dim">Domicilio en La Paz · Bs</span>
           <input
             type="number"
             min="0"
             step="0.01"
-            value={shippingPrice}
-            onChange={(event) => setShippingPrice(event.target.value)}
+            value={localDeliveryPrice}
+            onChange={(event) => setLocalDeliveryPrice(event.target.value)}
             className="w-full border border-line-strong bg-ink-950 px-3 py-3 outline-none focus:border-brand"
           />
         </label>
+        <label className="block">
+          <span className="label-xs mb-1.5 block text-content-dim">Transporte a otros departamentos · Bs</span>
+          <input type="number" min="0" step="0.01" value={transportPrice} onChange={(event) => setTransportPrice(event.target.value)} className="w-full border border-line-strong bg-ink-950 px-3 py-3 outline-none focus:border-brand" />
+        </label>
+        </div>
       </section>
 
       <section className="border border-ink-700 bg-ink-850 p-5">

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const pricing = await calculateOrderPricing(
       lines,
       parsed.data.discountCode,
-      parsed.data.shipping.mode !== "pickup",
+      parsed.data.shipping,
     );
     const order = await createOrder(parsed.data.shipping, lines, pricing);
     await rememberOrder(order.id);
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     void notifyNewOrder({
       id: order.id,
       number: order.number,
-      customerName: parsed.data.shipping.name,
+      customerName: `${parsed.data.shipping.name} ${parsed.data.shipping.lastName}`.trim(),
       customerPhone: parsed.data.shipping.phone,
       total: pricing.total,
       mode: parsed.data.shipping.mode,
@@ -107,7 +107,7 @@ export async function PATCH(request: Request) {
     const pricing = await calculateOrderPricing(
       lines,
       parsed.data.discountCode,
-      parsed.data.shipping.mode !== "pickup",
+      parsed.data.shipping,
     );
     const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines, pricing);
     return NextResponse.json({ ok: true, orderId: order.id, number: order.number });

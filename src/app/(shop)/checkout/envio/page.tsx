@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 
 export default async function ShippingPage() {
   const settings = await getCheckoutSettings();
-  return <ShippingCheckout shippingPrice={settings.shippingPrice} />;
+  return <ShippingCheckout localDeliveryPrice={settings.localDeliveryPrice} transportPrice={settings.transportPrice} />;
 }

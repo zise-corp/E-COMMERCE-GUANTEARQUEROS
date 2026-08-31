@@ -8,6 +8,7 @@ import { LocationPicker } from "./LocationPicker";
 
 export type ShippingValues = {
   name: string;
+  lastName: string;
   phone: string;
   note: string;
   invoiceRequested: boolean;
@@ -25,6 +26,7 @@ export type ShippingValues = {
 
 export const emptyShipping: ShippingValues = {
   name: "",
+  lastName: "",
   phone: "",
   note: "",
   invoiceRequested: false,
@@ -104,13 +106,23 @@ export function ShippingForm({
     <div className="flex flex-col gap-3 px-6 pb-2 pt-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
-          label="Nombre"
+          label="Nombre(s)"
           required
-          placeholder="Nombre y apellido"
-          autoComplete="name"
+          placeholder="Nombre"
+          autoComplete="given-name"
           value={value.name}
           error={err("name")}
           onChange={(e) => set("name", e.target.value)}
+        />
+
+        <Input
+          label="Apellido(s)"
+          required
+          placeholder="Apellido"
+          autoComplete="family-name"
+          value={value.lastName}
+          error={err("lastName")}
+          onChange={(e) => set("lastName", e.target.value)}
         />
 
         <Input
@@ -123,6 +135,7 @@ export function ShippingForm({
           value={value.phone}
           error={err("phone")}
           onChange={(e) => set("phone", e.target.value)}
+          fieldClassName="sm:col-span-2"
         />
       </div>
 

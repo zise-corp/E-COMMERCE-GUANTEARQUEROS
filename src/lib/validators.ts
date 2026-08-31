@@ -16,6 +16,7 @@ export const phoneSchema = trimmed(30)
 export const shippingSchema = z
   .object({
     name: trimmed(120).min(2, "Escribe tu nombre."),
+    lastName: trimmed(120).min(2, "Escribe tu apellido."),
     phone: phoneSchema,
     note: trimmed(500).optional().default(""),
     invoiceRequested: z.boolean().default(false),
@@ -202,7 +203,8 @@ export const campaignSchema = z.object({
 });
 
 export const checkoutSettingsSchema = z.object({
-  shippingPrice: z.number().min(0).max(10_000),
+  localDeliveryPrice: z.number().min(0).max(10_000),
+  transportPrice: z.number().min(0).max(10_000),
   discounts: z.array(z.object({
     code: z.string().trim().min(2).max(40).transform((value) => value.toUpperCase()),
     type: z.enum(["percent", "fixed"]),
