@@ -8,9 +8,17 @@ import { Pagination } from "@/components/shop/Pagination";
 import { StoreLocations } from "@/components/shop/StoreLocations";
 import { ContactSection } from "@/components/shop/ContactSection";
 import { CategoryCarousel } from "@/components/shop/CategoryCarousel";
+import { HeroCarousel } from "@/components/shop/HeroCarousel";
 import { ButtonLink } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/Heading";
-import { getProductsPage, getBrands, getCategoryTree, getHomeHeroProduct } from "@/db/queries/catalog";
+import {
+  getProductsPage,
+  getBrands,
+  getCategoryTree,
+  getHeroCarouselProducts,
+  getHomeHeroProduct,
+  type HomeHeroProduct,
+} from "@/db/queries/catalog";
 import { getHomeSettings } from "@/db/queries/settings";
 
 /**
@@ -32,19 +40,36 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { pagina } = await searchParams;
   const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
   const homeSettings = await getHomeSettings();
-  const [categories, productPage, brands, heroProduct] = await Promise.all([
+  const [categories, productPage, brands, heroProduct, ofertas] = await Promise.all([
     getCategoryTree(),
     getProductsPage(requestedPage, 12),
     getBrands(),
     getHomeHeroProduct(homeSettings.heroProductId),
+    getHeroCarouselProducts(6),
   ]);
+
+  /* El hero rota entre las ofertas. Si el admin eligió un producto destacado y
+     ese producto también está en oferta, va primero para respetar su elección;
+     si no está en oferta, el carrusel manda (que es lo que se pidió mostrar). */
+  const heroSlides =
+    ofertas.length > 0
+      ? [
+          ...ofertas.filter((p) => p.id === heroProduct?.id),
+          ...ofertas.filter((p) => p.id !== heroProduct?.id),
+        ]
+      : [];
 
   const guantes = categories.find((c) => c.slug === "guantes") ?? categories[0];
   const poleras = categories.find((c) => c.slug === "poleras") ?? categories[1];
 
   return (
     <>
-      <Hero guantesSlug={guantes?.slug ?? null} dreiSlug={poleras?.slug ?? null} product={heroProduct} />
+      <Hero
+        guantesSlug={guantes?.slug ?? null}
+        dreiSlug={poleras?.slug ?? null}
+        product={heroProduct}
+        slides={heroSlides}
+      />
 
       {categories.length > 0 ? (
         <section id="categorias" className="container-shop scroll-mt-28 py-11">
@@ -97,7 +122,17 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   );
 }
 
-function Hero({ guantesSlug, dreiSlug, product }: { guantesSlug: string | null; dreiSlug: string | null; product: Awaited<ReturnType<typeof getHomeHeroProduct>> }) {
+function Hero({
+  guantesSlug,
+  dreiSlug,
+  product,
+  slides,
+}: {
+  guantesSlug: string | null;
+  dreiSlug: string | null;
+  product: Awaited<ReturnType<typeof getHomeHeroProduct>>;
+  slides: HomeHeroProduct[];
+}) {
   const price = product ? Number.parseFloat(product.price) : 0;
   const compareAt = product?.compareAtPrice ? Number.parseFloat(product.compareAtPrice) : 0;
   const discount = compareAt > price && price > 0 ? Math.round(((compareAt - price) / compareAt) * 100) : null;
@@ -149,7 +184,9 @@ function Hero({ guantesSlug, dreiSlug, product }: { guantesSlug: string | null; 
           }}
           aria-hidden
         />
-        {product ? (
+        {slides.length > 0 ? (
+          <HeroCarousel products={slides} />
+        ) : product ? (
           <Link
             href={`/p/${product.slug}`}
             aria-label={`Ver producto ${product.name}`}

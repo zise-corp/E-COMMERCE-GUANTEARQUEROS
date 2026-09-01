@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, withFallback } from "../index";
 import { brands, categories, productImages, products } from "../schema";
@@ -75,6 +75,44 @@ export async function getHomeHeroProduct(productId: number | null): Promise<Home
       .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id))
       .limit(1);
     return row ?? null;
+  });
+}
+
+/**
+ * Productos en oferta para el carrusel del hero: publicados, con foto y con un
+ * precio anterior realmente mayor al actual (un `compare_at` igual o menor no es
+ * un descuento y no debe anunciarse como tal).
+ *
+ * Se excluyen los agotados: sería un anuncio grande de algo que no se puede
+ * comprar. El orden es por descuento descendente, así lo más atractivo va primero.
+ */
+export async function getHeroCarouselProducts(limit = 6): Promise<HomeHeroProduct[]> {
+  return withFallback<HomeHeroProduct[]>([], async () => {
+    const rows = await db
+      .select({
+        id: products.id,
+        slug: products.slug,
+        name: products.name,
+        price: products.price,
+        compareAtPrice: products.compareAtPrice,
+        imagePublicId: productImages.publicId,
+      })
+      .from(products)
+      .innerJoin(productImages, eq(productImages.productId, products.id))
+      .where(
+        and(
+          eq(products.published, true),
+          gt(products.stock, 0),
+          isNotNull(products.compareAtPrice),
+          gt(products.compareAtPrice, products.price),
+          eq(productImages.isPrimary, true),
+        ),
+      )
+      .orderBy(
+        desc(sql`(${products.compareAtPrice} - ${products.price}) / ${products.compareAtPrice}`),
+      )
+      .limit(limit);
+    return rows;
   });
 }
 
