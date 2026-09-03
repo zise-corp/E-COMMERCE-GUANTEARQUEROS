@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Chip } from "@/components/ui/Chip";
 import type { OrderSummary } from "@/db/queries/orders";
 import { formatBs } from "@/lib/money";
+import { ORDER_STATUS_META } from "@/lib/order-status";
 import { OrderDetailDrawer } from "./OrderDetailDrawer";
 
 export type OrderRow = {
@@ -20,15 +21,8 @@ export type OrderRow = {
   createdAt: string;
 };
 
-export const STATUS_META: Record<
-  OrderSummary["status"],
-  { label: string; color: string; bg: string }
-> = {
-  recibido: { label: "Recibido", color: "#FA2A00", bg: "rgba(250,42,0,0.14)" },
-  en_proceso: { label: "En proceso", color: "#E2B93B", bg: "rgba(226,185,59,0.13)" },
-  completado: { label: "Completado", color: "#6FCF8E", bg: "rgba(111,207,142,0.12)" },
-  cancelado: { label: "Cancelado", color: "#8A8783", bg: "rgba(138,135,131,0.12)" },
-};
+/** Se re-exporta para no tocar los imports existentes; la definición vive en lib. */
+export const STATUS_META = ORDER_STATUS_META;
 
 const PAYMENT_LABEL: Record<OrderSummary["paymentStatus"], string> = {
   pendiente: "Pago pendiente",

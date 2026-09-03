@@ -33,17 +33,27 @@ export function AdminShell({
   return (
     <div className="min-h-dvh bg-[#0F0F0E] text-[#E9E7E4] lg:grid lg:grid-cols-[234px_1fr]">
       <aside className="flex flex-col border-b border-ink-700 bg-[#0B0B0A] lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-1.5 border-b border-ink-700 px-[18px] py-5">
-          <Escudo width={24} height={29} />
-          <div>
-            <p className="font-display text-sm tracking-[0.02em] skew-fast-8">
-              <span className="text-brand">UANTE</span>
-              <span className="text-content">ARQUEROS</span>
-            </p>
-            <p className="mt-0.5 text-[9.5px] uppercase tracking-[0.22em] text-content-dim">
-              Admin
-            </p>
-          </div>
+        {/* El escudo hace de "G", así que tiene que leerse como una letra más:
+            va a la altura de las mayúsculas del wordmark (no como ícono suelto),
+            pegado al texto y alineado por la línea base, no por el centro. */}
+        <div className="border-b border-ink-700 px-[18px] py-[18px]">
+          <Link href="/admin" className="group block" aria-label="Guantearqueros, panel">
+            <span className="flex items-end gap-px">
+              <Escudo
+                width={17}
+                height={20}
+                className="mb-[-2px] shrink-0 transition-transform duration-150 group-hover:-translate-y-px"
+              />
+              <span className="font-display text-[17px] leading-none tracking-[0.01em] skew-fast-8">
+                <span className="text-brand">UANTE</span>
+                <span className="text-content">ARQUEROS</span>
+              </span>
+            </span>
+            <span className="mt-2 flex items-center gap-2.5">
+              <span className="text-[9px] uppercase tracking-[0.3em] text-content-dim">Panel</span>
+              <span className="h-px flex-1 bg-line" aria-hidden />
+            </span>
+          </Link>
         </div>
 
         <nav className="flex flex-1 gap-1.5 overflow-x-auto p-2.5 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-[10px_10px]">

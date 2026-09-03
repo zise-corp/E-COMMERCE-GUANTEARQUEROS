@@ -50,9 +50,10 @@ export type DashboardData = {
     salesDelta: number | null;
     ordersLastWeek: number;
   };
-  weeklySales: { label: string; total: number }[];
+  /** `weekStart` en ISO (lunes de esa semana): la etiqueta la arma la vista. */
+  weeklySales: { weekStart: string; total: number }[];
   byStatus: { status: string; n: number }[];
-  topProducts: { name: string; units: number }[];
+  topProducts: { name: string; units: number; amount: string }[];
 };
 
 export async function getDashboard(): Promise<DashboardData> {
@@ -110,6 +111,7 @@ export async function getDashboard(): Promise<DashboardData> {
     .select({
       name: orderItems.name,
       units: sql<number>`SUM(${orderItems.quantity})::int`,
+      amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
@@ -125,13 +127,13 @@ export async function getDashboard(): Promise<DashboardData> {
 
   // Las últimas 12 semanas, con cero en las que no hubo ventas.
   const buckets = new Map(weekly.map((w) => [w.week, w.total]));
-  const weeklySales: { label: string; total: number }[] = [];
+  const weeklySales: { weekStart: string; total: number }[] = [];
   for (let i = 11; i >= 0; i--) {
     const day = new Date(now.getTime() - i * 7 * 24 * 3600 * 1000);
     const monday = new Date(day);
     monday.setDate(day.getDate() - ((day.getDay() + 6) % 7));
     const key = monday.toISOString().slice(0, 10);
-    weeklySales.push({ label: `S${12 - i}`, total: buckets.get(key) ?? 0 });
+    weeklySales.push({ weekStart: key, total: buckets.get(key) ?? 0 });
   }
 
   return {
