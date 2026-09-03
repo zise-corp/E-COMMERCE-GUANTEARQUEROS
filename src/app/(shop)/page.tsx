@@ -179,7 +179,11 @@ function Hero({
         </div>
       </div>
 
-      <div className="relative w-full max-w-[520px] justify-self-center lg:-translate-y-16 lg:justify-self-end xl:-translate-y-20">
+      {/* El desplazamiento hacia arriba es solo un gesto de composición: al
+          agrandar el carrusel se volvió mas alto y el valor anterior (64/80px)
+          lo metía debajo del header sticky, tapandole el borde superior. Se
+          reduce a un valor que mantiene el efecto con holgura sobre el header. */}
+      <div className="relative w-full max-w-[520px] justify-self-center lg:-translate-y-4 lg:justify-self-end xl:-translate-y-6">
         <div
           className="absolute inset-[8%_6%] blur-[40px]"
           style={{
