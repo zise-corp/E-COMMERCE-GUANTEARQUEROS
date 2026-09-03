@@ -177,8 +177,6 @@ function Hero({
             </ButtonLink>
           ) : null}
         </div>
-
-        <HeroStats />
       </div>
 
       <div className="relative w-full max-w-[520px] justify-self-center lg:-translate-y-16 lg:justify-self-end xl:-translate-y-20">
@@ -235,6 +233,13 @@ function Hero({
           />
           </div>
         )}
+      </div>
+
+      {/* Las cifras cruzan las dos columnas: dentro de la columna de texto
+          terminaban a mitad de la sección y dejaban un hueco a la derecha,
+          justo debajo del carrusel. */}
+      <div className="lg:col-span-2">
+        <HeroStats />
       </div>
     </section>
   );
