@@ -137,7 +137,12 @@ function Hero({
   const compareAt = product?.compareAtPrice ? Number.parseFloat(product.compareAtPrice) : 0;
   const discount = compareAt > price && price > 0 ? Math.round(((compareAt - price) / compareAt) * 100) : null;
   return (
-    <section className="container-shop grid items-center gap-10 pb-8 pt-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)] lg:pb-8 lg:pt-8">
+    /* La columna de texto tenía ~80px de sobra: el título más largo medía menos
+       que su columna. Ese espacio se le devuelve a la imagen sin achicar el
+       titular. Las dos columnas van en proporciones (fr) y no en píxeles fijos:
+       un mínimo en px provoca scroll horizontal apenas la pantalla baja de
+       ~1250px, porque el grid deja de poder encogerse. */
+    <section className="container-shop grid items-center gap-10 pb-8 pt-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)] lg:gap-8 lg:pb-8 lg:pt-8">
       <div className="animate-rise">
         <p className="inline-flex items-center gap-2.5 border border-brand px-3 py-[7px] text-[11.5px] font-extrabold uppercase tracking-[0.18em] text-brand">
           Temporada 2026 · Bolivia
@@ -176,7 +181,7 @@ function Hero({
         <HeroStats />
       </div>
 
-      <div className="relative w-full max-w-[430px] justify-self-center lg:-translate-y-16 lg:justify-self-end xl:-translate-y-20">
+      <div className="relative w-full max-w-[520px] justify-self-center lg:-translate-y-16 lg:justify-self-end xl:-translate-y-20">
         <div
           className="absolute inset-[8%_6%] blur-[40px]"
           style={{
