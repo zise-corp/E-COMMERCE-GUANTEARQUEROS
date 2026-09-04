@@ -11,36 +11,15 @@ export type CampaignSettings = {
 export const CAMPAIGN_KEY = "campaign";
 export const CHECKOUT_KEY = "checkout";
 export const HOME_KEY = "home";
-export const DREI_NAV_KEY = "drei_nav";
-
-export async function getDreiNavVisibility(): Promise<boolean> {
-  return withFallback(true, async () => {
-    const [row] = await db
-      .select({ value: siteSettings.value })
-      .from(siteSettings)
-      .where(eq(siteSettings.key, DREI_NAV_KEY))
-      .limit(1);
-    return typeof row?.value === "boolean" ? row.value : true;
-  });
-}
-
-export async function setDreiNavVisibility(active: boolean): Promise<void> {
-  await db
-    .insert(siteSettings)
-    .values({ key: DREI_NAV_KEY, value: active })
-    .onConflictDoUpdate({
-      target: siteSettings.key,
-      set: { value: active, updatedAt: new Date() },
-    });
-}
-
 export type HomeSettings = {
+  heroSource: "offers" | "new";
   heroProductId: number | null;
   dreiImagePath: string | null;
   dreiImageFileId: string | null;
 };
 
 export const HOME_DEFAULT: HomeSettings = {
+  heroSource: "offers",
   heroProductId: null,
   dreiImagePath: "/demo-products/poleras.png",
   dreiImageFileId: null,
@@ -132,14 +111,20 @@ export async function setCheckoutSettings(next: CheckoutSettings): Promise<void>
     });
 }
 
-function isHomeSettings(value: unknown): value is HomeSettings {
-  if (typeof value !== "object" || value === null) return false;
+function parseHomeSettings(value: unknown): HomeSettings | null {
+  if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
-  return (
+  const valid =
     (v["heroProductId"] === null || (typeof v["heroProductId"] === "number" && Number.isInteger(v["heroProductId"]))) &&
     (v["dreiImagePath"] === null || typeof v["dreiImagePath"] === "string") &&
-    (v["dreiImageFileId"] === null || typeof v["dreiImageFileId"] === "string")
-  );
+    (v["dreiImageFileId"] === null || typeof v["dreiImageFileId"] === "string");
+  if (!valid) return null;
+  return {
+    heroSource: v["heroSource"] === "new" ? "new" : "offers",
+    heroProductId: v["heroProductId"] as number | null,
+    dreiImagePath: v["dreiImagePath"] as string | null,
+    dreiImageFileId: v["dreiImageFileId"] as string | null,
+  };
 }
 
 export async function getHomeSettings(): Promise<HomeSettings> {
@@ -149,7 +134,7 @@ export async function getHomeSettings(): Promise<HomeSettings> {
       .from(siteSettings)
       .where(eq(siteSettings.key, HOME_KEY))
       .limit(1);
-    return row && isHomeSettings(row.value) ? row.value : HOME_DEFAULT;
+    return row ? (parseHomeSettings(row.value) ?? HOME_DEFAULT) : HOME_DEFAULT;
   });
 }
 

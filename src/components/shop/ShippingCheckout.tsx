@@ -40,6 +40,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         items: cart.items.map((item) => ({
           productId: item.productId,
           size: item.size,
+          personalization: item.personalization,
           quantity: item.quantity,
         })),
       }),
@@ -84,7 +85,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           code,
-          items: cart.items.map((item) => ({ productId: item.productId, size: item.size, quantity: item.quantity })),
+          items: cart.items.map((item) => ({ productId: item.productId, size: item.size, personalization: item.personalization, quantity: item.quantity })),
         }),
       });
       const data = await response.json() as { ok: true; code: string; discount: string } | { ok: false; error: string };
@@ -168,7 +169,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
           <ul>
             {cart.items.map((item) => (
               <li
-                key={`${item.productId}-${item.size ?? "u"}`}
+                key={`${item.productId}-${item.size ?? "u"}-${item.personalization ?? "normal"}`}
                 className="flex gap-3 border-b border-ink-800 py-2.5 last:border-b-0"
               >
                 <span className="relative block h-[46px] w-[46px] flex-none overflow-hidden bg-ink-950">
@@ -180,6 +181,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
                     {item.size ? `Talla ${item.size} · ` : ""}
                     {item.quantity} × {formatBs(item.unitPrice)}
                   </span>
+                  {item.personalization ? <span className="mt-0.5 block text-[11px] text-drei-ink">Grabado: “{item.personalization}” · +0 Bs</span> : null}
                 </span>
                 <span className="text-[13.5px] font-extrabold tabular">
                   {formatBs(toNumber(item.unitPrice) * item.quantity)}

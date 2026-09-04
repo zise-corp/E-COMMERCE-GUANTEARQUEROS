@@ -38,6 +38,7 @@ export type PaymentOrder = {
     unitPrice: string;
     quantity: number;
     imagePublicId: string | null;
+    personalization: string | null;
   }[];
 };
 
@@ -277,6 +278,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
                       {i.size ? `Talla ${i.size} · ` : ""}
                       {i.quantity} × {formatBs(i.unitPrice)}
                     </span>
+                    {i.personalization ? <span className="mt-0.5 block text-[11px] text-drei-ink">Grabado: “{i.personalization}” · +0 Bs</span> : null}
                   </span>
                   <span className="text-[13.5px] font-extrabold tabular">
                     {formatBs(toNumber(i.unitPrice) * i.quantity)}

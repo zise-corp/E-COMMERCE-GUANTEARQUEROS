@@ -9,24 +9,23 @@ import {
   type CatalogFilters,
 } from "@/db/queries/catalog";
 import { CategoryFilters } from "./CategoryFilters";
-import { ProductGrid } from "./ProductCard";
+import { PaginatedProductGrid } from "./PaginatedProductGrid";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
 function asArray(value: string | string[] | undefined): string[] {
   if (value === undefined) return [];
-  return Array.isArray(value) ? value : [value];
+  const values = Array.isArray(value) ? value : [value];
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
 }
 
 export function filtersFromParams(params: SearchParams): CatalogFilters {
-  const hasta = Number.parseInt(
-    Array.isArray(params["hasta"]) ? (params["hasta"][0] ?? "") : (params["hasta"] ?? ""),
-    10,
-  );
+  const rawPrice = Array.isArray(params["hasta"]) ? (params["hasta"][0] ?? "") : (params["hasta"] ?? "");
+  const hasta = /^\d+$/.test(rawPrice) ? Number(rawPrice) : Number.NaN;
   return {
     brandNames: asArray(params["marca"]),
     sizes: asArray(params["talla"]),
-    ...(Number.isFinite(hasta) ? { maxPrice: hasta } : {}),
+    ...(Number.isSafeInteger(hasta) && hasta >= 0 ? { maxPrice: hasta } : {}),
   };
 }
 
@@ -126,7 +125,7 @@ export async function CategoryView({
           />
         </Suspense>
 
-        <ProductGrid products={products} columns={3} aspect="4/3" />
+        <PaginatedProductGrid products={products} />
       </div>
     </section>
   );

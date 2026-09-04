@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { CategoryView, type SearchParams } from "@/components/shop/CategoryView";
+import { DreiIntro } from "@/components/shop/DreiIntro";
+import { isDreiVisible } from "@/db/queries/catalog";
 
 export const revalidate = 300;
 
@@ -14,12 +17,17 @@ export default async function DreiPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  if (!(await isDreiVisible())) notFound();
+
   return (
-    <CategoryView
-      categorySlug="poleras"
-      searchParams={await searchParams}
-      displayName="DREI Athletic"
-      fixedBrandName="DREI"
-    />
+    <>
+      <DreiIntro />
+      <CategoryView
+        categorySlug="poleras"
+        searchParams={await searchParams}
+        displayName="DREI Athletic"
+        fixedBrandName="DREI"
+      />
+    </>
   );
 }

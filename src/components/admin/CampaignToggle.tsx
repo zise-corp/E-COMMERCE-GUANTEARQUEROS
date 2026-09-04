@@ -32,7 +32,7 @@ export function CampaignToggle({ campaign }: { campaign: CampaignSettings }) {
   }
 
   return (
-    <div className="border border-ink-700 bg-ink-850 p-5">
+    <div className="admin-panel border border-ink-700 bg-ink-850 p-5">
       <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">
         Franja de campaña
       </h2>

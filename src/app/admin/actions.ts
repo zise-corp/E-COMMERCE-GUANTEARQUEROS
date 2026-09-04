@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
+import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { setOrderStatus } from "@/db/queries/orders";
-import { setCampaign, setCheckoutSettings, setDreiNavVisibility, setHomeSettings } from "@/db/queries/settings";
+import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
@@ -34,6 +35,12 @@ export async function logoutAction() {
   await requireAdmin();
   await logoutAdmin();
   redirect("/admin/login");
+}
+
+export async function logoutToStoreAction() {
+  await requireAdmin();
+  await logoutAdmin();
+  redirect("/?intro=admin");
 }
 
 /* ── Categorías ───────────────────────────────────────────────────────────── */
@@ -219,16 +226,26 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
   const parsed = brandSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   const values = parsed.data;
+  let isDrei = false;
+
+  if (id !== undefined) {
+    const [current] = await db.select({ slug: brands.slug }).from(brands).where(eq(brands.id, id)).limit(1);
+    if (!current) return { ok: false, error: "La marca ya no existe. Recarga la página." };
+    isDrei = current.slug === "drei";
+  } else if (slugify(values.name) === "drei") {
+    return { ok: false, error: "DREI es la marca propia protegida y ya está configurada." };
+  }
+
   try {
     await db.transaction(async (tx) => {
-      if (values.isOwnBrand) {
+      if (isDrei) {
         await tx.update(brands).set({ isOwnBrand: false });
       }
       const data = {
         name: values.name,
         accentHex: values.accentHex,
         active: values.active,
-        isOwnBrand: values.isOwnBrand,
+        isOwnBrand: isDrei,
       };
       if (id === undefined) {
         const [count] = await tx.select({ n: sql<number>`count(*)::int` }).from(brands);
@@ -242,23 +259,16 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
   }
   revalidatePath("/admin/marcas");
   revalidatePath("/admin/productos");
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
-export async function setDreiVisibilityAction(active: boolean): Promise<ActionResult> {
-  await requireAdmin();
-  if (typeof active !== "boolean") return { ok: false, error: "Estado inválido." };
-
-  await setDreiNavVisibility(active);
-  revalidatePath("/admin/categorias");
-  revalidatePath("/admin/marcas");
+  revalidatePath("/drei");
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function deleteBrandAction(id: number): Promise<ActionResult> {
   await requireAdmin();
+  const [brand] = await db.select({ slug: brands.slug }).from(brands).where(eq(brands.id, id)).limit(1);
+  if (!brand) return { ok: false, error: "La marca ya no existe." };
+  if (brand.slug === "drei") return { ok: false, error: "DREI es la marca propia protegida y no se puede eliminar." };
   const [used] = await db.select({ id: products.id }).from(products).where(eq(products.brandId, id)).limit(1);
   if (used) return { ok: false, error: "Esta marca tiene productos. Cámbialos de marca antes de eliminarla." };
   await db.delete(brands).where(eq(brands.id, id));
@@ -272,15 +282,19 @@ export async function reorderBrandsAction(input: unknown): Promise<ActionResult>
   await requireAdmin();
   const parsed = reorderBrandsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Orden inválido." };
-  const current = await db.select({ id: brands.id }).from(brands);
+  const current = await db.select({ id: brands.id, slug: brands.slug }).from(brands);
   const ids = new Set(current.map((brand) => brand.id));
   const incoming = parsed.data.orderedIds;
   if (incoming.length !== ids.size || !incoming.every((id) => ids.has(id))) {
     return { ok: false, error: "El orden no coincide con las marcas actuales. Recarga la página." };
   }
+  const dreiId = current.find((brand) => brand.slug === "drei")?.id;
+  const protectedOrder = dreiId === undefined
+    ? incoming
+    : [dreiId, ...incoming.filter((id) => id !== dreiId)];
   await db.transaction(async (tx) => {
-    for (let position = 0; position < incoming.length; position++) {
-      await tx.update(brands).set({ position }).where(eq(brands.id, incoming[position]!));
+    for (let position = 0; position < protectedOrder.length; position++) {
+      await tx.update(brands).set({ position }).where(eq(brands.id, protectedOrder[position]!));
     }
   });
   revalidatePath("/admin/marcas");
@@ -339,6 +353,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     stock: v.stock,
     sizes: v.sizes,
     attributes: v.attributes,
+    customizable: v.customizable,
     published: v.published,
     featured: v.featured,
     isNew: v.isNew,
@@ -459,13 +474,10 @@ export async function saveHomeSettingsAction(input: unknown): Promise<ActionResu
   }
 
   if (parsed.data.heroProductId !== null) {
-    const [product] = await db
-      .select({ id: products.id })
-      .from(products)
-      .innerJoin(productImages, eq(productImages.productId, products.id))
-      .where(eq(products.id, parsed.data.heroProductId))
-      .limit(1);
-    if (!product) return { ok: false, error: "El producto elegido ya no existe o no tiene imágenes." };
+    const eligible = await getHeroCarouselProducts(parsed.data.heroSource, 6);
+    if (!eligible.some((product) => product.id === parsed.data.heroProductId)) {
+      return { ok: false, error: "El producto elegido ya no forma parte de las diapositivas disponibles." };
+    }
   }
 
   await setHomeSettings(parsed.data);

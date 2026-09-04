@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs } from "@/lib/money";
 import { ProductForm, type BrandOption, type CategoryOption } from "./ProductForm";
+import { AdminPagination, ADMIN_PAGE_SIZE } from "./AdminPagination";
 
 const LOW_STOCK = 5;
 
@@ -36,6 +37,7 @@ export function ProductsManager({
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminProductRow | null>(null);
   const [deleting, startTransition] = useTransition();
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (openNew) {
@@ -46,6 +48,9 @@ export function ProductsManager({
 
   const roots = categories.filter((c) => c.parentId === null);
   const visible = filter === "Todos" ? rows : rows.filter((r) => r.categoryName === filter);
+  const pageCount = Math.max(1, Math.ceil(visible.length / ADMIN_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = visible.slice((safePage - 1) * ADMIN_PAGE_SIZE, safePage * ADMIN_PAGE_SIZE);
 
   async function edit(id: number) {
     setLoadingId(id);
@@ -80,10 +85,10 @@ export function ProductsManager({
 
   return (
     <>
-      <div className="border border-ink-700 bg-ink-850">
+      <div className="admin-data-card border border-ink-700 bg-ink-850">
         <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 px-5 py-3">
           {["Todos", ...roots.map((c) => c.name)].map((label) => (
-            <Chip key={label} active={filter === label} onClick={() => setFilter(label)}>
+            <Chip key={label} active={filter === label} onClick={() => { setFilter(label); setPage(1); }}>
               {label}
             </Chip>
           ))}
@@ -105,10 +110,10 @@ export function ProductsManager({
           </p>
         ) : null}
 
-        {visible.map((p) => (
+        {paged.map((p) => (
           <div
             key={p.id}
-            className="grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[52px_2fr_1fr_1fr_90px_100px_100px]"
+            className="admin-data-row grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[52px_2fr_1fr_1fr_90px_100px_100px]"
           >
             <div className="relative h-10 w-10 overflow-hidden bg-ink-950">
               {p.imagePublicId ? (
@@ -151,8 +156,8 @@ export function ProductsManager({
               </p>
             </div>
 
-            <span className="text-[13px] text-content-muted">{p.categoryName}</span>
-            <span className="text-[13px] text-content-muted">{p.brandName ?? "—"}</span>
+            <span className="min-w-0 truncate text-[13px] text-content-muted" title={p.categoryName}>{p.categoryName}</span>
+            <span className="min-w-0 truncate text-[13px] text-content-muted" title={p.brandName ?? undefined}>{p.brandName ?? "—"}</span>
             <span
               className={cn(
                 "text-[13px] font-bold tabular",
@@ -186,6 +191,7 @@ export function ProductsManager({
             </div>
           </div>
         ))}
+        <AdminPagination page={safePage} total={visible.length} onChange={setPage} />
       </div>
 
       <ProductForm

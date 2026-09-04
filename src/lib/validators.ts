@@ -89,6 +89,7 @@ export type ShippingOutput = z.output<typeof shippingSchema>;
 export const orderItemSchema = z.object({
   productId: z.number().int().positive(),
   size: z.string().trim().max(40).nullable().default(null),
+  personalization: z.string().trim().max(30, "La personalización admite hasta 30 caracteres.").nullable().default(null),
   quantity: z.number().int().min(1).max(99),
 });
 
@@ -158,6 +159,7 @@ export const productSchema = z.object({
   stock: z.number().int().min(0).max(100_000),
   sizes: z.array(z.string().trim().min(1).max(40)).max(40).default([]),
   attributes: z.array(attributeSchema).max(40).default([]),
+  customizable: z.boolean().default(false),
   images: z
     .array(z.object({
       publicId: z.string().trim().min(1).max(500),
@@ -189,7 +191,6 @@ export const reorderCategoriesSchema = z.object({
 export const brandSchema = z.object({
   name: z.string().trim().min(2).max(80),
   active: z.boolean().default(true),
-  isOwnBrand: z.boolean().default(false),
   accentHex: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Usa un color hexadecimal válido.").nullable().default(null),
 });
 
@@ -225,6 +226,7 @@ export const checkoutSettingsSchema = z.object({
 });
 
 export const homeSettingsSchema = z.object({
+  heroSource: z.enum(["offers", "new"]),
   heroProductId: z.number().int().positive().nullable(),
   dreiImagePath: z.string().trim().min(1).max(500).nullable(),
   dreiImageFileId: z.string().trim().min(1).max(200).nullable(),

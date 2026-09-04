@@ -4,6 +4,10 @@ import {
   SalesChart,
   StatusBreakdown,
   TopProducts,
+  OperationsOverview,
+  InventoryHealth,
+  CategoryPerformance,
+  RecentOrders,
   type KpiTone,
 } from "@/components/admin/DashboardCharts";
 import { getDashboard } from "@/db/queries/admin";
@@ -71,13 +75,19 @@ export default async function AdminDashboard() {
 
         <SalesChart data={data.weeklySales} />
 
-        {/* Dos columnas parejas: antes eran 1.5fr/1fr con un solo hijo, así que
-            "Más vendidos" ocupaba dos tercios y el resto quedaba vacío.
-            minmax(0,1fr) y no 1fr: con el mínimo automático de grid, el nombre
-            largo de un producto estira la columna más allá del contenedor. */}
-        <div className="grid items-start gap-4 [grid-template-columns:minmax(0,1fr)] xl:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-4 [grid-template-columns:minmax(0,1fr)] xl:[grid-template-columns:minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <InventoryHealth data={data.inventory} />
+          <OperationsOverview payment={data.byPayment} delivery={data.byDelivery} />
+        </div>
+
+        <div className="grid items-stretch gap-4 [grid-template-columns:minmax(0,1fr)] xl:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
           <TopProducts data={data.topProducts} />
+          <CategoryPerformance data={data.topCategories} />
+        </div>
+
+        <div className="grid items-stretch gap-4 [grid-template-columns:minmax(0,1fr)] xl:[grid-template-columns:minmax(0,0.85fr)_minmax(0,1.15fr)]">
           <StatusBreakdown data={data.byStatus} />
+          <RecentOrders data={data.recentOrders} />
         </div>
       </div>
     </>

@@ -55,6 +55,7 @@ export default async function PaymentPage() {
           unitPrice: i.unitPrice,
           quantity: i.quantity,
           imagePublicId: i.imagePublicId,
+          personalization: i.attributesSnapshot.find((attribute) => attribute.name === "Personalización")?.value ?? null,
         })),
       }}
       sandbox={isSandbox()}

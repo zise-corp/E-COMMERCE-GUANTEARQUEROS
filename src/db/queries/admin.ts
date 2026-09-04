@@ -10,7 +10,6 @@ import {
   productImages,
   products,
 } from "../schema";
-import { getDreiNavVisibility } from "./settings";
 
 const parentCategory = alias(categories, "cat");
 const childCategory = alias(categories, "sub");
@@ -51,9 +50,28 @@ export type DashboardData = {
     ordersLastWeek: number;
   };
   /** `weekStart` en ISO (lunes de esa semana): la etiqueta la arma la vista. */
-  weeklySales: { weekStart: string; total: number }[];
+  weeklySales: { weekStart: string; total: number; orders: number }[];
   byStatus: { status: string; n: number }[];
+  byPayment: { status: string; n: number }[];
+  byDelivery: { mode: string; n: number }[];
   topProducts: { name: string; units: number; amount: string }[];
+  topCategories: { name: string; units: number; amount: string }[];
+  inventory: {
+    total: number;
+    published: number;
+    outOfStock: number;
+    customizable: number;
+    newProducts: number;
+    onOffer: number;
+  };
+  recentOrders: {
+    number: number;
+    customerName: string;
+    total: string;
+    status: string;
+    paymentStatus: string;
+    createdAt: Date;
+  }[];
 };
 
 export async function getDashboard(): Promise<DashboardData> {
@@ -96,6 +114,7 @@ export async function getDashboard(): Promise<DashboardData> {
     .select({
       week: sql<string>`to_char(date_trunc('week', ${orders.createdAt}), 'YYYY-MM-DD')`,
       total: sql<number>`COALESCE(SUM(${orders.total}), 0)::float`,
+      orders: sql<number>`count(*)::int`,
     })
     .from(orders)
     .where(and(gte(orders.createdAt, twelveWeeksAgo), eq(orders.paymentStatus, "pagado")))
@@ -120,20 +139,70 @@ export async function getDashboard(): Promise<DashboardData> {
     .orderBy(desc(sql`SUM(${orderItems.quantity})`))
     .limit(5);
 
+  const byPayment = await db
+    .select({ status: orders.paymentStatus, n: sql<number>`count(*)::int` })
+    .from(orders)
+    .groupBy(orders.paymentStatus);
+
+  const byDelivery = await db
+    .select({ mode: orders.mode, n: sql<number>`count(*)::int` })
+    .from(orders)
+    .groupBy(orders.mode);
+
+  const [inventory] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      published: sql<number>`count(*) filter (where ${products.published} = true)::int`,
+      outOfStock: sql<number>`count(*) filter (where ${products.stock} <= 0)::int`,
+      customizable: sql<number>`count(*) filter (where ${products.customizable} = true)::int`,
+      newProducts: sql<number>`count(*) filter (where ${products.isNew} = true)::int`,
+      onOffer: sql<number>`count(*) filter (where ${products.compareAtPrice} is not null and ${products.compareAtPrice} > ${products.price})::int`,
+    })
+    .from(products);
+
+  const topCategories = await db
+    .select({
+      name: categories.name,
+      units: sql<number>`SUM(${orderItems.quantity})::int`,
+      amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .innerJoin(products, eq(products.id, orderItems.productId))
+    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .where(eq(orders.paymentStatus, "pagado"))
+    .groupBy(categories.id, categories.name)
+    .orderBy(desc(sql`SUM(${orderItems.unitPrice} * ${orderItems.quantity})`))
+    .limit(6);
+
+  const recentOrders = await db
+    .select({
+      number: orders.number,
+      customerName: orders.customerName,
+      total: orders.total,
+      status: orders.status,
+      paymentStatus: orders.paymentStatus,
+      createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .orderBy(desc(orders.createdAt))
+    .limit(6);
+
   const monthSales = thisMonth?.total ?? "0";
   const monthOrders = thisMonth?.n ?? 0;
   const prev = Number.parseFloat(prevMonth?.total ?? "0");
   const current = Number.parseFloat(monthSales);
 
   // Las últimas 12 semanas, con cero en las que no hubo ventas.
-  const buckets = new Map(weekly.map((w) => [w.week, w.total]));
-  const weeklySales: { weekStart: string; total: number }[] = [];
+  const buckets = new Map(weekly.map((w) => [w.week, { total: w.total, orders: w.orders }]));
+  const weeklySales: { weekStart: string; total: number; orders: number }[] = [];
   for (let i = 11; i >= 0; i--) {
     const day = new Date(now.getTime() - i * 7 * 24 * 3600 * 1000);
     const monday = new Date(day);
     monday.setDate(day.getDate() - ((day.getDay() + 6) % 7));
     const key = monday.toISOString().slice(0, 10);
-    weeklySales.push({ weekStart: key, total: buckets.get(key) ?? 0 });
+    const bucket = buckets.get(key);
+    weeklySales.push({ weekStart: key, total: bucket?.total ?? 0, orders: bucket?.orders ?? 0 });
   }
 
   return {
@@ -147,7 +216,12 @@ export async function getDashboard(): Promise<DashboardData> {
     },
     weeklySales,
     byStatus,
+    byPayment,
+    byDelivery,
     topProducts: top,
+    topCategories,
+    inventory: inventory ?? { total: 0, published: 0, outOfStock: 0, customizable: 0, newProducts: 0, onOffer: 0 },
+    recentOrders,
   };
 }
 
@@ -311,6 +385,7 @@ export type AdminProductDetail = {
   stock: number;
   sizes: string[];
   attributes: { name: string; value: string }[];
+  customizable: boolean;
   published: boolean;
   featured: boolean;
   isNew: boolean;
@@ -340,6 +415,7 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
     stock: row.stock,
     sizes: row.sizes ?? [],
     attributes: row.attributes ?? [],
+    customizable: row.customizable,
     published: row.published,
     featured: row.featured,
     isNew: row.isNew,
@@ -367,7 +443,7 @@ export async function getCategoryOptions() {
 
 export async function getBrandOptions() {
   return db
-    .select({ id: brands.id, name: brands.name, isOwnBrand: brands.isOwnBrand })
+    .select({ id: brands.id, name: brands.name, isOwnBrand: sql<boolean>`${brands.slug} = 'drei'` })
     .from(brands)
     .where(eq(brands.active, true))
     .orderBy(asc(brands.position), asc(brands.name));
@@ -392,7 +468,7 @@ export async function getAdminBrands(): Promise<AdminBrandRow[]> {
       slug: brands.slug,
       accentHex: brands.accentHex,
       active: brands.active,
-      isOwnBrand: brands.isOwnBrand,
+      isOwnBrand: sql<boolean>`${brands.slug} = 'drei'`,
       position: brands.position,
       productCount: sql<number>`count(${products.id})::int`,
     })
@@ -402,8 +478,5 @@ export async function getAdminBrands(): Promise<AdminBrandRow[]> {
     .orderBy(asc(brands.position), asc(brands.name));
 }
 
-export async function getAdminDreiVisibility() {
-  return { active: await getDreiNavVisibility() };
-}
 
 export { childCategory, parentCategory };

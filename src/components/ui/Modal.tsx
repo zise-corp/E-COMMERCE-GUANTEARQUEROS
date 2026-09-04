@@ -31,7 +31,7 @@ export function Modal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6">
         <button
           type="button"
           aria-label="Cerrar"
@@ -47,7 +47,7 @@ export function Modal({
           tabIndex={-1}
           style={{ width }}
           className={cn(
-            "relative max-h-[90dvh] w-full max-w-full overflow-y-auto bg-ink-900 p-7 animate-rise outline-none",
+            "relative max-h-[calc(100dvh-1.5rem)] w-full max-w-full overflow-y-auto bg-ink-900 p-5 animate-rise outline-none sm:max-h-[90dvh] sm:p-7",
             accent ? "border border-brand" : "border border-line",
             className,
           )}

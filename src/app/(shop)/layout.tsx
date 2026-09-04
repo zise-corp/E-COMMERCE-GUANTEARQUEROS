@@ -2,6 +2,7 @@ import { CartDrawer } from "@/components/shop/CartDrawer";
 import { CartProvider } from "@/components/shop/CartProvider";
 import { Footer } from "@/components/shop/Footer";
 import { Header } from "@/components/shop/Header";
+import { StoreIntro } from "@/components/shop/StoreIntro";
 import { ToastProvider } from "@/components/ui/Toast";
 import { getNavCategories, isDreiVisible } from "@/db/queries/catalog";
 
@@ -16,7 +17,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   return (
     <CartProvider>
       <ToastProvider>
-        <div className="flex min-h-dvh flex-col">
+        <StoreIntro />
+        <div className="shop-frame flex min-h-dvh flex-col">
           <Header categories={categories} dreiSlug={drei?.slug ?? null} />
           <main className="flex-1">{children}</main>
           <Footer categories={categories} />

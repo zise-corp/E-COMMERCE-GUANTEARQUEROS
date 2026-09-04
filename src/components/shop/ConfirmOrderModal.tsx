@@ -43,6 +43,7 @@ export function ConfirmOrderModal({
         items: cart.items.map((i) => ({
           productId: i.productId,
           size: i.size,
+          personalization: i.personalization,
           quantity: i.quantity,
         })),
         ...(cart.orderId ? { orderId: cart.orderId } : {}),
@@ -126,7 +127,7 @@ export function ConfirmOrderModal({
         </p>
       ) : null}
 
-      <div className="mt-[22px] grid grid-cols-[1fr_1.4fr] gap-2.5">
+      <div className="mt-[22px] grid gap-2.5 sm:grid-cols-[1fr_1.4fr]">
         <button
           type="button"
           onClick={onClose}

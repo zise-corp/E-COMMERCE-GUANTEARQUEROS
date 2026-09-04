@@ -62,6 +62,7 @@ export const products = pgTable("products", {
   sizes: text("sizes").array().notNull().default([]),
   // atributos manuales del admin: [{ name, value }] — texto libre, sin listas fijas
   attributes: jsonb("attributes").$type<{ name: string; value: string }[]>().notNull().default([]),
+  customizable: boolean("customizable").notNull().default(false),
   published: boolean("published").notNull().default(false),
   featured: boolean("featured").notNull().default(false),
   isNew: boolean("is_new").notNull().default(false),

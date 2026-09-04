@@ -16,19 +16,20 @@ export function LoginForm({ next }: { next: string }) {
 
   return (
     <div
-      className="flex min-h-dvh items-center justify-center p-6"
+      className="admin-login flex min-h-dvh items-center justify-center p-6"
       style={{ background: "radial-gradient(80% 60% at 50% 0%, #1A1512 0%, #0A0A0A 60%)" }}
     >
       <form
         action={formAction}
-        className="w-full max-w-[400px] border border-line-strong bg-ink-850 p-8 animate-rise"
+        className="admin-login-card relative w-full max-w-[420px] overflow-hidden border border-line-strong bg-ink-850 p-8 shadow-[0_34px_90px_rgba(0,0,0,0.55)] animate-rise sm:p-10"
       >
         <div className="flex items-center gap-0">
           <Escudo width={28} height={33} />
           <Wordmark size={17} className="ml-[2px]" />
         </div>
 
-        <h1 className="mt-[22px] font-display text-[30px] uppercase skew-fast-6">
+        <p className="mt-7 text-[9px] font-extrabold uppercase tracking-[0.22em] text-brand">Control central</p>
+        <h1 className="mt-1.5 font-display text-[32px] uppercase tracking-[0.02em] skew-fast-6">
           Panel administrativo
         </h1>
         <p className="mb-[22px] mt-2 text-[13px] leading-relaxed text-[#8A8783]">

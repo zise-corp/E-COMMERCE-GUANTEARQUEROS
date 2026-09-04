@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteCategoryAction, reorderCategoriesAction, saveCategoryAction, setDreiVisibilityAction } from "@/app/admin/actions";
+import { deleteCategoryAction, reorderCategoriesAction, saveCategoryAction } from "@/app/admin/actions";
 import { Escudo } from "@/components/brand/Escudo";
 import { ImageKitDropzone, type ProductImageValue } from "@/components/admin/ImageKitDropzone";
 import { Input, Select } from "@/components/ui/Field";
@@ -49,7 +49,7 @@ function blank(kind: CategoryKind, rows: AdminCategoryRow[]): Editing {
   };
 }
 
-export function CategoriesManager({ rows, drei, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; drei: { active: boolean } | null; openNew?: CategoryKind | null; initialView?: View }) {
+export function CategoriesManager({ rows, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; openNew?: CategoryKind | null; initialView?: View }) {
   const router = useRouter();
   const { show } = useToast();
   const view = initialView;
@@ -104,15 +104,6 @@ export function CategoriesManager({ rows, drei, openNew, initialView = "principa
     setDeleteTarget({ id, name });
   }
 
-  function toggleDrei(active: boolean) {
-    startTransition(async () => {
-      const result = await setDreiVisibilityAction(active);
-      if (!result.ok) { show(result.error, "error"); return; }
-      show(`DREI ${active ? "activado" : "desactivado"}.`);
-      router.refresh();
-    });
-  }
-
   function confirmRemove() {
     if (!deleteTarget) return;
     setError(null);
@@ -125,16 +116,7 @@ export function CategoriesManager({ rows, drei, openNew, initialView = "principa
 
   return (
     <>
-      {drei ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border border-drei-line/50 bg-drei/[0.08] px-5 py-4">
-          <div>
-            <p className="font-display text-xl uppercase text-drei-line skew-fast-6">DREI Athletic</p>
-            <p className="mt-1 text-[11.5px] text-content-dim">Acceso protegido · controla únicamente si DREI aparece en el Navbar.</p>
-          </div>
-          <Toggle checked={drei.active} label="Visible en el Navbar" onChange={toggleDrei} />
-        </div>
-      ) : null}
-      <div className="border border-ink-700 bg-ink-850">
+      <div className="admin-data-card border border-ink-700 bg-ink-850">
         <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 px-5 py-3">
           <Tab active={view === "principales"} href="/admin/categorias?vista=principales">Categorías principales <span className="ml-1 tabular">{rows.length}</span></Tab>
           <Tab active={view === "subcategorias"} href="/admin/categorias?vista=subcategorias">Subcategorías <span className="ml-1 tabular">{subcategories.length}</span></Tab>
@@ -163,14 +145,14 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-5 sm:p-10">
-        <div ref={ref} role="dialog" aria-modal="true" aria-label={form.id ? "Editar clasificación" : "Nueva clasificación"} tabIndex={-1} className="mx-auto w-full max-w-[680px] border border-line-strong bg-ink-850 animate-rise outline-none">
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-3 sm:p-10">
+        <div ref={ref} role="dialog" aria-modal="true" aria-label={form.id ? "Editar clasificación" : "Nueva clasificación"} tabIndex={-1} className="admin-modal mx-auto w-full max-w-[680px] border border-line-strong bg-ink-850 animate-rise outline-none">
           <div className="flex items-center justify-between border-b border-ink-700 px-6 py-5">
             <div><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{isPrincipal ? "Categoría principal" : "Subcategoría"}</p><h2 className="mt-1 font-display text-2xl uppercase skew-fast-6">{form.id ? "Editar" : "Crear"} {isPrincipal ? "categoría" : "subcategoría"}</h2></div>
             <button type="button" onClick={onClose} aria-label="Cerrar" className="p-1 text-content-dim transition-colors hover:text-brand"><CloseIcon size={19} /></button>
           </div>
 
-          <div className={cn("grid items-start gap-5 p-6", isPrincipal && "md:grid-cols-[1fr_0.9fr]")}>
+          <div className={cn("grid items-start gap-5 p-4 sm:p-6", isPrincipal && "md:grid-cols-[1fr_0.9fr]")}>
             <div className="flex flex-col gap-3.5">
               <Input label={isPrincipal ? "Nombre de la categoría" : "Nombre de la subcategoría"} placeholder={isPrincipal ? "Ej. Accesorios" : "Ej. Entrenamiento"} value={form.name} disabled={isSystemCategory} className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, name: event.target.value })} />
               {!isPrincipal ? (
@@ -222,7 +204,7 @@ function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; 
   return <div>
     <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px] lg:gap-3.5"><span /><span /><span>Categoría principal</span><span>Subcategorías</span><span>Productos</span><span /></div>
     {ordered.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay categorías principales.</p> : null}
-    {ordered.map((row) => <div key={row.id} ref={(element) => { if (element) rowRefs.current.set(row.id, element); else rowRefs.current.delete(row.id); }} className={cn("grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px]", draggingId === row.id && "relative z-10 border-brand bg-[#171716] shadow-card")}>
+    {ordered.map((row) => <div key={row.id} ref={(element) => { if (element) rowRefs.current.set(row.id, element); else rowRefs.current.delete(row.id); }} className={cn("admin-data-row grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px]", draggingId === row.id && "relative z-10 border-brand bg-[#171716] shadow-card")}>
       {SYSTEM_CATEGORY_SLUGS.has(row.slug) ? <span /> : <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>}
       <div className="relative h-10 w-10 overflow-hidden bg-ink-950">{row.imagePath ? <Image src={imageKitUrl(row.imagePath, "thumb")} alt="" fill sizes="40px" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center"><Escudo width={16} height={19} className="opacity-20" title="" /></span>}</div>
       <div className="min-w-0"><p className="truncate text-[13.5px] font-bold">{row.name}{!row.active ? <span className="ml-2 text-[9.5px] uppercase tracking-[0.12em] text-content-faint">oculta</span> : null}</p><p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p></div>

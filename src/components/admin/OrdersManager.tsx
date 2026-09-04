@@ -7,6 +7,7 @@ import type { OrderSummary } from "@/db/queries/orders";
 import { formatBs } from "@/lib/money";
 import { ORDER_STATUS_META } from "@/lib/order-status";
 import { OrderDetailDrawer } from "./OrderDetailDrawer";
+import { AdminPagination, ADMIN_PAGE_SIZE } from "./AdminPagination";
 
 export type OrderRow = {
   id: number;
@@ -39,8 +40,12 @@ export function OrdersManager({ rows }: { rows: OrderRow[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<"Todos" | OrderSummary["status"]>("Todos");
   const [openId, setOpenId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   const visible = filter === "Todos" ? rows : rows.filter((r) => r.status === filter);
+  const pageCount = Math.max(1, Math.ceil(visible.length / ADMIN_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = visible.slice((safePage - 1) * ADMIN_PAGE_SIZE, safePage * ADMIN_PAGE_SIZE);
 
   const chips: { key: "Todos" | OrderSummary["status"]; label: string }[] = [
     { key: "Todos", label: "Todos" },
@@ -54,13 +59,13 @@ export function OrdersManager({ rows }: { rows: OrderRow[] }) {
     <>
       <div className="mb-3.5 flex flex-wrap gap-2">
         {chips.map((c) => (
-          <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>
+          <Chip key={c.key} active={filter === c.key} onClick={() => { setFilter(c.key); setPage(1); }}>
             {c.label}
           </Chip>
         ))}
       </div>
 
-      <div className="border border-ink-700 bg-ink-850">
+      <div className="admin-data-card border border-ink-700 bg-ink-850">
         <div className="hidden gap-3 border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[70px_1.4fr_1.2fr_130px_110px_100px_70px]">
           <span>N°</span>
           <span>Cliente</span>
@@ -77,14 +82,14 @@ export function OrdersManager({ rows }: { rows: OrderRow[] }) {
           </p>
         ) : null}
 
-        {visible.map((o) => {
+        {paged.map((o) => {
           const meta = STATUS_META[o.status];
           return (
             <button
               key={o.id}
               type="button"
               onClick={() => setOpenId(o.id)}
-              className="grid w-full items-center gap-3 border-b border-line-soft px-5 py-3.5 text-left transition-colors duration-150 hover:bg-[#171716] lg:grid-cols-[70px_1.4fr_1.2fr_130px_110px_100px_70px]"
+              className="admin-data-row grid w-full items-center gap-3 border-b border-line-soft px-5 py-3.5 text-left transition-colors duration-150 lg:grid-cols-[70px_1.4fr_1.2fr_130px_110px_100px_70px]"
             >
               <span className="font-display text-[15px] text-brand tabular">#{o.number}</span>
 
@@ -93,7 +98,7 @@ export function OrdersManager({ rows }: { rows: OrderRow[] }) {
                 <span className="block text-[11px] text-content-faint">{o.customerPhone}</span>
               </span>
 
-              <span className="text-[12.5px] text-content-muted">
+              <span className="min-w-0 truncate text-[12.5px] text-content-muted">
                 {o.mode === "pickup" ? "Retiro en local" : `Envío · ${o.department ?? "—"}`}
               </span>
 
@@ -117,6 +122,7 @@ export function OrdersManager({ rows }: { rows: OrderRow[] }) {
             </button>
           );
         })}
+        <AdminPagination page={safePage} total={visible.length} onChange={setPage} />
       </div>
 
       <OrderDetailDrawer

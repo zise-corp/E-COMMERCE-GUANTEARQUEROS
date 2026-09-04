@@ -49,6 +49,7 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
           size: onlySize,
           imagePublicId: product.imagePublicId,
           stock: product.stock,
+          personalization: null,
         });
         cart.openCart("items");
         toast.show("Agregado al carrito");

@@ -27,7 +27,7 @@ export function OrdersCalendar({ selectedDate }: { selectedDate?: string }) {
   }
 
   return (
-    <section className="mb-5 flex flex-wrap items-end gap-3 border border-ink-700 bg-ink-850 p-4">
+    <section className="admin-panel mb-5 flex flex-wrap items-end gap-3 border border-ink-700 bg-ink-850 p-4">
       <label className="min-w-[210px] flex-1 sm:max-w-[280px]">
         <span className="label-xs mb-1.5 block text-content-dim">Calendario de ventas</span>
         <input

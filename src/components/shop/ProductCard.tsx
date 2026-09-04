@@ -82,11 +82,13 @@ export function ProductGrid({
   products,
   columns = 4,
   aspect = "4/3",
+  priorityCount = 2,
   emptyMessage = "Ningún producto coincide con los filtros.",
 }: {
   products: ProductCardData[];
   columns?: 3 | 4;
   aspect?: "1/1" | "4/3";
+  priorityCount?: number;
   emptyMessage?: string;
 }) {
   if (products.length === 0) {
@@ -105,7 +107,7 @@ export function ProductGrid({
       )}
     >
       {products.map((p, i) => (
-        <ProductCard key={p.id} product={p} aspect={aspect} priority={i < 2} />
+        <ProductCard key={p.id} product={p} aspect={aspect} priority={i < priorityCount} />
       ))}
     </div>
   );

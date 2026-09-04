@@ -25,8 +25,9 @@ type FormState = {
   price: string;
   compareAtPrice: string;
   stock: string;
-  sizes: string;
+  sizes: string[];
   attributes: { name: string; value: string }[];
+  customizable: boolean;
   images: ProductImageValue[];
   published: boolean;
   featured: boolean;
@@ -44,8 +45,9 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
       price: "",
       compareAtPrice: "",
       stock: "0",
-      sizes: "",
+      sizes: [],
       attributes: [{ name: "", value: "" }],
+      customizable: false,
       images: [],
       published: false,
       featured: false,
@@ -61,8 +63,9 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     price: product.price,
     compareAtPrice: product.compareAtPrice ?? "",
     stock: String(product.stock),
-    sizes: product.sizes.join(", "),
+    sizes: product.sizes,
     attributes: product.attributes.length > 0 ? product.attributes : [{ name: "", value: "" }],
+    customizable: product.customizable,
     images: product.images,
     published: product.published,
     featured: product.featured,
@@ -88,6 +91,8 @@ export function ProductForm({
   const roots = categories.filter((c) => c.parentId === null);
   const [form, setForm] = useState<FormState>(() => toForm(product, roots[0]?.id ?? null));
   const [error, setError] = useState<string | null>(null);
+  const [sizeDraft, setSizeDraft] = useState("");
+  const [sizeError, setSizeError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { show } = useToast();
   const ref = useDialog(open, onClose);
@@ -96,6 +101,8 @@ export function ProductForm({
     if (open) {
       setForm(toForm(product, roots[0]?.id ?? null));
       setError(null);
+      setSizeDraft("");
+      setSizeError(null);
     }
     // Se re-arma solo al abrir o al cambiar de producto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +140,31 @@ export function ProductForm({
     });
   }
 
+  function addSize() {
+    const next = sizeDraft.trim();
+    if (!next) return;
+    if (next.length > 40) {
+      setSizeError("Cada talla puede tener hasta 40 caracteres.");
+      return;
+    }
+    if (form.sizes.some((size) => size.toLocaleLowerCase("es") === next.toLocaleLowerCase("es"))) {
+      setSizeError("Esa talla ya fue agregada.");
+      return;
+    }
+    if (form.sizes.length >= 40) {
+      setSizeError("Puedes agregar hasta 40 tallas por producto.");
+      return;
+    }
+    set("sizes", [...form.sizes, next]);
+    setSizeDraft("");
+    setSizeError(null);
+  }
+
+  function removeSize(index: number) {
+    set("sizes", form.sizes.filter((_, position) => position !== index));
+    setSizeError(null);
+  }
+
   function save() {
     setError(null);
 
@@ -164,12 +196,10 @@ export function ProductForm({
       price,
       compareAtPrice: compareAt,
       stock: Number.isFinite(stock) ? stock : 0,
-      sizes: form.sizes
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      sizes: form.sizes,
       // Las filas vacías no se guardan: el admin puede dejar una a mano abierta.
       attributes: form.attributes.filter((a) => a.name.trim() && a.value.trim()),
+      customizable: form.customizable,
       images: form.images,
       published: form.published,
       featured: form.featured,
@@ -190,14 +220,14 @@ export function ProductForm({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-5 sm:p-10">
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-3 sm:p-10">
         <div
           ref={ref}
           role="dialog"
           aria-modal="true"
           aria-label={product ? "Editar producto" : "Nuevo producto"}
           tabIndex={-1}
-          className="mx-auto w-full max-w-[860px] border border-line-strong bg-ink-850 animate-rise outline-none"
+          className="admin-modal mx-auto w-full max-w-[860px] border border-line-strong bg-ink-850 animate-rise outline-none"
         >
           <div className="flex items-center justify-between border-b border-ink-700 px-6 py-5">
             <h2 className="font-display text-2xl uppercase skew-fast-6">
@@ -213,7 +243,7 @@ export function ProductForm({
             </button>
           </div>
 
-          <div className="grid items-start gap-6 p-6 lg:grid-cols-[1.25fr_1fr]">
+          <div className="grid items-start gap-6 p-4 sm:p-6 lg:grid-cols-[1.25fr_1fr]">
             <div className="flex flex-col gap-3.5">
               <Input
                 label="Nombre del producto"
@@ -293,14 +323,38 @@ export function ProductForm({
                 onChange={(e) => set("description", e.target.value)}
               />
 
-              <Input
-                label="Tallas"
-                value={form.sizes}
-                className="bg-[#0E0E0D]"
-                placeholder="7, 8, 9, 10, 11"
-                hint="Separadas por coma. Van aparte de los atributos porque afectan al carrito."
-                onChange={(e) => set("sizes", e.target.value)}
-              />
+              <div>
+                <label htmlFor="product-size-entry" className="label-xs text-content-dim">Tallas</label>
+                <div className="mt-2 flex min-w-0 gap-2">
+                  <input
+                    id="product-size-entry"
+                    value={sizeDraft}
+                    maxLength={40}
+                    placeholder="Ej. 38, XL, Junior o Talla única"
+                    className="min-w-0 flex-1 border border-line-strong bg-[#0E0E0D] px-3.5 py-3 text-[13px] text-content outline-none placeholder:text-content-faint focus:border-brand"
+                    onChange={(event) => { setSizeDraft(event.target.value); setSizeError(null); }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addSize();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={addSize} disabled={!sizeDraft.trim()} className="shrink-0 border border-brand px-3.5 text-[10.5px] font-extrabold uppercase tracking-[0.09em] text-brand transition-colors hover:bg-brand hover:text-ink-950 disabled:border-line-strong disabled:text-content-faint disabled:hover:bg-transparent">Agregar</button>
+                </div>
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-content-faint">Escribe cualquier talla y presiona Enter. Puede contener letras, números o palabras.</p>
+                {sizeError ? <p role="alert" className="mt-1.5 text-[11px] text-alert-soft">{sizeError}</p> : null}
+                {form.sizes.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2" aria-label="Tallas agregadas">
+                    {form.sizes.map((size, index) => (
+                      <span key={`${size}-${index}`} className="inline-flex max-w-full items-center gap-2 border border-brand/60 bg-brand/[0.08] px-2.5 py-2 text-[12px] font-bold text-content">
+                        <span className="truncate" title={size}>{size}</span>
+                        <button type="button" onClick={() => removeSize(index)} aria-label={`Quitar talla ${size}`} className="shrink-0 text-content-dim transition-colors hover:text-alert">×</button>
+                      </span>
+                    ))}
+                  </div>
+                ) : <p className="mt-3 border border-dashed border-line px-3 py-2.5 text-[11px] text-content-faint">Sin tallas: el producto se tratará como opción única.</p>}
+              </div>
 
               <div className="border border-line-strong bg-[#0E0E0D] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -323,7 +377,7 @@ export function ProductForm({
 
                 <div className="mt-3.5 flex flex-col gap-2">
                   {form.attributes.map((a, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_1.4fr_34px] items-center gap-2">
+                    <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_34px] items-center gap-2">
                       <input
                         value={a.name}
                         onChange={(e) => setAttribute(i, "name", e.target.value)}
@@ -417,6 +471,11 @@ export function ProductForm({
                   checked={form.isNew}
                   label="Marcar como producto nuevo"
                   onChange={(next) => set("isNew", next)}
+                />
+                <Toggle
+                  checked={form.customizable}
+                  label="Permite personalización"
+                  onChange={(next) => set("customizable", next)}
                 />
               </div>
 

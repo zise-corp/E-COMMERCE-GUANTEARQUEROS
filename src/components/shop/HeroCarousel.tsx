@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HomeHeroProduct } from "@/db/queries/catalog";
+import type { HomeSettings } from "@/db/queries/settings";
 import { cn } from "@/lib/cn";
 import { ProductImage } from "./ProductImage";
 
@@ -26,7 +27,7 @@ function descuento(p: HomeHeroProduct): number | null {
  * sentido gastar ciclos ahí) y cuando el usuario pasa el mouse o deja el foco
  * encima, para no cambiarle el producto justo cuando iba a hacer clic.
  */
-export function HeroCarousel({ products }: { products: HomeHeroProduct[] }) {
+export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]; source: HomeSettings["heroSource"] }) {
   const [actual, setActual] = useState(0);
   const [pausado, setPausado] = useState(false);
   const total = products.length;
@@ -58,15 +59,15 @@ export function HeroCarousel({ products }: { products: HomeHeroProduct[] }) {
 
   return (
     <div
-      className="relative"
+      className="relative lg:h-full"
       onMouseEnter={() => setPausado(true)}
       onMouseLeave={() => setPausado(false)}
       onFocusCapture={() => setPausado(true)}
       onBlurCapture={() => setPausado(false)}
       aria-roledescription="carrusel"
-      aria-label="Productos en oferta"
+      aria-label={source === "offers" ? "Productos en oferta" : "Productos nuevos"}
     >
-      <div className="relative aspect-square overflow-hidden border border-line clip-hero">
+      <div className="relative aspect-square overflow-hidden border border-line clip-hero lg:h-full lg:aspect-auto">
         {products.map((p, i) => {
           const off = descuento(p);
           const visible = i === actual;
@@ -104,7 +105,7 @@ export function HeroCarousel({ products }: { products: HomeHeroProduct[] }) {
                 Ver producto
               </span>
 
-              <span className="absolute inset-x-0 bottom-0 p-5 pb-[26px]">
+              <span className="absolute inset-x-0 bottom-0 p-5 pb-12">
                 {off ? (
                   <span className="mb-2.5 inline-block bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
                     {off}% OFF
@@ -118,7 +119,7 @@ export function HeroCarousel({ products }: { products: HomeHeroProduct[] }) {
       </div>
 
       {total > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-2">
           {products.map((p, i) => (
             <button
               key={p.id}

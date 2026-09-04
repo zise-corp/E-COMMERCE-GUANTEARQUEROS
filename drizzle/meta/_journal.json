@@ -85,6 +85,13 @@
       "when": 1788133829166,
       "tag": "0011_foamy_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788473559453,
+      "tag": "0012_keen_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

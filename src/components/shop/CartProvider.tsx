@@ -21,6 +21,7 @@ export type CartItem = {
   imagePublicId: string | null;
   /** Stock al momento de agregar: tope del stepper, no fuente de verdad. */
   stock: number;
+  personalization: string | null;
 };
 
 export type CartStep = "items" | "shipping";
@@ -35,8 +36,8 @@ type CartState = {
   /** Pedido ya creado en el server durante esta sesión: se actualiza, no se duplica. */
   orderId: number | null;
   add: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  setQuantity: (productId: number, size: string | null, quantity: number) => void;
-  remove: (productId: number, size: string | null) => void;
+  setQuantity: (productId: number, size: string | null, personalization: string | null, quantity: number) => void;
+  remove: (productId: number, size: string | null, personalization: string | null) => void;
   clear: () => void;
   syncImages: (images: { productId: number; imagePublicId: string | null }[]) => void;
   openCart: (step?: CartStep) => void;
@@ -50,8 +51,8 @@ const Ctx = createContext<CartState | null>(null);
 const STORAGE_KEY = "gq.cart.v1";
 const ORDER_KEY = "gq.orderId.v1";
 
-function sameLine(a: CartItem, productId: number, size: string | null) {
-  return a.productId === productId && (a.size ?? null) === (size ?? null);
+function sameLine(a: CartItem, productId: number, size: string | null, personalization: string | null) {
+  return a.productId === productId && (a.size ?? null) === (size ?? null) && (a.personalization ?? null) === (personalization ?? null);
 }
 
 function parseItems(raw: string | null): CartItem[] {
@@ -114,7 +115,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((item: Omit<CartItem, "quantity">, quantity = 1) => {
     setItems((prev) => {
-      const idx = prev.findIndex((i) => sameLine(i, item.productId, item.size));
+      const idx = prev.findIndex((i) => sameLine(i, item.productId, item.size, item.personalization));
       if (idx === -1) return [...prev, { ...item, quantity }];
       const next = prev.slice();
       const hit = next[idx];
@@ -130,18 +131,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setQuantity = useCallback((productId: number, size: string | null, quantity: number) => {
+  const setQuantity = useCallback((productId: number, size: string | null, personalization: string | null, quantity: number) => {
     setItems((prev) =>
       prev.flatMap((i) => {
-        if (!sameLine(i, productId, size)) return [i];
+        if (!sameLine(i, productId, size, personalization)) return [i];
         if (quantity <= 0) return [];
         return [{ ...i, quantity: Math.min(i.stock || 99, quantity) }];
       }),
     );
   }, []);
 
-  const remove = useCallback((productId: number, size: string | null) => {
-    setItems((prev) => prev.filter((i) => !sameLine(i, productId, size)));
+  const remove = useCallback((productId: number, size: string | null, personalization: string | null) => {
+    setItems((prev) => prev.filter((i) => !sameLine(i, productId, size, personalization)));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

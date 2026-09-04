@@ -25,8 +25,11 @@ export function CategoryFilters({
 
   const selectedBrands = params.getAll("marca");
   const selectedSizes = params.getAll("talla");
-  const priceParam = Number.parseInt(params.get("hasta") ?? "", 10);
-  const activePrice = Number.isFinite(priceParam) ? priceParam : maxPrice;
+  const rawPrice = params.get("hasta") ?? "";
+  const priceParam = /^\d+$/.test(rawPrice) ? Number(rawPrice) : Number.NaN;
+  const activePrice = Number.isSafeInteger(priceParam)
+    ? Math.min(maxPrice, Math.max(0, priceParam))
+    : maxPrice;
 
   // El range se mueve suelto y recién al soltar toca la URL.
   const [priceDraft, setPriceDraft] = useState(activePrice);
@@ -119,8 +122,8 @@ export function CategoryFilters({
           step={10}
           value={priceDraft}
           onChange={(e) => setPriceDraft(Number(e.target.value))}
-          onPointerUp={() => setPrice(priceDraft)}
-          onKeyUp={() => setPrice(priceDraft)}
+          onPointerUp={(event) => setPrice(Number(event.currentTarget.value))}
+          onKeyUp={(event) => setPrice(Number(event.currentTarget.value))}
           className="w-full accent-brand"
           aria-label="Precio máximo"
         />

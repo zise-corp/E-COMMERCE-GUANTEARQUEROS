@@ -20,10 +20,10 @@ export type NavCategory = {
 export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dreiSlug: string | null }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink-950/[0.92] backdrop-blur-[10px]">
-      {/* Tres columnas laterales iguales: el nav del medio queda centrado respecto
-          a la pantalla, no respecto al espacio que sobra entre logo y botones
-          (que es lo que pasa con un simple flex + ml-auto). */}
-      <div className="container-shop flex h-[74px] items-center gap-2 sm:gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+      {/* El nav ocupa y centra el espacio real entre la marca y las acciones.
+          Como el logo es más ancho que los botones, centrarlo contra la ventana
+          lo dejaba visualmente pegado a la marca. */}
+      <div className="container-shop flex h-[74px] items-center gap-2 sm:gap-4 min-[1340px]:grid min-[1340px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[1340px]:gap-6 2xl:gap-8">
         <MobileMenu categories={categories} dreiSlug={dreiSlug} />
         <Link
           href="/"
@@ -38,7 +38,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
         <NavLinks
           categories={categories}
           dreiSlug={dreiSlug}
-          className="hidden min-w-0 justify-center lg:flex"
+          className="hidden w-full min-w-0 justify-center min-[1340px]:flex"
         />
 
         <div className="ml-auto flex flex-none items-center gap-2.5">

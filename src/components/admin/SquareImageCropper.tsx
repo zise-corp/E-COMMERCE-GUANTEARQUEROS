@@ -77,7 +77,7 @@ export function SquareImageCropper({
     <Portal>
       <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#040404]/90 p-4 sm:p-8">
         <button type="button" aria-label="Cerrar editor" tabIndex={-1} onClick={onCancel} className="absolute inset-0 cursor-default" />
-        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Ajustar imagen cuadrada" tabIndex={-1} className="relative w-full max-w-[720px] border border-line-strong bg-ink-850 outline-none">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Ajustar imagen cuadrada" tabIndex={-1} className="admin-modal relative w-full max-w-[720px] border border-line-strong bg-ink-850 outline-none">
           <div className="flex items-center justify-between border-b border-ink-700 px-5 py-4 sm:px-6">
             <div>
               <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{eyebrow}</p>

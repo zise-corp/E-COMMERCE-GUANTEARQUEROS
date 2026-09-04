@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, arrayOverlaps, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, withFallback } from "../index";
 import { brands, categories, productImages, products } from "../schema";
-import { getDreiNavVisibility } from "./settings";
+import type { HomeSettings } from "./settings";
 
 /** `categories` se une dos veces (categoría y subcategoría): hacen falta alias. */
 const parentCategory = alias(categories, "cat");
@@ -29,6 +29,7 @@ export type ProductCard = {
 export type ProductDetail = ProductCard & {
   description: string;
   attributes: ProductAttribute[];
+  customizable: boolean;
   categoryName: string;
   categorySlug: string;
   subcategoryName: string | null;
@@ -86,7 +87,7 @@ export async function getHomeHeroProduct(productId: number | null): Promise<Home
  * Se excluyen los agotados: sería un anuncio grande de algo que no se puede
  * comprar. El orden es por descuento descendente, así lo más atractivo va primero.
  */
-export async function getHeroCarouselProducts(limit = 6): Promise<HomeHeroProduct[]> {
+export async function getHeroCarouselProducts(source: HomeSettings["heroSource"] = "offers", limit = 6): Promise<HomeHeroProduct[]> {
   return withFallback<HomeHeroProduct[]>([], async () => {
     const rows = await db
       .select({
@@ -99,20 +100,47 @@ export async function getHeroCarouselProducts(limit = 6): Promise<HomeHeroProduc
       })
       .from(products)
       .innerJoin(productImages, eq(productImages.productId, products.id))
-      .where(
-        and(
-          eq(products.published, true),
-          gt(products.stock, 0),
-          isNotNull(products.compareAtPrice),
-          gt(products.compareAtPrice, products.price),
-          eq(productImages.isPrimary, true),
-        ),
-      )
-      .orderBy(
-        desc(sql`(${products.compareAtPrice} - ${products.price}) / ${products.compareAtPrice}`),
-      )
+      .where(and(
+        eq(products.published, true),
+        gt(products.stock, 0),
+        eq(productImages.isPrimary, true),
+        source === "new"
+          ? eq(products.isNew, true)
+          : and(isNotNull(products.compareAtPrice), gt(products.compareAtPrice, products.price)),
+      ))
+      .orderBy(source === "new"
+        ? desc(products.updatedAt)
+        : desc(sql`(${products.compareAtPrice} - ${products.price}) / ${products.compareAtPrice}`))
       .limit(limit);
     return rows;
+  });
+}
+
+/** Hasta seis imágenes recientes por categoría para las tarjetas animadas del inicio. */
+export async function getCategoryCarouselImages(limitPerCategory = 6): Promise<Record<number, string[]>> {
+  return withFallback<Record<number, string[]>>({}, async () => {
+    const rows = await db
+      .select({
+        categoryId: products.categoryId,
+        imagePublicId: productImages.publicId,
+      })
+      .from(products)
+      .innerJoin(productImages, eq(productImages.productId, products.id))
+      .where(and(
+        eq(products.published, true),
+        gt(products.stock, 0),
+        eq(productImages.isPrimary, true),
+      ))
+      .orderBy(desc(products.updatedAt));
+
+    const images: Record<number, string[]> = {};
+    for (const row of rows) {
+      const categoryImages = images[row.categoryId] ?? [];
+      if (categoryImages.length >= limitPerCategory) continue;
+      categoryImages.push(row.imagePublicId);
+      images[row.categoryId] = categoryImages;
+    }
+    return images;
   });
 }
 
@@ -129,7 +157,7 @@ const cardColumns = {
   slug: products.slug,
   name: products.name,
   brandName: brands.name,
-  brandOwn: brands.isOwnBrand,
+  brandOwn: sql<boolean>`${brands.slug} = 'drei'`,
   isNew: products.isNew,
   price: products.price,
   compareAtPrice: products.compareAtPrice,
@@ -311,7 +339,10 @@ export async function getBrands() {
 
 /** Estado público de la marca propia; controla todos los accesos a DREI. */
 export async function isDreiVisible(): Promise<boolean> {
-  return getDreiNavVisibility();
+  return withFallback(true, async () => {
+    const [drei] = await db.select({ active: brands.active }).from(brands).where(eq(brands.slug, "drei")).limit(1);
+    return drei?.active ?? false;
+  });
 }
 
 /* ── Productos ────────────────────────────────────────────────────────────── */
@@ -405,7 +436,7 @@ export async function getProductsByCategory(
     }
     if (filters.sizes?.length) {
       // `sizes` es text[]: se filtra por solapamiento con las tallas elegidas.
-      where.push(sql`${products.sizes} && ${filters.sizes}::text[]`);
+      where.push(arrayOverlaps(products.sizes, filters.sizes));
     }
 
     const rows = await db
@@ -484,13 +515,14 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
         name: products.name,
         description: products.description,
         brandName: brands.name,
-        brandOwn: brands.isOwnBrand,
+        brandOwn: sql<boolean>`${brands.slug} = 'drei'`,
         isNew: products.isNew,
         price: products.price,
         compareAtPrice: products.compareAtPrice,
         stock: products.stock,
         sizes: products.sizes,
         attributes: products.attributes,
+        customizable: products.customizable,
         updatedAt: products.updatedAt,
         categoryName: parentCategory.name,
         categorySlug: parentCategory.slug,
@@ -524,6 +556,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       stock: row.stock,
       sizes: row.sizes ?? [],
       attributes: row.attributes ?? [],
+      customizable: row.customizable,
       imagePublicId: images[0]?.publicId ?? null,
       images,
       categoryName: row.categoryName,

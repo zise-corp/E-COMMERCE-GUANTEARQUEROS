@@ -1,10 +1,12 @@
-import { Anton, Manrope } from "next/font/google";
+import localFont from "next/font/local";
+import { Manrope } from "next/font/google";
 
 /** Anton: títulos y precios. Siempre uppercase, casi siempre con skew. */
-export const anton = Anton({
-  subsets: ["latin"],
-  weight: "400",
+export const anton = localFont({
+  src: "../app/fonts/Anton-Regular.ttf",
   variable: "--font-anton",
+  weight: "400",
+  style: "normal",
   display: "swap",
 });
 

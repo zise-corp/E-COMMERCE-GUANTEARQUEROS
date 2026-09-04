@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeftIcon, ArrowRightIcon } from "@/components/ui/Icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icons";
 import { Display } from "@/components/ui/Heading";
 import { ProductImage } from "./ProductImage";
 import { cn } from "@/lib/cn";
@@ -16,9 +16,11 @@ type HomeCategory = {
   highlighted: boolean;
 };
 
-const CAROUSEL_THRESHOLD = 6;
+type CategoryImageMap = Record<string, string[]>;
 
-export function CategoryCarousel({ categories }: { categories: HomeCategory[] }) {
+const CAROUSEL_THRESHOLD = 5;
+
+export function CategoryCarousel({ categories, categoryImages = {} }: { categories: HomeCategory[]; categoryImages?: CategoryImageMap }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(categories.length > CAROUSEL_THRESHOLD);
@@ -48,34 +50,33 @@ export function CategoryCarousel({ categories }: { categories: HomeCategory[] })
   }
 
   return (
-    <div className={isCarousel ? "relative px-12 sm:px-14" : "relative"}>
+    <div className="relative">
       <div
         ref={trackRef}
         onScroll={updateControls}
         className={
           isCarousel
-            ? "grid snap-x snap-mandatory grid-flow-col auto-cols-[calc((100%_-_0.875rem)/2)] gap-3.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] sm:auto-cols-[calc((100%_-_1.75rem)/3)] lg:auto-cols-[calc((100%_-_4.375rem)/6)] [&::-webkit-scrollbar]:hidden"
+            ? "grid snap-x snap-mandatory grid-flow-col auto-cols-[calc((100%_-_0.875rem)/2)] gap-3.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] sm:auto-cols-[calc((100%_-_1.75rem)/3)] lg:auto-cols-[calc((100%_-_3.5rem)/5)] [&::-webkit-scrollbar]:hidden"
             : "grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]"
         }
       >
         {categories.map((category) => {
           const isOffers = category.slug === "ofertas" && category.highlighted;
           const isNew = category.slug === "nuevos" && category.highlighted;
+          const rotatingImages = categoryImages[category.slug];
           return <Link
             key={category.id}
             href={`/${category.slug}`}
             className={cn(
               "group relative block aspect-square snap-start overflow-hidden border transition-colors duration-150 clip-corner",
               isOffers
-                ? "border-brand bg-brand/[0.08] shadow-[0_0_28px_rgba(250,42,0,0.28)] hover:border-brand-hot"
+                ? "border-brand bg-brand/[0.08] shadow-[0_0_28px_rgba(250,42,0,0.28)] [--clip-edge-color:#FA2A00] hover:border-brand-hot hover:[--clip-edge-color:#FF4B2B]"
                 : isNew
-                  ? "border-[#39BDF8] bg-[#39BDF8]/[0.08] shadow-[0_0_28px_rgba(57,189,248,0.2)] hover:border-[#7DD3FC]"
-                : "border-line hover:border-brand",
+                  ? "border-[#39BDF8] bg-[#39BDF8]/[0.08] shadow-[0_0_28px_rgba(57,189,248,0.2)] [--clip-edge-color:#39BDF8] hover:border-[#7DD3FC] hover:[--clip-edge-color:#7DD3FC]"
+                : "border-line hover:border-brand hover:[--clip-edge-color:#FA2A00]",
             )}
           >
-            <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
-              <ProductImage publicId={category.imagePath} alt="" preset="category" />
-            </div>
+            <CategoryImages images={rotatingImages} fallback={category.imagePath} />
             <div className="absolute inset-0 bg-gradient-to-t from-ink-950/95 from-[8%] to-ink-950/[0.15] to-[70%]" />
             {isOffers ? <span className="absolute left-3 top-3 bg-brand px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-ink-950">Descuentos</span> : null}
             {isNew ? <span className="absolute left-3 top-3 bg-[#39BDF8] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-ink-950">Nuevo</span> : null}
@@ -92,19 +93,58 @@ export function CategoryCarousel({ categories }: { categories: HomeCategory[] })
       </div>
 
       {isCarousel ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-between" aria-label="Controles de categorías">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-2" aria-label="Controles de categorías">
           <div className="pointer-events-auto">
             <CarouselButton label="Ver categorías anteriores" disabled={!canGoBack} onClick={() => move(-1)}>
-              <ArrowLeftIcon size={18} />
+              <ChevronLeftIcon size={16} strokeWidth={2} />
             </CarouselButton>
           </div>
           <div className="pointer-events-auto">
             <CarouselButton label="Ver más categorías" disabled={!canGoForward} onClick={() => move(1)}>
-              <ArrowRightIcon size={18} />
+              <ChevronRightIcon size={16} strokeWidth={2} />
             </CarouselButton>
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CategoryImages({ images, fallback }: { images?: string[]; fallback: string | null }) {
+  const availableImages = images?.length ? images : fallback ? [fallback] : [];
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    setActiveImage(0);
+    if (availableImages.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => {
+      setActiveImage((current) => (current + 1) % availableImages.length);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [availableImages.length]);
+
+  if (availableImages.length === 0) {
+    return (
+      <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-200 group-hover:opacity-75">
+        <ProductImage publicId={null} alt="" preset="category" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-300 group-hover:opacity-80">
+      {availableImages.map((image, index) => (
+        <div
+          key={`${image}-${index}`}
+          className={cn(
+            "absolute inset-0 transition-[opacity,transform] duration-700 ease-out",
+            index === activeImage ? "scale-100 opacity-100" : "scale-[1.035] opacity-0",
+          )}
+          aria-hidden={index !== activeImage}
+        >
+          <ProductImage publicId={image} alt="" preset="category" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -121,9 +161,9 @@ function CarouselButton({ label, disabled, onClick, children }: {
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-11 w-11 items-center justify-center border border-line-strong bg-ink-950/95 text-content shadow-card backdrop-blur-sm transition-colors hover:border-brand hover:bg-brand hover:text-ink-950 disabled:cursor-default disabled:border-line-soft disabled:text-content-faint disabled:opacity-45 disabled:hover:bg-ink-950/95"
+      className="category-carousel-control flex h-12 w-8 items-center justify-center text-content-dim opacity-50 shadow-card backdrop-blur-md transition-[color,opacity,transform] duration-200 hover:scale-105 hover:text-ink-950 hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-0"
     >
-      {children}
+      <span className="relative z-10">{children}</span>
     </button>
   );
 }

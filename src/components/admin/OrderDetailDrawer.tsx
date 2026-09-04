@@ -167,10 +167,12 @@ export function OrderDetailDrawer({
           </Section>
 
           <Section title="Ítems · precio congelado">
-            {order.items.map((i, idx) => (
-              <div
+            {order.items.map((i, idx) => {
+              const personalization = i.attributesSnapshot.find((attribute) => attribute.name === "Personalización")?.value;
+              const productAttributes = i.attributesSnapshot.filter((attribute) => attribute.name !== "Personalización");
+              return <div
                 key={`${i.name}-${idx}`}
-                className="flex items-center gap-3 border-b border-line-soft py-2.5"
+                className="grid grid-cols-[42px_minmax(0,1fr)_auto] items-start gap-3 border-b border-line-soft py-3"
               >
                 <span className="relative block h-[42px] w-[42px] flex-none overflow-hidden bg-ink-950">
                   {i.imagePublicId ? (
@@ -192,16 +194,25 @@ export function OrderDetailDrawer({
                   <span className="block text-[11.5px] text-content-faint">
                     {i.size ? `${i.size} · ` : ""}
                     {i.quantity} × {formatBs(i.unitPrice)}
-                    {i.attributesSnapshot.length > 0
-                      ? ` · ${i.attributesSnapshot.map((a) => `${a.name}: ${a.value}`).join(" · ")}`
+                    {productAttributes.length > 0
+                      ? ` · ${productAttributes.map((a) => `${a.name}: ${a.value}`).join(" · ")}`
                       : ""}
                   </span>
+                  {personalization ? (
+                    <span className="mt-2.5 block border-l-[3px] border-drei-line bg-drei/[0.14] px-3 py-2.5">
+                      <span className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-drei-ink">Personalización solicitada</span>
+                        <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-state-ok">+0 Bs</span>
+                      </span>
+                      <span className="mt-1 block break-words text-[14px] font-extrabold text-white">“{personalization}”</span>
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-[13.5px] font-extrabold tabular">
                   {formatBs(toNumber(i.unitPrice) * i.quantity)}
                 </span>
-              </div>
-            ))}
+              </div>;
+            })}
 
             <div className="mt-3.5 flex items-baseline justify-between">
               <span className="label-xs tracking-[0.16em] text-content-dim">Total</span>

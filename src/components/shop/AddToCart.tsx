@@ -15,6 +15,8 @@ export function AddToCart({ product }: { product: ProductDetail }) {
   const hasSizes = product.sizes.length > 0;
   const [size, setSize] = useState<string | null>(hasSizes ? (product.sizes[1] ?? product.sizes[0] ?? null) : null);
   const [quantity, setQuantity] = useState(1);
+  const [wantsPersonalization, setWantsPersonalization] = useState(false);
+  const [personalization, setPersonalization] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const outOfStock = product.stock <= 0;
@@ -23,6 +25,11 @@ export function AddToCart({ product }: { product: ProductDetail }) {
   function add(openDrawer: boolean) {
     if (hasSizes && !size) {
       setError("Elige una talla.");
+      return;
+    }
+    const engraving = wantsPersonalization ? personalization.trim() : "";
+    if (product.customizable && wantsPersonalization && !engraving) {
+      setError("Escribe qué quieres grabar.");
       return;
     }
     setError(null);
@@ -36,6 +43,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
         size,
         imagePublicId: product.imagePublicId,
         stock: product.stock,
+        personalization: product.customizable && engraving ? engraving : null,
       },
       quantity,
     );
@@ -70,6 +78,25 @@ export function AddToCart({ product }: { product: ProductDetail }) {
               </SizeChip>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {product.customizable ? (
+        <div className="mt-7 border border-drei-line/45 bg-drei/[0.08] p-4">
+          <label className="flex cursor-pointer items-center justify-between gap-4">
+            <span>
+              <span className="block text-[12px] font-extrabold uppercase tracking-[0.1em] text-content">Personaliza este producto</span>
+              <span className="mt-1 block text-[11.5px] text-drei-ink">Grabado opcional · +0 Bs de costo extra</span>
+            </span>
+            <input type="checkbox" checked={wantsPersonalization} onChange={(event) => { setWantsPersonalization(event.target.checked); setError(null); }} className="h-4 w-4 accent-[#4E8FCB]" />
+          </label>
+          {wantsPersonalization ? (
+            <div className="mt-4 border-t border-drei-line/25 pt-4 animate-fade-in">
+              <label htmlFor="product-personalization" className="label-xs text-content-dim">¿Qué quieres grabar?</label>
+              <input id="product-personalization" value={personalization} maxLength={30} onChange={(event) => { setPersonalization(event.target.value); setError(null); }} placeholder="Ej. MATÍAS 01" className="mt-2 w-full border border-line-strong bg-ink-950 px-3.5 py-3 text-sm text-content outline-none transition-colors placeholder:text-content-faint focus:border-drei-line" />
+              <div className="mt-1.5 flex justify-between text-[10px] text-content-faint"><span>Texto sujeto a confirmación de diseño.</span><span className="tabular">{personalization.length}/30</span></div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

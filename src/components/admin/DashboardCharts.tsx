@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { formatBs, formatBsCompact } from "@/lib/money";
 import { ORDER_STATUS_META, ORDER_STATUS_ORDER } from "@/lib/order-status";
@@ -42,7 +43,7 @@ function weekLabel(iso: string): string {
 
 const GRID_STEPS = [1, 0.75, 0.5, 0.25, 0];
 
-export function SalesChart({ data }: { data: { weekStart: string; total: number }[] }) {
+export function SalesChart({ data }: { data: { weekStart: string; total: number; orders: number }[] }) {
   const { top: max } = escala(Math.max(...data.map((w) => w.total), 0));
   const conVentas = data.filter((w) => w.total > 0).length;
   const total = data.reduce((acc, w) => acc + w.total, 0);
@@ -50,7 +51,7 @@ export function SalesChart({ data }: { data: { weekStart: string; total: number 
   const mejor = data.reduce((best, w, i) => (w.total > (data[best]?.total ?? 0) ? i : best), 0);
 
   return (
-    <section className="border border-ink-700 bg-ink-850">
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
       <header className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2 border-b border-ink-700 px-5 py-4">
         <div>
           <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">
@@ -65,7 +66,7 @@ export function SalesChart({ data }: { data: { weekStart: string; total: number 
             {formatBsCompact(total)}
           </span>
           <span className="mt-1 block text-[11px] text-content-dim">
-            {conVentas} {conVentas === 1 ? "semana con ventas" : "semanas con ventas"}
+            {data.reduce((sum, week) => sum + week.orders, 0)} pedidos · {conVentas} {conVentas === 1 ? "semana activa" : "semanas activas"}
           </span>
         </p>
       </header>
@@ -179,7 +180,7 @@ export function SalesChart({ data }: { data: { weekStart: string; total: number 
 }
 
 /** Los valores nunca quedan detrás del hover: esta tabla los deja siempre a mano. */
-function TablaVentas({ data }: { data: { weekStart: string; total: number }[] }) {
+function TablaVentas({ data }: { data: { weekStart: string; total: number; orders: number }[] }) {
   return (
     <details className="mt-4 border-t border-line-soft pt-3">
       <summary className="cursor-pointer text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors hover:text-brand">
@@ -190,6 +191,7 @@ function TablaVentas({ data }: { data: { weekStart: string; total: number }[] })
         <thead>
           <tr className="text-[10px] uppercase tracking-[0.14em] text-content-dim">
             <th scope="col" className="py-1.5 text-left font-normal">Semana del</th>
+            <th scope="col" className="py-1.5 text-center font-normal">Pedidos</th>
             <th scope="col" className="py-1.5 text-right font-normal">Ventas</th>
           </tr>
         </thead>
@@ -197,12 +199,120 @@ function TablaVentas({ data }: { data: { weekStart: string; total: number }[] })
           {data.map((w) => (
             <tr key={w.weekStart} className="border-t border-line-soft">
               <td className="py-1.5 text-content-muted">{weekLabel(w.weekStart)}</td>
+              <td className="py-1.5 text-center text-content-muted tabular">{w.orders}</td>
               <td className="py-1.5 text-right tabular">{formatBs(w.total)}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </details>
+  );
+}
+
+/* ── Pulso operativo ─────────────────────────────────────────────────────── */
+
+const PAYMENT_META: Record<string, { label: string; color: string }> = {
+  pagado: { label: "Pagados", color: "#6FCF8E" },
+  pendiente: { label: "Pendientes", color: "#E2B93B" },
+  fallido: { label: "Fallidos", color: "#E10600" },
+  reembolsado: { label: "Reembolsados", color: "#6E6B67" },
+};
+
+export function OperationsOverview({
+  payment,
+  delivery,
+}: {
+  payment: { status: string; n: number }[];
+  delivery: { mode: string; n: number }[];
+}) {
+  const total = payment.reduce((sum, item) => sum + item.n, 0);
+  let cursor = 0;
+  const slices = payment.map((item) => {
+    const start = total ? (cursor / total) * 100 : 0;
+    cursor += item.n;
+    const end = total ? (cursor / total) * 100 : 0;
+    return `${PAYMENT_META[item.status]?.color ?? "#57554F"} ${start}% ${end}%`;
+  });
+  const paid = payment.find((item) => item.status === "pagado")?.n ?? 0;
+  const pickup = delivery.find((item) => item.mode === "pickup")?.n ?? 0;
+  const shipment = delivery.find((item) => item.mode === "delivery")?.n ?? 0;
+
+  return (
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
+      <header className="border-b border-ink-700 px-5 py-4">
+        <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Pulso operativo</h2>
+        <p className="mt-1 text-[11.5px] text-content-dim">Pagos y forma de entrega · histórico</p>
+      </header>
+      <div className="grid gap-6 p-5 sm:grid-cols-[150px_1fr] sm:items-center">
+        <div className="relative mx-auto grid size-[138px] place-items-center rounded-full" style={{ background: slices.length ? `conic-gradient(${slices.join(",")})` : "#232322" }}>
+          <div className="grid size-[104px] place-items-center rounded-full border border-line bg-ink-850 text-center">
+            <p><span className="block text-3xl font-semibold leading-none tabular">{total}</span><span className="mt-1 block text-[9px] uppercase tracking-[0.16em] text-content-dim">pedidos</span></p>
+          </div>
+        </div>
+        <div>
+          <ul className="admin-dashboard-scroll max-h-[168px] space-y-2.5 overflow-y-auto pr-1">
+            {payment.map((item) => {
+              const meta = PAYMENT_META[item.status] ?? { label: item.status, color: "#57554F" };
+              return <li key={item.status} className="flex items-center gap-2.5 text-[12px]"><span className="size-2" style={{ background: meta.color }} /><span className="flex-1 text-content-muted">{meta.label}</span><span className="font-bold tabular">{item.n}</span><span className="w-9 text-right text-content-dim tabular">{total ? Math.round(item.n / total * 100) : 0}%</span></li>;
+            })}
+          </ul>
+          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-line-soft pt-4">
+            <MiniMetric label="Recojo" value={pickup} />
+            <MiniMetric label="Envío" value={shipment} />
+          </div>
+          <p className="mt-3 text-[10.5px] text-content-dim">Tasa de pago: <span className="font-bold text-state-ok">{total ? Math.round(paid / total * 100) : 0}%</span></p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return <div className="border border-line-soft bg-ink-950/40 px-3 py-2.5"><span className="block text-[9px] uppercase tracking-[0.14em] text-content-dim">{label}</span><span className="mt-1 block text-xl font-semibold tabular">{value}</span></div>;
+}
+
+export function InventoryHealth({ data }: { data: { total: number; published: number; outOfStock: number; customizable: number; newProducts: number; onOffer: number } }) {
+  const publishedPct = data.total ? Math.round(data.published / data.total * 100) : 0;
+  return (
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
+      <header className="border-b border-ink-700 px-5 py-4">
+        <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Salud del catálogo</h2>
+        <p className="mt-1 text-[11.5px] text-content-dim">Visibilidad, disponibilidad y atributos comerciales</p>
+      </header>
+      <div className="p-5">
+        <div className="flex items-end justify-between gap-4"><div><span className="text-[10px] uppercase tracking-[0.15em] text-content-dim">Productos publicados</span><p className="mt-1 text-3xl font-semibold tabular">{data.published}<span className="ml-1 text-sm text-content-dim">/ {data.total}</span></p></div><span className="text-xl font-semibold text-state-ok tabular">{publishedPct}%</span></div>
+        <div className="mt-3 h-2 overflow-hidden bg-line-soft"><div className="h-full bg-gradient-to-r from-brand-deep to-brand" style={{ width: `${publishedPct}%` }} /></div>
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <CatalogMetric label="Agotados" value={data.outOfStock} tone={data.outOfStock ? "alert" : "ok"} />
+          <CatalogMetric label="Nuevos" value={data.newProducts} />
+          <CatalogMetric label="En oferta" value={data.onOffer} />
+          <CatalogMetric label="Personalizables" value={data.customizable} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CatalogMetric({ label, value, tone = "normal" }: { label: string; value: number; tone?: "normal" | "alert" | "ok" }) {
+  return <div className="border border-line-soft bg-ink-950/40 p-3"><span className={cn("block text-2xl font-semibold tabular", tone === "alert" && "text-alert-soft", tone === "ok" && "text-state-ok")}>{value}</span><span className="mt-1 block text-[9px] uppercase tracking-[0.12em] text-content-dim">{label}</span></div>;
+}
+
+export function CategoryPerformance({ data }: { data: { name: string; units: number; amount: string }[] }) {
+  const max = Math.max(1, ...data.map((item) => Number(item.amount)));
+  return (
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
+      <header className="border-b border-ink-700 px-5 py-4"><h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Rendimiento por categoría</h2><p className="mt-1 text-[11.5px] text-content-dim">Ingresos confirmados y unidades vendidas</p></header>
+      {data.length ? <ol className="admin-dashboard-scroll max-h-[360px] space-y-4 overflow-y-auto p-5">{data.map((item, index) => <li key={item.name}><div className="flex min-w-0 items-center gap-3"><span className="font-display text-lg text-content-faint">{String(index + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1 truncate text-[13px] font-bold uppercase" title={item.name}>{item.name}</span><span className="shrink-0 text-[11px] text-content-dim tabular">{item.units} u.</span><span className="w-20 shrink-0 truncate text-right text-[12px] font-bold tabular">{formatBsCompact(item.amount)}</span></div><div className="ml-9 mt-2 h-1 bg-line-soft"><div className="h-full bg-drei-line" style={{ width: `${Math.max(3, Number(item.amount) / max * 100)}%` }} /></div></li>)}</ol> : <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay categorías con ventas confirmadas.</p>}
+    </section>
+  );
+}
+
+export function RecentOrders({ data }: { data: { number: number; customerName: string; total: string; status: string; paymentStatus: string; createdAt: Date }[] }) {
+  return (
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
+      <header className="flex items-center justify-between border-b border-ink-700 px-5 py-4"><div><h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Actividad reciente</h2><p className="mt-1 text-[11.5px] text-content-dim">Últimos pedidos registrados</p></div><Link href="/admin/pedidos" className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-brand hover:text-brand-hot">Ver pedidos →</Link></header>
+      {data.length ? <ol className="admin-dashboard-scroll max-h-[360px] overflow-y-auto">{data.map((order) => { const meta = ORDER_STATUS_META[order.status as keyof typeof ORDER_STATUS_META]; return <li key={order.number} className="admin-data-row grid min-w-0 grid-cols-[52px_minmax(0,1fr)_minmax(72px,auto)] items-center gap-3 border-b border-line-soft px-5 py-3 last:border-0"><span className="font-display text-lg text-brand tabular">#{order.number}</span><div className="min-w-0"><p className="truncate text-[12.5px] font-semibold" title={order.customerName}>{order.customerName}</p><p className="mt-0.5 truncate text-[9.5px] uppercase tracking-[0.1em] text-content-dim">{new Intl.DateTimeFormat("es-BO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(order.createdAt)} · {meta?.label ?? order.status}</p></div><div className="min-w-0 text-right"><p className="truncate text-[12px] font-bold tabular">{formatBs(order.total)}</p><p className={cn("mt-0.5 truncate text-[9px] font-bold uppercase tracking-[0.1em]", order.paymentStatus === "pagado" ? "text-state-ok" : "text-state-warn")}>{order.paymentStatus}</p></div></li>; })}</ol> : <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay actividad.</p>}
+    </section>
   );
 }
 
@@ -219,7 +329,7 @@ export function StatusBreakdown({ data }: { data: { status: string; n: number }[
   })).filter((f) => f.n > 0);
 
   return (
-    <section className="flex flex-col border border-ink-700 bg-ink-850">
+    <section className="admin-panel min-w-0 overflow-hidden flex flex-col border border-ink-700 bg-ink-850">
       <header className="border-b border-ink-700 px-5 py-4">
         <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">
           Pedidos por estado
@@ -250,7 +360,7 @@ export function StatusBreakdown({ data }: { data: { status: string; n: number }[
             ))}
           </div>
 
-          <ul className="mt-5 flex flex-col">
+          <ul className="admin-dashboard-scroll mt-5 flex max-h-[300px] flex-col overflow-y-auto pr-1">
             {filas.map((f) => {
               const meta = ORDER_STATUS_META[f.status];
               const pct = Math.round((f.n / total) * 100);
@@ -289,7 +399,7 @@ export function TopProducts({
   const max = Math.max(1, ...data.map((t) => t.units));
 
   return (
-    <section className="border border-ink-700 bg-ink-850">
+    <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
       <header className="border-b border-ink-700 px-5 py-4">
         <h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Más vendidos</h2>
         <p className="mt-1 text-[11.5px] text-content-dim">
@@ -302,7 +412,7 @@ export function TopProducts({
           Todavía no hay ventas confirmadas.
         </p>
       ) : (
-        <ol className="px-5 py-2">
+        <ol className="admin-dashboard-scroll max-h-[360px] overflow-y-auto px-5 py-2">
           {data.map((t, i) => (
             <li key={t.name} className="border-b border-line-soft py-3 last:border-b-0">
               <div className="flex items-baseline gap-3">
@@ -356,12 +466,12 @@ export function KpiTile({
   spark?: number[];
 }) {
   return (
-    <div className="relative overflow-hidden border border-ink-700 bg-ink-850 p-[18px]">
+    <div className="admin-kpi relative overflow-hidden border border-ink-700 bg-ink-850 p-[18px]">
       {spark && spark.length > 1 ? <Sparkline values={spark} /> : null}
       <p className="relative text-[10.5px] uppercase tracking-[0.18em] text-content-dim">{label}</p>
       {/* Cifra grande con figuras proporcionales: `tabular` acá deja los números
           sueltos y con huecos, solo sirve en columnas que se alinean. */}
-      <p className="relative mt-2 text-[32px] font-semibold leading-none tracking-[-0.01em] text-content">
+      <p className="relative mt-2 truncate text-[clamp(1.65rem,2.2vw,2rem)] font-semibold leading-none tracking-[-0.01em] text-content" title={value}>
         {value}
       </p>
       <p className={cn("relative mt-1.5 text-[11.5px]", TONE_CLASS[tone])}>{delta}</p>

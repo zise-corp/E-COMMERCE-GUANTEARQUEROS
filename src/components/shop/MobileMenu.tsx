@@ -30,7 +30,7 @@ export function MobileMenu({
         onClick={() => setOpen(true)}
         aria-label="Abrir menú de categorías"
         aria-expanded={open}
-        className="flex h-10 w-10 flex-none flex-col items-center justify-center gap-[5px] border border-line bg-ink-850 text-content transition-colors hover:border-brand hover:text-brand lg:hidden"
+        className="flex h-10 w-10 flex-none flex-col items-center justify-center gap-[5px] border border-line bg-ink-850 text-content transition-colors hover:border-brand hover:text-brand min-[1340px]:hidden"
       >
         <span className="block h-[2px] w-[18px] bg-current" />
         <span className="block h-[2px] w-[18px] bg-current" />
@@ -59,7 +59,7 @@ function MobileMenuDrawer({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[90] flex lg:hidden">
+      <div className="fixed inset-0 z-[90] flex min-[1340px]:hidden">
         <div
           ref={ref}
           role="dialog"
@@ -101,24 +101,30 @@ function MobileMenuDrawer({
             <div className="mt-3 border-t border-line-soft pt-2">
               {categories.map((category) => {
                 const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
+                const featured = category.slug === "ofertas" ? "offers" : category.slug === "nuevos" ? "new" : undefined;
                 return (
-                  <div key={category.slug} className="border-b border-line-soft py-1.5">
-                    <MenuLink href={`/${category.slug}`} active={active} onClick={onClose}>
-                      <span className={category.highlighted && category.slug === "ofertas" ? "text-brand" : category.highlighted && category.slug === "nuevos" ? "text-[#39BDF8]" : undefined}>{category.name}</span>
+                  <div key={category.slug} className={cn("border-b border-line-soft py-1.5", featured && "border-b-0 py-1")}>
+                    <MenuLink href={`/${category.slug}`} active={active} onClick={onClose} featured={featured}>
+                      {featured === "offers" ? <span className="mr-0.5 text-sm" aria-hidden>%</span> : null}
+                      {featured === "new" ? <span className="size-1.5 bg-[#39BDF8] shadow-[0_0_7px_#39BDF8]" aria-hidden /> : null}
+                      <span>{category.name}</span>
                     </MenuLink>
                     {category.children && category.children.length > 0 ? (
-                      <div className="mb-1 ml-3 border-l border-line-strong pl-3">
+                      <div className="mb-2 ml-3 border-l border-line-strong bg-ink-950/35 py-1 pl-2">
                         {category.children.map((child) => (
                           <Link
                             key={child.slug}
                             href={`/${category.slug}/${child.slug}`}
                             onClick={onClose}
                             className={cn(
-                              "block py-2 text-[12.5px] font-semibold text-content-dim transition-colors hover:text-brand",
-                              pathname === `/${category.slug}/${child.slug}` && "text-brand",
+                              "group/sub flex min-h-10 items-center border-l-2 px-3 py-2 text-[12.5px] font-semibold transition-colors",
+                              pathname === `/${category.slug}/${child.slug}`
+                                ? "border-brand bg-brand/[0.08] text-brand"
+                                : "border-transparent text-content-dim hover:border-brand hover:bg-white/[0.025] hover:text-content",
                             )}
                           >
-                            {child.name}
+                            <span className="min-w-0 flex-1">{child.name}</span>
+                            <span className="text-brand opacity-0 transition-opacity group-hover/sub:opacity-100" aria-hidden>→</span>
                           </Link>
                         ))}
                       </div>
@@ -133,12 +139,12 @@ function MobileMenuDrawer({
                 href="/drei"
                 onClick={onClose}
                 className={cn(
-                  "mt-4 flex items-center gap-2 border border-drei-line/50 bg-drei/30 px-4 py-3.5 text-[13px] font-extrabold uppercase tracking-[0.1em] text-drei-ink",
-                  pathname === "/drei" && "border-drei-line bg-drei/60",
+                  "mt-4 flex items-center gap-2.5 border border-drei-line/60 bg-gradient-to-r from-drei/70 to-drei/20 px-4 py-4 text-[13px] font-extrabold uppercase tracking-[0.1em] text-drei-ink clip-slash-sm transition-colors hover:border-drei-line hover:text-white",
+                  pathname === "/drei" && "border-drei-line from-drei to-drei/45 text-white shadow-[0_0_22px_rgba(78,143,203,0.16)]",
                 )}
               >
-                <span className="h-2 w-2 bg-drei-line" />
-                DREI Athletic
+                <span className="h-5 w-[3px] bg-drei-line shadow-[0_0_9px_#4E8FCB]" aria-hidden />
+                <span>DREI <span className="text-[9px] tracking-[0.16em] text-drei-line">Athletic</span></span>
               </Link>
             ) : null}
 
@@ -162,15 +168,23 @@ function HomeSectionLink({ href, onClick, children }: { href: string; onClick: (
   );
 }
 
-function MenuLink({ href, active, onClick, children }: { href: string; active: boolean; onClick: () => void; children: React.ReactNode }) {
+function MenuLink({ href, active, onClick, children, featured }: { href: string; active: boolean; onClick: () => void; children: React.ReactNode; featured?: "offers" | "new" }) {
   return (
     <Link
       href={href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-[44px] items-center border-l-2 px-3 text-[13.5px] font-extrabold uppercase tracking-[0.07em] transition-colors",
-        active ? "border-brand bg-brand/[0.08] text-brand" : "border-transparent text-content hover:border-brand hover:text-brand",
+        "flex min-h-[44px] items-center gap-2 border-l-2 px-3 text-[13.5px] font-extrabold uppercase tracking-[0.07em] transition-colors",
+        featured === "offers"
+          ? "border-brand bg-brand text-ink-950 clip-slash-sm hover:bg-brand-hot"
+          : featured === "new"
+            ? "border-[#39BDF8] bg-[#39BDF8]/10 text-[#7DD3FC] hover:bg-[#39BDF8]/20 hover:text-white"
+            : active
+              ? "border-brand bg-brand/[0.08] text-brand"
+              : "border-transparent text-content hover:border-brand hover:text-brand",
+        active && featured === "offers" && "bg-brand-hot",
+        active && featured === "new" && "bg-[#39BDF8]/25 text-white",
       )}
     >
       {children}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DreiWordmark } from "@/components/brand/DreiWordmark";
+import { BrandMarquee } from "@/components/shop/BrandMarquee";
 import { HeroStats } from "@/components/shop/HeroStats";
 import { ProductGrid } from "@/components/shop/ProductCard";
 import { ProductImage } from "@/components/shop/ProductImage";
@@ -11,11 +12,13 @@ import { CategoryCarousel } from "@/components/shop/CategoryCarousel";
 import { HeroCarousel } from "@/components/shop/HeroCarousel";
 import { ButtonLink } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/Heading";
+import { ChevronRightIcon } from "@/components/ui/Icons";
 import {
   getProductsPage,
   getBrands,
   getCategoryTree,
   getHeroCarouselProducts,
+  getCategoryCarouselImages,
   getHomeHeroProduct,
   type HomeHeroProduct,
 } from "@/db/queries/catalog";
@@ -40,22 +43,26 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { pagina } = await searchParams;
   const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
   const homeSettings = await getHomeSettings();
-  const [categories, productPage, brands, heroProduct, ofertas] = await Promise.all([
+  const [categories, productPage, brands, heroProduct, offerProducts, newProducts, categoryProductImages] = await Promise.all([
     getCategoryTree(),
     getProductsPage(requestedPage, 12),
     getBrands(),
     getHomeHeroProduct(homeSettings.heroProductId),
-    getHeroCarouselProducts(6),
+    getHeroCarouselProducts("offers", 6),
+    getHeroCarouselProducts("new", 6),
+    getCategoryCarouselImages(6),
   ]);
 
-  /* El hero rota entre las ofertas. Si el admin eligió un producto destacado y
-     ese producto también está en oferta, va primero para respetar su elección;
-     si no está en oferta, el carrusel manda (que es lo que se pidió mostrar). */
+  const heroProducts = homeSettings.heroSource === "new" ? newProducts : offerProducts;
+
+  /* El hero rota la colección elegida en el admin (Ofertas o Nuevos). Si se
+     priorizó un producto que pertenece a las seis diapositivas, va primero; el
+     resto conserva el orden automático propio de la colección. */
   const heroSlides =
-    ofertas.length > 0
+    heroProducts.length > 0
       ? [
-          ...ofertas.filter((p) => p.id === heroProduct?.id),
-          ...ofertas.filter((p) => p.id !== heroProduct?.id),
+          ...heroProducts.filter((p) => p.id === heroProduct?.id),
+          ...heroProducts.filter((p) => p.id !== heroProduct?.id),
         ]
       : [];
 
@@ -69,36 +76,35 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         dreiSlug={poleras?.slug ?? null}
         product={heroProduct}
         slides={heroSlides}
+        heroSource={homeSettings.heroSource}
       />
 
       {categories.length > 0 ? (
-        <section id="categorias" className="container-shop scroll-mt-28 py-11">
+        <section id="categorias" className="render-deferred container-shop scroll-mt-28 py-11">
           <SectionHeader
             title="Categorías"
             aside={`${categories.length} ${categories.length === 1 ? "línea activa" : "líneas activas"}`}
           />
-          <CategoryCarousel categories={categories} />
+          <CategoryCarousel
+            categories={categories}
+            categoryImages={{
+              ...Object.fromEntries(categories.map((category) => [category.slug, categoryProductImages[category.id] ?? []])),
+              ofertas: offerProducts.map((product) => product.imagePublicId),
+              nuevos: newProducts.map((product) => product.imagePublicId),
+            }}
+          />
         </section>
       ) : null}
 
       {brands.length > 0 ? (
-        <section id="marcas" className="scroll-mt-28 border-y border-line bg-ink-900">
-          <div className="container-shop flex flex-wrap items-center justify-between gap-5 py-[26px]">
-            {brands.map((b) => (
-              <span
-                key={b.id}
-                className="font-display text-[22px] uppercase tracking-[0.06em] text-[#4A4845] transition-colors skew-fast hover:text-content"
-              >
-                {b.name}
-              </span>
-            ))}
-          </div>
+        <section id="marcas" className="render-deferred scroll-mt-28 border-y border-line bg-ink-900">
+          <BrandMarquee brands={brands} />
         </section>
       ) : null}
 
       <DreiBlock slug={poleras?.slug ?? null} imagePath={homeSettings.dreiImagePath} />
 
-      <section id="productos" className="container-shop scroll-mt-28 py-14">
+      <section id="productos" className="render-deferred container-shop scroll-mt-28 py-14">
         <SectionHeader
           title="Todos los productos"
           aside={
@@ -111,6 +117,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           products={productPage.products}
           columns={4}
           aspect="1/1"
+          priorityCount={0}
           emptyMessage="Todavía no hay productos publicados. Agrégalos desde el panel."
         />
         <Pagination page={productPage.page} pageCount={productPage.pageCount} />
@@ -127,11 +134,13 @@ function Hero({
   dreiSlug,
   product,
   slides,
+  heroSource,
 }: {
   guantesSlug: string | null;
   dreiSlug: string | null;
   product: Awaited<ReturnType<typeof getHomeHeroProduct>>;
   slides: HomeHeroProduct[];
+  heroSource: "offers" | "new";
 }) {
   const price = product ? Number.parseFloat(product.price) : 0;
   const compareAt = product?.compareAtPrice ? Number.parseFloat(product.compareAtPrice) : 0;
@@ -179,11 +188,10 @@ function Hero({
         </div>
       </div>
 
-      {/* El desplazamiento hacia arriba es solo un gesto de composición: al
-          agrandar el carrusel se volvió mas alto y el valor anterior (64/80px)
-          lo metía debajo del header sticky, tapandole el borde superior. Se
-          reduce a un valor que mantiene el efecto con holgura sobre el header. */}
-      <div className="relative w-full max-w-[520px] justify-self-center lg:-translate-y-4 lg:justify-self-end xl:-translate-y-6">
+      {/* En escritorio el carrusel se estira hasta la altura exacta del bloque
+          izquierdo: comienza con la etiqueta de temporada y termina con los
+          botones. En móvil conserva su proporción cuadrada. */}
+      <div className="relative w-full max-w-[520px] justify-self-center lg:h-full lg:justify-self-end lg:self-stretch">
         <div
           className="absolute inset-[8%_6%] blur-[40px]"
           style={{
@@ -192,12 +200,12 @@ function Hero({
           aria-hidden
         />
         {slides.length > 0 ? (
-          <HeroCarousel products={slides} />
+          <HeroCarousel products={slides} source={heroSource} />
         ) : product ? (
           <Link
             href={`/p/${product.slug}`}
             aria-label={`Ver producto ${product.name}`}
-            className="group relative block aspect-square overflow-hidden border border-line transition-colors hover:border-brand focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 clip-hero"
+            className="group relative block aspect-square overflow-hidden border border-line transition-colors hover:border-brand focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 clip-hero lg:h-full lg:aspect-auto"
           >
             <ProductImage
               publicId={product.imagePublicId}
@@ -220,7 +228,7 @@ function Hero({
             ) : null}
           </Link>
         ) : (
-          <div className="relative aspect-square overflow-hidden border border-line clip-hero">
+          <div className="relative aspect-square overflow-hidden border border-line clip-hero lg:h-full lg:aspect-auto">
           <ProductImage
             publicId={HERO_IMAGE}
             alt="Guantes de arquero rojos y azules"
@@ -252,30 +260,36 @@ function Hero({
 function DreiBlock({ slug, imagePath }: { slug: string | null; imagePath: string | null }) {
   if (!slug) return null;
   return (
-    <section id="drei" className="container-shop my-16 scroll-mt-28">
+    <section id="drei" className="render-deferred container-shop my-16 scroll-mt-28">
       <div
-        className="grid items-center overflow-hidden border border-[#234666] lg:grid-cols-[1fr_0.8fr]"
-        style={{ background: "linear-gradient(100deg, #10233A 0%, #0D0D0C 62%)" }}
+        className="drei-home-card group grid overflow-hidden border border-[#315b80] lg:min-h-[350px] lg:grid-cols-[0.92fr_1.08fr]"
       >
-        <div className="p-8 sm:p-12">
-          <p className="inline-flex items-center gap-2 bg-drei px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.18em] text-drei-ink">
-            Sub-marca
+        <div className="relative z-10 flex flex-col justify-center p-8 sm:p-12 lg:pl-14">
+          <p className="inline-flex w-fit items-center gap-2 border border-drei-line/40 bg-drei/70 px-3 py-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.2em] text-drei-ink">
+            <span className="h-1.5 w-1.5 bg-drei-line shadow-[0_0_10px_rgba(78,143,203,0.8)]" aria-hidden />
+            Marca propia
           </p>
-          <DreiWordmark size={56} className="mt-[18px] text-[clamp(2.25rem,6vw,3.5rem)]" />
-          <p className="mt-4 max-w-[420px] text-[15.5px] leading-relaxed text-[#9FB4C6]">
+          <DreiWordmark
+            size={112}
+            className="-ml-4 mt-5 max-w-[250px] [filter:drop-shadow(0_10px_8px_rgba(0,0,0,0.78))_drop-shadow(0_0_16px_rgba(78,143,203,0.2))] sm:-ml-6 sm:max-w-[290px]"
+          />
+          <p className="mt-5 max-w-[430px] text-[15.5px] leading-relaxed text-[#afc4d7]">
             Uniformes personalizados, camisetas de arquero, calzas y poleras. Producción propia en
             Bolivia.
           </p>
-          <ButtonLink href="/drei" variant="drei" className="mt-[26px]" slash={false}>
+          <ButtonLink href="/drei" variant="drei" className="mt-7 w-fit bg-drei/50 hover:bg-drei-line hover:text-[#07121e]" slash={false}>
             Ver indumentaria
+            <ChevronRightIcon size={15} strokeWidth={2} />
           </ButtonLink>
         </div>
-        <div className="relative h-[220px] bg-drei/20 lg:h-[330px]">
+        <div className="drei-home-card__visual relative order-first h-[250px] overflow-hidden bg-drei/20 lg:order-none lg:h-auto">
           <ProductImage
             publicId={imagePath}
             alt="Indumentaria DREI Athletic"
             preset="wide"
+            className="transition-transform duration-[1400ms] ease-out group-hover:scale-[1.035]"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#081421]/55 via-transparent to-transparent lg:bg-gradient-to-r lg:from-[#0b1c2d] lg:via-[#0b1c2d]/10 lg:to-transparent" aria-hidden />
         </div>
       </div>
     </section>

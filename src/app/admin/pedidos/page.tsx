@@ -49,7 +49,7 @@ export default async function AdminOrdersPage({
         </Suspense>
 
         {selectedDate ? (
-          <section className="mb-5 border border-ink-700 bg-ink-850">
+          <section className="admin-panel mb-5 border border-ink-700 bg-ink-850">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700 px-5 py-3.5">
               <h2 className="text-[13px] font-extrabold uppercase tracking-[0.09em]">Productos vendidos ese día</h2>
               <span className="text-[11px] uppercase tracking-[0.1em] text-content-dim">Solo pagos confirmados</span>

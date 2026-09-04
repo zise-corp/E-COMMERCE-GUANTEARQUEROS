@@ -6,7 +6,7 @@ import { toDbNumeric } from "@/lib/money";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { getCheckoutSettings } from "./settings";
 
-export type OrderLineInput = { productId: number; size: string | null; quantity: number };
+export type OrderLineInput = { productId: number; size: string | null; personalization: string | null; quantity: number };
 
 export type PricedLine = {
   productId: number;
@@ -36,12 +36,17 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
       stock: products.stock,
       sizes: products.sizes,
       attributes: products.attributes,
+      customizable: products.customizable,
       published: products.published,
     })
     .from(products)
     .where(inArray(products.id, ids));
 
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const requestedByProduct = new Map<number, number>();
+  for (const line of lines) {
+    requestedByProduct.set(line.productId, (requestedByProduct.get(line.productId) ?? 0) + line.quantity);
+  }
   const imageRows = await db
     .select({ productId: productImages.productId, publicId: productImages.publicId })
     .from(productImages)
@@ -57,7 +62,8 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
     if (!p || !p.published) {
       throw new OrderError("Uno de los productos ya no está disponible. Revisa tu carrito.");
     }
-    if (p.stock < line.quantity) {
+    const requested = requestedByProduct.get(p.id) ?? line.quantity;
+    if (p.stock < requested) {
       throw new OrderError(
         p.stock === 0
           ? `“${p.name}” se quedó sin stock.`
@@ -68,6 +74,10 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
     if (sizes.length > 0 && (line.size === null || !sizes.includes(line.size))) {
       throw new OrderError(`Elige una talla válida para “${p.name}”.`);
     }
+    const personalization = line.personalization?.trim() || null;
+    if (personalization && !p.customizable) {
+      throw new OrderError(`“${p.name}” no admite personalización.`);
+    }
     return {
       productId: p.id,
       name: p.name,
@@ -75,7 +85,9 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
       unitPrice: p.price,
       quantity: line.quantity,
       imagePublicId: imageByProduct.get(p.id) ?? null,
-      attributesSnapshot: p.attributes ?? [],
+      attributesSnapshot: personalization
+        ? [...(p.attributes ?? []), { name: "Personalización", value: personalization }]
+        : p.attributes ?? [],
     };
   });
 }
