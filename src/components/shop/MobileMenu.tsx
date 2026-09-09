@@ -117,14 +117,13 @@ function MobileMenuDrawer({
                             href={`/${category.slug}/${child.slug}`}
                             onClick={onClose}
                             className={cn(
-                              "group/sub flex min-h-10 items-center border-l-2 px-3 py-2 text-[12.5px] font-semibold transition-colors",
+                              "flex min-h-10 items-center border-l-2 px-3 py-2 text-[12.5px] font-semibold transition-colors",
                               pathname === `/${category.slug}/${child.slug}`
                                 ? "border-brand bg-brand/[0.08] text-brand"
                                 : "border-transparent text-content-dim hover:border-brand hover:bg-white/[0.025] hover:text-content",
                             )}
                           >
                             <span className="min-w-0 flex-1">{child.name}</span>
-                            <span className="text-brand opacity-0 transition-opacity group-hover/sub:opacity-100" aria-hidden>→</span>
                           </Link>
                         ))}
                       </div>

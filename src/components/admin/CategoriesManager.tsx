@@ -31,7 +31,6 @@ type Editing = {
   name: string;
   parentId: number | null;
   active: boolean;
-  highlighted: boolean;
   imagePath: string | null;
   imageFileId: string | null;
 };
@@ -43,7 +42,6 @@ function blank(kind: CategoryKind, rows: AdminCategoryRow[]): Editing {
     name: "",
     parentId: kind === "subcategoria" ? rows[0]?.id ?? null : null,
     active: true,
-    highlighted: true,
     imagePath: null,
     imageFileId: null,
   };
@@ -71,12 +69,12 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
 
   function editPrincipal(row: AdminCategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, highlighted: row.highlighted, imagePath: row.imagePath, imageFileId: row.imageFileId });
+    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, imagePath: row.imagePath, imageFileId: row.imageFileId });
   }
 
   function editSubcategory(row: SubcategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, parentId: row.parentId, active: row.active, highlighted: row.highlighted, imagePath: null, imageFileId: null });
+    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, parentId: row.parentId, active: row.active, imagePath: null, imageFileId: null });
   }
 
   function save() {
@@ -89,7 +87,6 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
         name: form.name,
         parentId: form.kind === "principal" ? null : form.parentId,
         active: form.active,
-        highlighted: form.highlighted,
         imagePath: form.kind === "principal" ? form.imagePath : null,
         imageFileId: form.kind === "principal" ? form.imageFileId : null,
       }, form.id);
@@ -161,7 +158,6 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
                 </Select>
               ) : <p className="border-l-2 border-brand bg-brand/[0.06] px-3 py-2.5 text-[11.5px] leading-relaxed text-content-muted">{isSystemCategory ? (form.slug === "ofertas" ? "Categoría automática del sistema. Reúne los productos publicados cuyo precio anterior es mayor al actual; únicamente puedes controlar su visibilidad." : "Categoría automática del sistema. Reúne los productos publicados que marques como nuevos; únicamente puedes controlar su visibilidad.") : "Aparecerá en el menú principal y en las tarjetas de categorías de la tienda."}</p>}
               <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.active} label="Visible en la tienda" onChange={(active) => onChange({ ...form, active })} /></div>
-              {isSystemCategory ? <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.highlighted} label="Resaltar en la tienda" onChange={(highlighted) => onChange({ ...form, highlighted })} /></div> : null}
             </div>
 
             {isPrincipal && !isSystemCategory ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" squareCrop /> : null}

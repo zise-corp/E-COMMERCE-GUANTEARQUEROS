@@ -201,71 +201,58 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
   const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
   const isOffers = category.slug === "ofertas";
   const isNew = category.slug === "nuevos";
-  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   if (!isOffers && !isNew && category.children && category.children.length > 0) {
     return (
-      <details
-        ref={detailsRef}
-        className="group/category relative"
-        onMouseEnter={(event) => { event.currentTarget.open = true; }}
-        onMouseLeave={(event) => { event.currentTarget.open = false; }}
-      >
-        <summary
+      <div className="nav-category-group group/category relative">
+        <Link
+          href={`/${category.slug}`}
+          aria-current={pathname === `/${category.slug}` ? "page" : undefined}
           className={cn(
-            "flex cursor-pointer list-none items-center gap-2 border-b-2 px-1 py-1.5 text-[12px] font-bold uppercase tracking-[0.07em] transition-all marker:hidden [&::-webkit-details-marker]:hidden",
+            "flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-1.5 text-[12px] font-bold uppercase tracking-[0.07em] transition-all",
             active
               ? "border-brand bg-brand/[0.06] text-brand"
               : "border-transparent text-content-muted hover:border-brand hover:bg-white/[0.025] hover:text-content",
           )}
         >
           {category.name}
-          <span className="-mt-1 size-1.5 rotate-45 border-b border-r border-current transition-transform group-open/category:mt-1 group-open/category:rotate-[225deg]" aria-hidden />
-        </summary>
+          <span className="-mt-1 size-1.5 rotate-45 border-b border-r border-current transition-transform group-hover/category:mt-1 group-hover/category:rotate-[225deg] group-focus-within/category:mt-1 group-focus-within/category:rotate-[225deg]" aria-hidden />
+        </Link>
 
-        <div className="absolute -left-[18px] top-full z-50 w-[232px] border border-line-strong border-t-brand bg-ink-900 p-1.5 shadow-[0_22px_55px_rgba(0,0,0,0.68)] clip-corner">
-          <div className="border-b border-line px-[14px] pb-2 pt-1">
-            <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-content-dim">Explorar categoría</p>
-            <p className="mt-0.5 font-display text-[20px] uppercase tracking-[0.04em] text-content">{category.name}</p>
-          </div>
-
+        <div className="invisible pointer-events-none absolute -left-[18px] top-full z-50 w-[232px] border border-line-strong border-t-brand bg-ink-900 p-1.5 opacity-0 shadow-[0_22px_55px_rgba(0,0,0,0.68)] transition-[opacity,visibility] clip-corner group-hover/category:visible group-hover/category:pointer-events-auto group-hover/category:opacity-100 group-focus-within/category:visible group-focus-within/category:pointer-events-auto group-focus-within/category:opacity-100">
           <Link
             href={`/${category.slug}`}
-            onClick={() => { if (detailsRef.current) detailsRef.current.open = false; }}
-            className={cn(
-              "mt-1 flex items-center justify-between border-l-2 px-3 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[0.08em] transition-colors",
-              pathname === `/${category.slug}`
-                ? "border-brand bg-brand/[0.08] text-brand"
-                : "border-transparent text-content hover:border-brand hover:bg-brand/[0.06] hover:text-brand",
-            )}
+            className="group/explore block border-b border-line px-[14px] pb-2 pt-1 transition-colors hover:bg-brand/[0.06] focus-visible:bg-brand/[0.06] focus-visible:outline-none"
           >
-            Ver todo
-            <span aria-hidden>→</span>
+            <span className="block text-[9px] font-extrabold uppercase tracking-[0.18em] text-content-dim transition-colors group-hover/explore:text-brand group-focus-visible/explore:text-brand">
+              Explorar categoría
+            </span>
+            <span className="mt-0.5 block font-display text-[20px] uppercase tracking-[0.04em] text-content transition-colors group-hover/explore:text-brand group-focus-visible/explore:text-brand">
+              {category.name}
+            </span>
           </Link>
 
-          <div className="mt-1 border-t border-line-soft pt-1">
+          <div className="mt-1 pt-1">
             {category.children.map((child) => {
               const childActive = pathname === `/${category.slug}/${child.slug}`;
               return (
                 <Link
                   key={child.slug}
                   href={`/${category.slug}/${child.slug}`}
-                  onClick={() => { if (detailsRef.current) detailsRef.current.open = false; }}
                   className={cn(
-                    "group/child flex items-center border-l-2 px-3 py-2.5 text-[12.5px] font-semibold transition-colors",
+                    "flex items-center border-l-2 px-3 py-2.5 text-[12.5px] font-semibold transition-colors",
                     childActive
                       ? "border-brand bg-brand/[0.08] text-brand"
                       : "border-transparent text-content-muted hover:border-brand hover:bg-white/[0.025] hover:text-content",
                   )}
                 >
                   <span className="min-w-0 flex-1 truncate">{child.name}</span>
-                  <span className="translate-x-1 text-brand opacity-0 transition-all group-hover/child:translate-x-0 group-hover/child:opacity-100" aria-hidden>→</span>
                 </Link>
               );
             })}
           </div>
         </div>
-      </details>
+      </div>
     );
   }
 

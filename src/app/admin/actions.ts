@@ -62,7 +62,7 @@ export async function saveCategoryAction(
   if (id !== undefined) {
     const current = await db.query.categories.findFirst({ where: eq(categories.id, id) });
     if (current && SYSTEM_CATEGORY_SLUGS.has(current.slug)) {
-      await db.update(categories).set({ active: values.active, highlighted: values.highlighted }).where(eq(categories.id, id));
+      await db.update(categories).set({ active: values.active }).where(eq(categories.id, id));
       revalidatePath("/admin/categorias");
       revalidatePath("/", "layout");
       return { ok: true };

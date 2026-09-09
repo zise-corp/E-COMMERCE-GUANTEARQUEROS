@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Escudo } from "@/components/brand/Escudo";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { CartButton } from "./CartButton";
@@ -14,20 +17,74 @@ export type NavCategory = {
 };
 
 /**
- * Header global sticky de 74px. El nav se envuelve antes que salirse:
- * en pantallas chicas baja a su propia fila, nunca hay scroll horizontal.
+ * Header global sticky. Mide el ancho intrínseco de marca, nav y acciones para
+ * usar una fila siempre que quepan y dos solamente cuando empezarían a chocar.
  */
 export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dreiSlug: string | null }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const brandRef = useRef<HTMLAnchorElement>(null);
+  const navSlotRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    const brand = brandRef.current;
+    const navSlot = navSlotRef.current;
+    const actions = actionsRef.current;
+    const nav = navSlot?.querySelector("nav");
+    if (!inner || !brand || !nav || !actions) return;
+
+    const desktop = window.matchMedia("(min-width: 1340px)");
+    let active = true;
+
+    const measure = () => {
+      if (!active || !desktop.matches) {
+        if (active) setStacked(false);
+        return;
+      }
+
+      const innerStyle = window.getComputedStyle(inner);
+      const available = inner.clientWidth
+        - (Number.parseFloat(innerStyle.paddingLeft) || 0)
+        - (Number.parseFloat(innerStyle.paddingRight) || 0);
+      const navStyle = window.getComputedStyle(nav);
+      const gap = Number.parseFloat(navStyle.columnGap) || 0;
+      const items = Array.from(nav.children) as HTMLElement[];
+      const navWidth = items.reduce((total, item) => total + item.getBoundingClientRect().width, 0)
+        + Math.max(0, items.length - 1) * gap;
+      const required = brand.getBoundingClientRect().width
+        + actions.getBoundingClientRect().width
+        + navWidth
+        + 32;
+
+      setStacked(required + 4 > available);
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(inner);
+    observer.observe(brand);
+    observer.observe(nav);
+    observer.observe(actions);
+    desktop.addEventListener("change", measure);
+    void document.fonts.ready.then(measure);
+    measure();
+
+    return () => {
+      active = false;
+      observer.disconnect();
+      desktop.removeEventListener("change", measure);
+    };
+  }, [categories, dreiSlug]);
+
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink-950/[0.92] backdrop-blur-[10px]">
-      {/* El nav ocupa y centra el espacio real entre la marca y las acciones.
-          Como el logo es más ancho que los botones, centrarlo contra la ventana
-          lo dejaba visualmente pegado a la marca. */}
-      <div className="container-shop flex h-[74px] items-center gap-2 sm:gap-4 min-[1340px]:grid min-[1340px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[1340px]:gap-6 2xl:gap-8">
+      <div ref={innerRef} className="shop-header-inner" data-stacked={stacked}>
         <MobileMenu categories={categories} dreiSlug={dreiSlug} />
         <Link
+          ref={brandRef}
           href="/"
-          className="flex flex-none items-center gap-0"
+          className="shop-header-brand flex flex-none items-center gap-0"
           aria-label="Guantearqueros Bolivia, inicio"
         >
           <Escudo width={34} height={40} className="h-8 w-[27px] sm:h-10 sm:w-[34px]" />
@@ -35,13 +92,15 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
           <Wordmark size={22} className="ml-[2px] hidden sm:block" />
         </Link>
 
-        <NavLinks
-          categories={categories}
-          dreiSlug={dreiSlug}
-          className="hidden w-full min-w-0 justify-center min-[1340px]:flex"
-        />
+        <div ref={navSlotRef} className="shop-header-nav-slot">
+          <NavLinks
+            categories={categories}
+            dreiSlug={dreiSlug}
+            className="shop-header-nav"
+          />
+        </div>
 
-        <div className="ml-auto flex flex-none items-center gap-2.5">
+        <div ref={actionsRef} className="shop-header-actions flex flex-none items-center gap-2.5">
           <SearchButton />
           <CartButton />
         </div>

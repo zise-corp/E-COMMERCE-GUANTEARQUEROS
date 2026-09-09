@@ -4,8 +4,6 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { saveHomeSettingsAction } from "@/app/admin/actions";
 import { ImageKitDropzone, type ProductImageValue } from "@/components/admin/ImageKitDropzone";
-import { Input } from "@/components/ui/Field";
-import { SearchIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import type { HomeSettings } from "@/db/queries/settings";
 import { cn } from "@/lib/cn";
@@ -14,35 +12,16 @@ import { imageKitUrl } from "@/lib/images";
 type ProductOption = {
   id: number;
   name: string;
-  categoryName: string;
-  brandName: string | null;
   imagePublicId: string;
 };
 
 export function HomeSettingsForm({ initial, collections }: { initial: HomeSettings; collections: Record<HomeSettings["heroSource"], ProductOption[]> }) {
-  const initialProducts = collections[initial.heroSource];
-  const initialProduct = initialProducts.find((product) => product.id === initial.heroProductId) ?? null;
-  const [form, setForm] = useState({ ...initial, heroProductId: initialProduct?.id ?? null });
-  const [productSearch, setProductSearch] = useState(initialProduct?.name ?? "");
-  const [productOptionsOpen, setProductOptionsOpen] = useState(false);
+  const [form, setForm] = useState({ ...initial, heroProductId: null });
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const { show } = useToast();
   const products = collections[form.heroSource];
-  const selectedProduct = products.find((product) => product.id === form.heroProductId) ?? null;
-  const orderedProducts = selectedProduct
-    ? [selectedProduct, ...products.filter((product) => product.id !== selectedProduct.id)]
-    : products;
-  const productTerm = productSearch.trim().toLowerCase();
-  const filteredProducts = productTerm
-    ? products.filter(
-        (product) =>
-          product.name.toLowerCase().includes(productTerm) ||
-          product.categoryName.toLowerCase().includes(productTerm) ||
-          (product.brandName ?? "").toLowerCase().includes(productTerm) ||
-          `gq-${String(product.id).padStart(4, "0")}`.includes(productTerm),
-      )
-    : products;
+  const orderedProducts = products;
   const dreiImage: ProductImageValue[] = form.dreiImagePath
     ? [{ publicId: form.dreiImagePath, fileId: form.dreiImageFileId, alt: "Imagen DREI de la portada" }]
     : [];
@@ -64,7 +43,7 @@ export function HomeSettingsForm({ initial, collections }: { initial: HomeSettin
         <div className="border-b border-ink-700 px-5 py-4 sm:px-6">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">Hero principal · Carrusel administrable</p>
           <h2 className="mt-1 font-display text-xl uppercase skew-fast-6">Contenido del carrusel</h2>
-          <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-content-dim">Elige qué colección promocionar en el hero y, opcionalmente, qué producto aparecerá primero. La tienda rota las diapositivas cada 5 segundos.</p>
+          <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-content-dim">Elige qué colección promocionar en el hero. La tienda ordena los productos automáticamente y rota las diapositivas cada 5 segundos.</p>
         </div>
         <div className="border-b border-ink-700 px-5 py-4 sm:px-6">
           <p className="mb-2.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-content-dim">Fuente de productos</p>
@@ -78,8 +57,6 @@ export function HomeSettingsForm({ initial, collections }: { initial: HomeSettin
                   type="button"
                   onClick={() => {
                     setForm({ ...form, heroSource: source, heroProductId: null });
-                    setProductSearch("");
-                    setProductOptionsOpen(false);
                   }}
                   className={cn(
                     "flex items-center justify-between border px-4 py-3.5 text-left transition-all",
@@ -98,98 +75,6 @@ export function HomeSettingsForm({ initial, collections }: { initial: HomeSettin
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        <div className="grid items-start gap-5 p-5 sm:p-6 md:grid-cols-[1fr_240px]">
-          <div className="relative">
-            <Input
-              label="Producto que aparecerá primero"
-              value={productSearch}
-              onFocus={(event) => {
-                setProductSearch("");
-                setProductOptionsOpen(true);
-              }}
-              onBlur={(event) => {
-                const value = event.currentTarget.value;
-                window.setTimeout(() => {
-                  setProductOptionsOpen(false);
-                  if (!value.trim() && selectedProduct) setProductSearch(selectedProduct.name);
-                }, 120);
-              }}
-              onChange={(event) => {
-                setProductSearch(event.target.value);
-                setProductOptionsOpen(true);
-              }}
-              placeholder="Busca por nombre, marca, categoría o SKU…"
-              autoComplete="off"
-              role="combobox"
-              aria-expanded={productOptionsOpen}
-              aria-controls="featured-product-options"
-              endAdornment={<SearchIcon size={16} className="text-content-dim" />}
-              hint={`Solo aparecen los productos válidos de “${form.heroSource === "offers" ? "Ofertas" : "Nuevos"}”.`}
-            />
-            {productOptionsOpen ? (
-              <div id="featured-product-options" role="listbox" className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto border border-line-strong bg-ink-900 shadow-xl">
-                {!productTerm ? (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={form.heroProductId === null}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      setForm({ ...form, heroProductId: null });
-                      setProductSearch("");
-                      setProductOptionsOpen(false);
-                    }}
-                    className="block w-full border-b border-ink-700 px-4 py-3 text-left text-[12.5px] text-content-muted hover:bg-ink-800 hover:text-content"
-                  >
-                    Orden automático
-                  </button>
-                ) : null}
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    role="option"
-                    aria-selected={form.heroProductId === product.id}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      setForm({ ...form, heroProductId: product.id });
-                      setProductSearch(product.name);
-                      setProductOptionsOpen(false);
-                    }}
-                    className="block w-full border-b border-ink-700 px-4 py-3 text-left last:border-0 hover:bg-ink-800"
-                  >
-                    <span className="block text-[13px] font-bold text-content">{product.name}</span>
-                    <span className="mt-0.5 block text-[10.5px] uppercase tracking-[0.08em] text-content-dim">
-                      {product.brandName ? `${product.brandName} · ` : ""}{product.categoryName} · GQ-{String(product.id).padStart(4, "0")}
-                    </span>
-                  </button>
-                ))}
-                {filteredProducts.length === 0 ? <p className="px-4 py-5 text-center text-[12px] text-content-dim">No encontramos productos con esa búsqueda.</p> : null}
-              </div>
-            ) : null}
-            <div className="mt-3 border-l-2 border-brand bg-brand/[0.06] px-3.5 py-3">
-              <p className="text-[9.5px] font-extrabold uppercase tracking-[0.16em] text-brand">Primera diapositiva</p>
-              {selectedProduct ? (
-                <>
-                  <p className="mt-1 text-[13px] font-bold text-content">{selectedProduct.name}</p>
-                  <p className="mt-0.5 text-[10.5px] uppercase tracking-[0.08em] text-content-dim">
-                    {selectedProduct.brandName ? `${selectedProduct.brandName} · ` : ""}{selectedProduct.categoryName} · GQ-{String(selectedProduct.id).padStart(4, "0")}
-                  </p>
-                </>
-              ) : (
-                <p className="mt-1 text-[12px] text-content-muted">Orden automático · {form.heroSource === "offers" ? "mayor descuento primero" : "más recientes primero"}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-[10.5px] uppercase tracking-[0.16em] text-content-dim">Primera imagen</p>
-            <div className="relative aspect-square overflow-hidden border border-line-strong bg-ink-950">
-              {orderedProducts[0] ? <Image src={imageKitUrl(orderedProducts[0].imagePublicId, "square")} alt={orderedProducts[0].name} fill sizes="240px" className="object-cover" /> : <div className="flex h-full items-center justify-center px-4 text-center text-[11.5px] leading-relaxed text-content-faint">No hay productos disponibles en esta colección.</div>}
-            </div>
           </div>
         </div>
 

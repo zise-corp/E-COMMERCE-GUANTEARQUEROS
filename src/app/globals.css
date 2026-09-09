@@ -369,10 +369,117 @@
       visibility 0s linear 180ms;
   }
 
-  body:has(.desktop-nav details[open]) .shop-frame::after {
+  body:has(.desktop-nav details[open]) .shop-frame::after,
+  body:has(.desktop-nav .nav-category-group:hover) .shop-frame::after,
+  body:has(.desktop-nav .nav-category-group:focus-within) .shop-frame::after {
     visibility: visible;
     opacity: 1;
     transition-delay: 0s;
+  }
+}
+
+@media (min-width: 1340px) {
+  .shop-frame:has(.shop-header-inner[data-stacked="true"])::after {
+    inset-block-start: 118px;
+  }
+}
+
+.shop-header-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1800px;
+  height: 74px;
+  margin-inline: auto;
+  padding-inline: 20px;
+  gap: 8px;
+}
+
+.shop-header-nav-slot {
+  display: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.shop-header-nav {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.shop-header-nav > * {
+  flex: 0 0 auto;
+}
+
+.shop-header-actions {
+  margin-left: auto;
+}
+
+@media (min-width: 640px) {
+  .shop-header-inner {
+    padding-inline: 32px;
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1340px) {
+  .shop-header-inner {
+    display: grid;
+    column-gap: 16px;
+    row-gap: 0;
+  }
+
+  .shop-header-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .shop-header-nav-slot {
+    display: block;
+  }
+
+  .shop-header-actions {
+    margin-left: 0;
+  }
+
+  .shop-header-inner[data-stacked="false"] {
+    display: flex;
+    height: 74px;
+  }
+
+  .shop-header-inner[data-stacked="false"] .shop-header-brand {
+    flex: 0 0 auto;
+  }
+
+  .shop-header-inner[data-stacked="false"] .shop-header-nav-slot {
+    flex: 1 1 auto;
+  }
+
+  .shop-header-inner[data-stacked="false"] .shop-header-actions {
+    flex: 0 0 auto;
+  }
+
+  .shop-header-inner[data-stacked="true"] {
+    height: 118px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 74px 44px;
+  }
+
+  .shop-header-inner[data-stacked="true"] .shop-header-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .shop-header-inner[data-stacked="true"] .shop-header-nav-slot {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .shop-header-inner[data-stacked="true"] .shop-header-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 

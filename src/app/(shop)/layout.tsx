@@ -1,6 +1,7 @@
 import { CartDrawer } from "@/components/shop/CartDrawer";
 import { CartProvider } from "@/components/shop/CartProvider";
 import { Footer } from "@/components/shop/Footer";
+import { FloatingWhatsapp } from "@/components/shop/FloatingWhatsapp";
 import { Header } from "@/components/shop/Header";
 import { StoreIntro } from "@/components/shop/StoreIntro";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -24,6 +25,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <Footer categories={categories} />
         </div>
         <CartDrawer />
+        <FloatingWhatsapp />
       </ToastProvider>
     </CartProvider>
   );

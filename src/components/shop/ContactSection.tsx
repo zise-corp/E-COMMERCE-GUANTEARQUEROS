@@ -13,7 +13,7 @@ export function ContactSection() {
           <div className="max-w-[720px]">
             <p className="label-xs tracking-[0.18em] text-brand">Contacto</p>
             <Display id="contact-title" as="h2" size="md" className="mt-2">
-              ¿Necesitas ayuda?
+              Contáctate directo con nosotros
             </Display>
             <p className="mt-3 max-w-[650px] text-[13.5px] leading-relaxed text-content-muted sm:text-sm">
               Escríbenos directamente por WhatsApp para resolver dudas sobre productos, compras, pedidos, envíos o cualquier inconveniente.
