@@ -6,7 +6,7 @@
  * La contraseña se guarda con Argon2id. Nunca se imprime ni se registra.
  */
 import "../src/lib/load-env";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hash } from "@node-rs/argon2";
 import { db } from "../src/db/index";
 import { adminUsers } from "../src/db/schema";
@@ -43,7 +43,7 @@ async function main() {
   });
 
   if (existing) {
-    await db.update(adminUsers).set({ passwordHash, role }).where(eq(adminUsers.id, existing.id));
+    await db.update(adminUsers).set({ passwordHash, role, sessionVersion: sql`${adminUsers.sessionVersion} + 1` }).where(eq(adminUsers.id, existing.id));
     console.log(`Contraseña actualizada para "${username}".`);
   } else {
     await db.insert(adminUsers).values({ username, passwordHash, role });

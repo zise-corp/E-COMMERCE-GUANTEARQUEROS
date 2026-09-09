@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
     "admin:create": "tsx scripts/create-admin.ts",
-    "verify:sql": "tsx scripts/verify-sql.ts"
+    "verify:sql": "tsx scripts/verify-sql.ts",
+    "verify:checkout": "tsx scripts/verify-checkout.ts"
   },
   "dependencies": {
     "@imagekit/next": "^2.1.5",

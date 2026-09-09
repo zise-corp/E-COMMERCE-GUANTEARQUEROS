@@ -49,7 +49,7 @@ type CartState = {
 const Ctx = createContext<CartState | null>(null);
 
 const STORAGE_KEY = "gq.cart.v1";
-const ORDER_KEY = "gq.orderId.v1";
+const ORDER_KEY = "gq.orderId.v2";
 
 function sameLine(a: CartItem, productId: number, size: string | null, personalization: string | null) {
   return a.productId === productId && (a.size ?? null) === (size ?? null) && (a.personalization ?? null) === (personalization ?? null);
@@ -109,7 +109,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const setOrderId = useCallback((id: number | null) => {
     setOrderIdState(id);
-    if (id === null) window.sessionStorage.removeItem(ORDER_KEY);
+    if (id === null) {
+      window.sessionStorage.removeItem(ORDER_KEY);
+      window.sessionStorage.removeItem("gq.checkout-attempt.v2");
+    }
     else window.sessionStorage.setItem(ORDER_KEY, String(id));
   }, []);
 

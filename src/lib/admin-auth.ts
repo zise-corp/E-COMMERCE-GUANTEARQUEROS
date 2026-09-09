@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { verify } from "@node-rs/argon2";
 import { db } from "@/db/index";
 import { adminUsers } from "@/db/schema";
+import { clearLoginAttempts, isAdminSessionCurrent, reserveLoginAttempt } from "@/db/queries/auth";
 import {
   ADMIN_COOKIE,
   ADMIN_MAX_AGE_SECONDS,
@@ -17,7 +18,10 @@ import {
 export async function getAdminSession(): Promise<AdminSession | null> {
   const store = await cookies();
   try {
-    return await verifyToken<AdminSession>(store.get(ADMIN_COOKIE)?.value);
+    const session = await verifyToken(store.get(ADMIN_COOKIE)?.value, "admin");
+    if (!session) return null;
+    if (!(await isAdminSessionCurrent(session))) return null;
+    return session;
   } catch {
     return null;
   }
@@ -35,6 +39,7 @@ export type LoginResult =
   | { ok: false; error: string };
 
 export async function loginAdmin(username: string, password: string): Promise<LoginResult> {
+  if (!(await reserveLoginAttempt(username))) return { ok: false, error: "Demasiados intentos. Prueba de nuevo en 10 minutos." };
   const user = await db.query.adminUsers.findFirst({
     where: eq(adminUsers.username, username),
   });
@@ -52,15 +57,19 @@ export async function loginAdmin(username: string, password: string): Promise<Lo
   const valid = await verify(user.passwordHash, password).catch(() => false);
   if (!valid) return { ok: false, error: genericError };
 
+  await clearLoginAttempts(username);
+
   await db
     .update(adminUsers)
     .set({ lastLoginAt: new Date() })
     .where(eq(adminUsers.id, user.id));
 
   const token = await signToken({
+    kind: "admin",
     uid: user.id,
     username: user.username,
     role: user.role,
+    version: user.sessionVersion,
     exp: Date.now() + ADMIN_MAX_AGE_SECONDS * 1000,
   });
 

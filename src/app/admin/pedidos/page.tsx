@@ -23,12 +23,13 @@ export default async function AdminOrdersPage({
   ]);
 
   const term = (q ?? "").trim().toLowerCase();
+  const phoneTerm = term.replace(/\D/g, "");
   const rows = term
     ? all.filter(
         (o) =>
           String(o.number).includes(term) ||
           o.customerName.toLowerCase().includes(term) ||
-          o.customerPhone.replace(/\D/g, "").includes(term.replace(/\D/g, "")),
+          (phoneTerm.length > 0 && o.customerPhone.replace(/\D/g, "").includes(phoneTerm)),
       )
     : all;
 

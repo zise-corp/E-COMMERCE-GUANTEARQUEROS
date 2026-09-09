@@ -1,3 +1,5 @@
+> Referencia histórica de diseño. Para el comportamiento actual de seguridad, checkout y pagos, consultar [README](../../README.md) e [integración de pagos pendiente](../../INTEGRACION_PAGOS.md). YoPago live no está habilitado.
+
 # Handoff a Claude Code — Ecommerce Guantearqueros Bolivia
 
 > Pegá este archivo completo como primer mensaje en Claude Code, dentro de la carpeta

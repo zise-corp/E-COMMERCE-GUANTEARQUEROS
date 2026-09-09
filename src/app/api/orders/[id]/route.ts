@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getOrder } from "@/db/queries/orders";
-import { ORDER_COOKIE, verifyToken, type OrderSession } from "@/lib/session";
+import { ORDER_COOKIE, verifyToken } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function GET(
   }
 
   const store = await cookies();
-  const session = await verifyToken<OrderSession>(store.get(ORDER_COOKIE)?.value);
+  const session = await verifyToken(store.get(ORDER_COOKIE)?.value, "order");
   if (!session?.orderIds.includes(orderId)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }

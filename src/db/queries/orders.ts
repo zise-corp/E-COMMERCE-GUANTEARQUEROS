@@ -114,24 +114,25 @@ export async function calculateOrderPricing(
   shippingData: Pick<ShippingOutput, "mode" | "department"> | null = null,
 ): Promise<OrderPricing> {
   const settings = await getCheckoutSettings();
-  const subtotal = Number(totalOf(lines));
+  const subtotal = Math.round(Number(totalOf(lines)) * 100);
   const shipping = !shippingData || shippingData.mode === "pickup"
     ? 0
     : shippingData.department === LOCAL_DEPARTMENT
-      ? Math.max(0, settings.localDeliveryPrice)
-      : Math.max(0, settings.transportPrice);
+      ? Math.round(settings.localDeliveryPrice * 100)
+      : Math.round(settings.transportPrice * 100);
   const code = rawCode.trim().toUpperCase();
   const match = code ? settings.discounts.find((item) => item.active && item.code.toUpperCase() === code) : null;
+  if (code && !match) throw new OrderError("El código de descuento ya no está disponible. Revisa el pedido.");
   const rawDiscount = match
-    ? match.type === "percent" ? subtotal * (match.value / 100) : match.value
+    ? match.type === "percent" ? Math.round(subtotal * (match.value / 100)) : Math.round(match.value * 100)
     : 0;
   // Los códigos descuentan productos, nunca generan saldo sobre el envío.
   const discount = Math.min(subtotal, Math.max(0, rawDiscount));
   return {
-    subtotal: subtotal.toFixed(2),
-    shipping: shipping.toFixed(2),
-    discount: discount.toFixed(2),
-    total: Math.max(0, subtotal + shipping - discount).toFixed(2),
+    subtotal: (subtotal / 100).toFixed(2),
+    shipping: (shipping / 100).toFixed(2),
+    discount: (discount / 100).toFixed(2),
+    total: (Math.max(0, subtotal + shipping - discount) / 100).toFixed(2),
     discountCode: match ? match.code.toUpperCase() : null,
   };
 }
@@ -166,12 +167,28 @@ function deliveryColumns(shipping: ShippingOutput) {
   };
 }
 
-export async function createOrder(shipping: ShippingOutput, lines: PricedLine[], pricing: OrderPricing) {
+export async function findCheckoutOrder(checkoutKey: string, requestHash: string) {
+  const [existing] = await db.select().from(orders).where(eq(orders.checkoutKey, checkoutKey)).limit(1);
+  if (!existing) return null;
+  if (existing.requestHash !== requestHash) throw new OrderError("Este intento ya fue guardado con otros datos. Inicia una nueva revisión.");
+  return { id: existing.id, number: existing.number };
+}
+
+function pricingColumns(pricing: OrderPricing) {
+  return { subtotal: pricing.subtotal, shippingAmount: pricing.shipping, discountAmount: pricing.discount, discountCode: pricing.discountCode, total: pricing.total };
+}
+
+export async function createOrder(shipping: ShippingOutput, lines: PricedLine[], pricing: OrderPricing, checkoutKey: string, requestHash: string) {
 
   return db.transaction(async (tx) => {
-    const [seq] = await tx.execute<{ number: number }>(
-      sql`SELECT nextval('orders_number_seq')::int AS number`,
-    );
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${checkoutKey}, 0))`);
+    const [existing] = await tx.select().from(orders).where(eq(orders.checkoutKey, checkoutKey)).limit(1);
+    if (existing) {
+      if (existing.requestHash !== requestHash) throw new OrderError("Este intento ya fue guardado con otros datos.");
+      return { id: existing.id, number: existing.number, created: false };
+    }
+    const [seq] = await tx.select({ number: sql<number>`nextval('orders_number_seq')::int` })
+      .from(sql`(SELECT 1) AS sequence_source`);
     const number = seq?.number;
     if (!number) throw new OrderError("No pudimos generar el número de pedido.");
 
@@ -186,7 +203,9 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
         businessName: shipping.invoiceRequested ? shipping.businessName : null,
         taxId: shipping.invoiceRequested ? shipping.taxId : null,
         ...deliveryColumns(shipping),
-        total: toDbNumeric(pricing.total),
+        ...pricingColumns(pricing),
+        checkoutKey,
+        requestHash,
       })
       .returning({ id: orders.id, number: orders.number });
 
@@ -205,7 +224,7 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
       })),
     );
 
-    return order;
+    return { ...order, created: true };
   });
 }
 
@@ -218,6 +237,7 @@ export async function updateOrder(
   shipping: ShippingOutput,
   lines: PricedLine[],
   pricing: OrderPricing,
+  requestHash: string,
 ) {
 
   return db.transaction(async (tx) => {
@@ -227,17 +247,21 @@ export async function updateOrder(
         number: orders.number,
         status: orders.status,
         paymentStatus: orders.paymentStatus,
+        paymentRef: orders.paymentRef,
       })
       .from(orders)
       .where(eq(orders.id, orderId))
-      .limit(1);
+      .limit(1).for("update");
 
     if (!current) throw new OrderError("El pedido ya no existe.");
-    if (current.paymentStatus === "pagado") {
+    if (current.paymentStatus === "pagado" || current.paymentStatus === "reembolsado") {
       throw new OrderError("Este pedido ya está pagado y no se puede modificar.");
     }
-    if (current.status === "cancelado") {
-      throw new OrderError("Este pedido fue cancelado.");
+    if (current.status !== "recibido") {
+      throw new OrderError("Este pedido ya no se puede modificar.");
+    }
+    if (current.paymentRef && current.paymentStatus === "pendiente") {
+      throw new OrderError("Hay un pago en curso. Vuelve al pago y cancela el intento antes de editar.");
     }
 
     await tx
@@ -250,7 +274,11 @@ export async function updateOrder(
         businessName: shipping.invoiceRequested ? shipping.businessName : null,
         taxId: shipping.invoiceRequested ? shipping.taxId : null,
         ...deliveryColumns(shipping),
-        total: toDbNumeric(pricing.total),
+        ...pricingColumns(pricing),
+        requestHash,
+        paymentRef: null,
+        paymentMethod: null,
+        paymentStatus: "pendiente",
         updatedAt: new Date(),
       })
       .where(eq(orders.id, orderId));
@@ -296,6 +324,10 @@ export type OrderSummary = {
   paymentMethod: string | null;
   paymentRef: string | null;
   total: string;
+  subtotal: string | null;
+  shippingAmount: string | null;
+  discountAmount: string | null;
+  discountCode: string | null;
   createdAt: Date;
   items: {
     name: string;
@@ -393,43 +425,18 @@ export async function salesForDate(localDate: string): Promise<DailySale[]> {
 }
 
 export async function setOrderStatus(orderId: number, status: OrderSummary["status"]) {
-  await db
-    .update(orders)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
-}
-
-export async function markPayment(
-  orderId: number,
-  paymentStatus: OrderSummary["paymentStatus"],
-  paymentRef?: string,
-  paymentMethod?: string,
-) {
-  await db
-    .update(orders)
-    .set({
-      paymentStatus,
-      ...(paymentRef ? { paymentRef } : {}),
-      ...(paymentMethod ? { paymentMethod } : {}),
-      updatedAt: new Date(),
-    })
-    .where(eq(orders.id, orderId));
-}
-
-/** Descuenta stock cuando el pago se confirma, no antes. */
-export async function decrementStockFor(orderId: number) {
-  const lines = await db
-    .select({ productId: orderItems.productId, quantity: orderItems.quantity })
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId));
-
-  for (const line of lines) {
-    if (line.productId === null) continue;
-    await db
-      .update(products)
-      .set({ stock: sql`GREATEST(0, ${products.stock} - ${line.quantity})`, updatedAt: new Date() })
-      .where(eq(products.id, line.productId));
-  }
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+    if (!order) throw new OrderError("El pedido no existe.");
+    if (order.status === status) return;
+    const transitions: Record<OrderSummary["status"], OrderSummary["status"][]> = { recibido: ["en_proceso", "cancelado"], en_proceso: ["completado"], completado: [], cancelado: [] };
+    if (!transitions[order.status].includes(status)) throw new OrderError("Ese cambio de estado no está permitido.");
+    if (status === "cancelado" && (order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado" || (order.paymentRef && order.paymentStatus === "pendiente"))) {
+      throw new OrderError("Resuelve primero el pago. Cancelar un pedido no cancela ni reembolsa un cobro.");
+    }
+    if (status !== "cancelado" && order.paymentStatus !== "pagado") throw new OrderError("El pedido debe estar pagado para avanzar.");
+    await tx.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, orderId));
+  });
 }
 
 export async function countOrdersSince(since: Date) {

@@ -33,10 +33,10 @@ function secret(): string {
   return value;
 }
 
-async function key(): Promise<CryptoKey> {
+async function key(kind: TokenKind): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
-    encoder.encode(secret()),
+    encoder.encode(`${secret()}:gq:v2:${kind}`),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
@@ -51,16 +51,18 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-export type TokenPayload = Record<string, unknown> & { exp: number };
+export type TokenKind = "admin" | "order" | "quote";
+export type TokenPayload = Record<string, unknown> & { exp: number; kind: TokenKind };
+type Payloads = { admin: AdminSession; order: OrderSession; quote: QuoteSession };
 
 export async function signToken(payload: TokenPayload): Promise<string> {
   const body = base64url(encoder.encode(JSON.stringify(payload)));
-  const signature = await crypto.subtle.sign("HMAC", await key(), encoder.encode(body));
+  const signature = await crypto.subtle.sign("HMAC", await key(payload.kind), encoder.encode(body));
   return `${body}.${base64url(signature)}`;
 }
 
-export async function verifyToken<T extends TokenPayload>(token: string | undefined): Promise<T | null> {
-  if (!token) return null;
+export async function verifyToken<K extends TokenKind>(token: string | undefined, kind: K): Promise<Payloads[K] | null> {
+  if (!token || token.length > 8192) return null;
   const dot = token.lastIndexOf(".");
   if (dot <= 0) return null;
 
@@ -69,17 +71,20 @@ export async function verifyToken<T extends TokenPayload>(token: string | undefi
 
   let expected: ArrayBuffer;
   try {
-    expected = await crypto.subtle.sign("HMAC", await key(), encoder.encode(body));
+    expected = await crypto.subtle.sign("HMAC", await key(kind), encoder.encode(body));
+    if (!timingSafeEqual(fromBase64url(given), new Uint8Array(expected))) return null;
   } catch {
     return null;
   }
 
-  if (!timingSafeEqual(fromBase64url(given), new Uint8Array(expected))) return null;
-
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(fromBase64url(body))) as T;
-    if (typeof parsed.exp !== "number" || parsed.exp < Date.now()) return null;
-    return parsed;
+    const parsed = JSON.parse(new TextDecoder().decode(fromBase64url(body))) as Record<string, unknown> | null;
+    if (!parsed || parsed.kind !== kind || typeof parsed.exp !== "number" || !Number.isFinite(parsed.exp) || parsed.exp <= Date.now()) return null;
+    const positiveId = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v > 0;
+    if (kind === "admin" && (!positiveId(parsed.uid) || typeof parsed.username !== "string" || !parsed.username || typeof parsed.role !== "string" || !parsed.role || !positiveId(parsed.version))) return null;
+    if (kind === "order" && (!Array.isArray(parsed.orderIds) || parsed.orderIds.length < 1 || parsed.orderIds.length > 10 || !parsed.orderIds.every(positiveId))) return null;
+    if (kind === "quote" && (typeof parsed.requestHash !== "string" || !/^[a-f0-9]{64}$/.test(parsed.requestHash) || typeof parsed.priceHash !== "string" || !/^[a-f0-9]{64}$/.test(parsed.priceHash))) return null;
+    return parsed as Payloads[K];
   } catch {
     return null;
   }
@@ -100,5 +105,6 @@ export const cookieOptions = {
   path: "/",
 } as const;
 
-export type AdminSession = TokenPayload & { uid: number; username: string; role: string };
-export type OrderSession = TokenPayload & { orderIds: number[] };
+export type AdminSession = TokenPayload & { kind: "admin"; uid: number; username: string; role: string; version: number };
+export type OrderSession = TokenPayload & { kind: "order"; orderIds: number[] };
+export type QuoteSession = TokenPayload & { kind: "quote"; requestHash: string; priceHash: string };

@@ -214,6 +214,18 @@ export function OrderDetailDrawer({
               </div>;
             })}
 
+            {order.subtotal !== null && order.shippingAmount !== null && order.discountAmount !== null ? (
+              <div className="mt-3.5 space-y-2 border-t border-line-soft pt-3 text-[12.5px]">
+                <Row k="Subtotal" v={formatBs(order.subtotal)} />
+                <Row k="Envío" v={formatBs(order.shippingAmount)} />
+                {Number(order.discountAmount) > 0 ? (
+                  <Row
+                    k={order.discountCode ? `Descuento · ${order.discountCode}` : "Descuento"}
+                    v={`− ${formatBs(order.discountAmount)}`}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-3.5 flex items-baseline justify-between">
               <span className="label-xs tracking-[0.16em] text-content-dim">Total</span>
               <span className="font-display text-[30px] leading-none text-brand tabular">

@@ -1,3 +1,5 @@
+> Referencia histórica de diseño. Para el comportamiento actual de seguridad, checkout y pagos, consultar [README](../../README.md) e [integración de pagos pendiente](../../INTEGRACION_PAGOS.md). YoPago live no está habilitado.
+
 # Arquitectura — Guantearqueros Bolivia
 
 Tienda pública + panel administrativo, una sola app Next.js.

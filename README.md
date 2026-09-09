@@ -1,241 +1,159 @@
 # Guantearqueros Bolivia
 
-Tienda pública + panel administrativo en una sola app Next.js.
-Dos marcas bajo la identidad de Guantearqueros: guantes de arquero y accesorios
-(Buffon, HO Soccer, Uhlsport, Elite, GXP) e indumentaria **DREI Athletic**, que no es
-un tema aparte sino una marca del catálogo con su tag azul.
+Tienda pública y panel administrativo en una aplicación Next.js. Catálogo de guantes, accesorios e indumentaria DREI Athletic, en español y bolivianos (BOB).
 
-| | |
+Estado actualizado: 9 de septiembre de 2026. La tienda y el checkout están implementados. **YoPago live y su webhook permanecen deshabilitados hasta la integración final.** El simulador sirve para probar el flujo sin cobrar dinero.
+
+## Stack y estructura
+
+| Capa | Implementación |
 |---|---|
-| Framework | Next.js 15 (App Router) + TypeScript strict |
-| Estilos | Tailwind CSS v3 con los tokens del design system |
-| Base | Postgres + Drizzle ORM |
-| Imágenes | ImageKit, subida directa autenticada desde el panel |
-| Pagos | YoPago (QR + tarjeta), webhook + polling |
-| Auth admin | cookie httpOnly firmada (HMAC) + Argon2id |
-| Validación | Zod en cada endpoint, server action y formulario |
+| Aplicación | Next.js 15.5.23, App Router, React 19, TypeScript estricto |
+| Estilos | Tailwind CSS 3, componentes propios, Anton local y Manrope |
+| Datos | PostgreSQL, Drizzle ORM, postgres.js |
+| Imágenes | ImageKit con subida autenticada y recorte |
+| Mapas | Leaflet + OpenStreetMap; enlaces e incrustaciones de Google Maps |
+| Seguridad | Cookies httpOnly firmadas por propósito, Argon2id, validación de payload y sesiones contra la base |
+| Checkout | Cotización del servidor, importes congelados y creación idempotente |
+| Despliegue | Netlify, Node 22, renderizado de Next.js mediante su adaptador |
 
----
+```text
+src/app/(shop)/          inicio, categorías, DREI, productos y checkout
+src/app/admin/           login, resumen, catálogo, pedidos, inicio y ajustes
+src/app/admin/actions.ts escrituras administrativas autenticadas
+src/app/api/             búsqueda, carrito, descuentos, pedidos y simulador
+src/components/         shop, admin, ui y brand
+src/db/schema.ts        nueve tablas
+src/db/queries/         catálogo, pedidos, pagos, ajustes y autenticación
+src/lib/                validadores, sesiones, cotizaciones y configuración
+drizzle/                migraciones SQL y snapshots versionados
+scripts/                administrador y verificaciones locales
+referencias/handoff/    prototipos y especificación histórica
+```
 
-## 1. Puesta en marcha
+## Instalación
 
 ```bash
 npm install
-cp .env.example .env.local
 ```
 
-Completá `.env.local` (ver sección 2) — como mínimo `DATABASE_URL` y
-`ADMIN_SESSION_SECRET` — y después:
-
-```bash
-npm run db:migrate
-npm run db:seed
-npm run admin:create -- --user dani --pass "una-clave-larga-y-propia"
-npm run dev
-```
-
-La tienda queda en `http://localhost:3000` y el panel en `http://localhost:3000/admin`.
-
-### Postgres en Windows
-
-Si ya tenés el instalador oficial de PostgreSQL, la base se crea así (te va a pedir
-la contraseña que pusiste al instalarlo):
-
-```bash
-"/c/Program Files/PostgreSQL/18/bin/createdb.exe" -U postgres -h localhost guantearqueros
-```
-
-y la conexión queda `postgresql://postgres:TU_PASSWORD@localhost:5432/guantearqueros`.
-Si la contraseña tiene `@`, `:`, `/` o `?`, hay que escaparla en la URL.
-
-Para ver la tienda con datos antes de cargar el catálogo real:
-
-```bash
-npm run db:seed -- --demo
-```
-
-Carga 12 productos de prueba (los del prototipo), sin imágenes: la tienda muestra el
-placeholder de marca. Se borran desde el panel cuando ya no hagan falta.
-
-## 2. Variables de entorno
-
-| Variable | Para qué | Obligatoria |
-|---|---|---|
-| `DATABASE_URL` | Postgres (Neon o Supabase), con `sslmode=require` | sí |
-| `ADMIN_SESSION_SECRET` | Firma de las cookies de sesión y de pedido | sí |
-| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público `https://ik.imagekit.io/...` | sí |
-| `IMAGEKIT_PUBLIC_KEY` | Identifica la cuenta durante la subida | para subir fotos |
-| `IMAGEKIT_PRIVATE_KEY` | Firma credenciales temporales — **nunca sale del server** | para subir fotos |
-| `YOPAGO_MODE` | `sandbox` (default) o `live` | no |
-| `YOPAGO_API_URL` · `YOPAGO_API_KEY` · `YOPAGO_SECRET` · `YOPAGO_WEBHOOK_SECRET` | Pasarela real | solo en `live` |
-| `NEXT_PUBLIC_SITE_URL` | Dominio público, para canonical/sitemap/webhook | sí en producción |
-| `NEXT_PUBLIC_SUPPORT_EMAIL` · `NEXT_PUBLIC_SUPPORT_WHATSAPP` · `NEXT_PUBLIC_DREI_WHATSAPP` | Contacto y modales de soporte | sí |
-
-El secreto de sesión se genera así:
+Crea `.env.local` con las variables enumeradas más abajo. Configura PostgreSQL y un secreto de sesión aleatorio de al menos 24 caracteres. Puedes generar uno con:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-> La clave `IMAGEKIT_PRIVATE_KEY` es exclusivamente del servidor. Nunca debe usar el
-> prefijo `NEXT_PUBLIC_` ni incluirse en commits.
-
-Sin `DATABASE_URL` el proyecto igual compila: las páginas públicas se renderizan
-vacías y avisan por consola. Es a propósito, para que un clon recién bajado buildee.
-
-## 3. Scripts
-
-| Comando | Qué hace |
-|---|---|
-| `npm run dev` | Desarrollo |
-| `npm run build` / `npm start` | Build y arranque de producción |
-| `npm run typecheck` | TypeScript sin emitir |
-| `npm run lint` | ESLint |
-| `npm run db:generate` | Genera una migración desde `src/db/schema.ts` |
-| `npm run db:migrate` | Aplica las migraciones pendientes |
-| `npm run db:seed` | Categorías, subcategorías, marcas y secuencia de pedidos |
-| `npm run db:seed -- --demo` | Lo anterior + productos de prueba |
-| `npm run db:studio` | Drizzle Studio |
-| `npm run admin:create -- --user X --pass Y` | Crea o actualiza un usuario del panel |
-
-## 3b. Si algo se ve raro
-
-**La página sale sin estilos (HTML pelado, links azules).** Pasa cuando `.next`
-mezcla artefactos de `npm run build` con los de `npm run dev`: el HTML pide un CSS
-que el server ya no tiene y devuelve 404. Se arregla borrando la carpeta:
+Sobre la base de desarrollo elegida:
 
 ```bash
-npm run clean && npm run dev
+npm run db:migrate
+npm run db:seed
+npm run admin:create -- --user TU_USUARIO --pass "UNA_CLAVE_LARGA"
+npm run dev
 ```
 
-Después hacé una recarga forzada en el navegador (Ctrl+Shift+R): el CSS fallido
-queda cacheado. Para evitarlo, corré `npm run clean` cuando alternes entre
-`build` y `dev`.
+Tienda: http://localhost:3000. Panel: http://localhost:3000/admin. El seed opcional `npm run db:seed -- --demo` carga productos de muestra. No ejecutes seeds ni migraciones como parte del build.
 
-**"Falta DATABASE_URL" al correr un script.** Los scripts sueltos leen `.env.local`
-por `src/lib/load-env.ts`. Si lo ves, revisá que el archivo exista en la raíz.
+### Actualización de una instalación existente
 
-**`password authentication failed`.** Casi siempre es el puerto: puede haber más de
-una instancia de Postgres en la máquina (5432 y 5433), cada una con su contraseña.
+La migración **0013_checkout_security** agrega `login_attempts`, la versión de sesión del administrador, una clave única de checkout y el desglose de importes en pedidos. Es aditiva: no borra pedidos ni productos.
 
-## 4. Estructura
+Aplica `npm run db:migrate` sobre la base correcta antes de servir el código actualizado. Las cookies anteriores dejan de ser válidas: los administradores deberán iniciar sesión nuevamente y los checkouts anteriores deberán iniciar una nueva sesión. El carrito de productos conserva su almacenamiento anterior.
 
-```
-src/
-  app/
-    (shop)/            tienda pública — layout, home, /c, /p, /checkout
-    admin/             panel — login, resumen, categorías, productos, pedidos
-    api/               orders, payments/yopago, search, admin/*
-  components/
-    shop/  admin/  ui/  brand/
-  db/       schema.ts, seed.ts, queries/
-  lib/      session, validators, money, images, yopago, notify, site, brand
-drizzle/               migraciones SQL versionadas
-public/brand/          escudo real (SVG + PNG)
-referencias/           handoff de diseño y logos originales (no entra al build)
-```
+Los pedidos históricos mantienen el total original. Sus columnas nuevas de subtotal/envío/descuento quedan en NULL, porque no se pueden reconstruir con certeza. La página de pago muestra ese total sin inventar un desglose con las tarifas actuales.
 
-## 5. Decisiones que conviene conocer
+La migración fue verificada en una base embebida de pruebas y aplicada a la base PostgreSQL de nube configurada el 9 de septiembre de 2026.
 
-**Precios congelados.** El cliente manda *qué* compra; el precio lo lee el server de la
-base y lo copia a `order_items` junto con el nombre, la talla y los atributos.
-`product_id` es nullable con `ON DELETE SET NULL`: borrar un producto no rompe el
-historial.
+## Variables de entorno
 
-**Número de pedido.** `orders.number` sale de la secuencia `orders_number_seq`
-(arranca en 1041), así dos pedidos simultáneos no chocan.
+| Variable | Uso |
+|---|---|
+| `DATABASE_URL` | PostgreSQL; para conexiones externas usar SSL según el proveedor |
+| `ADMIN_SESSION_SECRET` | Secreto de servidor para firmas separadas por propósito |
+| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de imágenes |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
+| `NEXT_PUBLIC_SITE_URL` | URL pública canónica, sin slash final |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP` | Contacto |
+| `YOPAGO_MODE` | `sandbox`, `disabled` o `live`; live aún no está implementado |
+| `ALLOW_PAYMENT_SANDBOX` | Debe ser `true` para permitir simulación en un build de producción destinado a pruebas |
+| `YOPAGO_API_URL`, `YOPAGO_API_KEY`, `YOPAGO_SECRET`, `YOPAGO_WEBHOOK_SECRET` | Reservadas para la integración final; actualmente no habilitan cobros |
 
-**Una sola orden por sesión de checkout.** Al confirmar se crea la orden y se guarda su
-id en una cookie httpOnly firmada. Si el cliente vuelve al paso 1 y reenvía, se hace
-`PATCH` sobre la misma orden. Esa cookie también autoriza el polling y el pago: nadie
-consulta ni paga pedidos ajenos.
+Sin modo explícito, desarrollo usa sandbox y producción deshabilita pagos. `YOPAGO_MODE=live`, un valor desconocido o credenciales ausentes **nunca** activan el simulador por sustitución. Para una tienda publicada, usa `YOPAGO_MODE=disabled` hasta terminar la integración. No habilites `ALLOW_PAYMENT_SANDBOX` en una tienda que reciba ventas reales: las compras simuladas modifican pedidos y stock de la base configurada.
 
-**El webhook manda.** El paso 2 consulta cada 4 s, pero quien marca el pago como
-confirmado es el webhook de YoPago. Es idempotente: el stock se descuenta una sola vez.
+Sin base configurada, el catálogo público puede renderizar contenido vacío/de respaldo. El checkout falla si no puede leer sus ajustes; nunca sustituye un error de base por tarifas predeterminadas para cobrar. Cuando la tabla es accesible pero aún no existe la fila de ajustes, se usan los valores iniciales documentados en `CHECKOUT_DEFAULT`.
 
-**Selector de ubicación propio.** Sin Google Maps ni tiles externos: la grilla oscura del
-design system con el pin naranja de marca. Tres formas de dar el punto —
-geolocalización, link de Maps pegado, o marcarlo a mano— para que nadie quede trabado.
-El admin abre esas coordenadas en Google Maps con un click.
+## Funcionalidad actual
 
-**Atributos manuales.** `products.attributes` es JSONB, un array `[{name, value}]` que el
-admin tipea libre. Se muestran en la ficha en el orden guardado. Las tallas van aparte en
-`products.sizes` porque afectan al carrito.
+- Portada con ofertas/novedades, carrusel de categorías, catálogo paginado y bloque DREI configurable.
+- Categorías y subcategorías, filtros por marca/talla/precio, búsqueda y fichas con galería.
+- Productos con tallas, atributos libres, personalización opcional, precio anterior y flags de publicación, destacado y novedad.
+- Panel con catálogo, marcas, imágenes, pedidos, calendario de ventas, métricas, ajustes de inicio, envíos y descuentos.
+- Checkout de invitado: nombre, apellido, teléfono, nota y datos opcionales para solicitar factura. La solicitud no emite factura fiscal.
+- La Paz es la región local para retiro o entrega con dirección/coordenadas. Otros destinos requieren CI y correo para el despacho por transporte.
+- Códigos de descuento porcentuales o fijos sobre productos; el envío no se descuenta.
+- Notificaciones automáticas pendientes: `notify.ts` registra mensajes, pero no envía WhatsApp ni correo.
 
-**Server actions con auth propia.** Las actions del panel son endpoints públicos: cada una
-vuelve a verificar la sesión, sin confiar en que el middleware ya filtró.
+Las rutas públicas son `/{categoria}`, `/{categoria}/{sub}`, `/p/{slug}` y `/drei`. Las rutas antiguas bajo `/c` redirigen permanentemente. Ofertas y Nuevos son categorías calculadas y protegidas.
 
-## 6. Deploy en Netlify
+## Seguridad administrativa
 
-El repositorio incluye `netlify.toml`. Netlify detecta Next.js y usa su adaptador
-OpenNext para SSR, Server Actions, rutas API, middleware e imágenes; no es un export
-estático y no hace falta instalar ni fijar manualmente `@netlify/plugin-nextjs`.
+Las firmas incluyen un propósito independiente: `admin`, `order` o `quote`. Se valida ese propósito, la firma, la expiración y la estructura en ejecución. Una cookie de comprador o una cotización no autoriza acceso administrativo.
 
-1. Subí el repo a GitHub y en Netlify elegí **Add new project → Import an existing
-   project**. La configuración debe quedar con build `npm run build`, publicación
-   `.next` y Node 22 (ya están versionados en `netlify.toml`).
-2. En **Project configuration → Environment variables**, agregá las variables de la
-   sección 2. Elegí todos los scopes necesarios, incluido **Builds**, porque las
-   variables `NEXT_PUBLIC_*` se incorporan al bundle durante el build. No subas
-   `.env.local` ni guardes claves privadas en `netlify.toml`.
-3. Para el primer deploy podés usar la URL temporal de Netlify como
-   `NEXT_PUBLIC_SITE_URL` (por ejemplo `https://nombre-del-sitio.netlify.app`). Cuando
-   conectes el dominio final, reemplazala por `https://guantearquerosbolivia.com.bo`
-   y dispará un nuevo deploy.
-4. Usá una base Postgres externa con conexión pooled (Neon o Supabase) y SSL. Desde
-   una terminal segura, cargá el `DATABASE_URL` de producción y ejecutá una sola vez:
+El middleware filtra las páginas del panel. Cada acción y endpoint administrativo verifica además usuario, rol y versión de sesión contra PostgreSQL. Actualizar la contraseña mediante `admin:create` incrementa esa versión e invalida las sesiones previas; borrar el usuario también las invalida. El middleware no redirige por sí solo desde el login basándose en una cookie potencialmente revocada.
 
-   ```bash
-   npm run db:migrate
-   npm run db:seed
-   npm run admin:create -- --user TU_USUARIO --pass "UNA_CLAVE_LARGA"
-   ```
+Los intentos de login se reservan mediante un upsert atómico: máximo ocho intentos por nombre de usuario normalizado en diez minutos, compartidos entre instancias. Un acceso correcto limpia el contador. No es un sistema global contra abuso por IP. Las filas de `login_attempts` pueden depurarse cuando `until` haya vencido.
 
-   No pongas migraciones ni `db:seed` dentro del comando de build: los deploys se
-   ejecutan más de una vez y los previews también podrían tocar producción.
-5. En **Domain management**, agregá el dominio y seguí los registros DNS indicados por
-   Netlify. Luego actualizá `NEXT_PUBLIC_SITE_URL` y redeployá.
-6. Cuando YoPago entregue las credenciales, registrá el webhook
-   `https://TU_DOMINIO/api/payments/yopago/webhook`, configurá `YOPAGO_MODE=live` y
-   cargá las cuatro variables `YOPAGO_*`. Hasta entonces dejá `YOPAGO_MODE=sandbox`.
+## Contrato del checkout
 
-### Variables recomendadas en Netlify
+1. El carrito vive en localStorage y el pedido activo de cada pestaña en sessionStorage.
+2. Al abrir la revisión final, `POST /api/orders/quote` valida los datos y calcula precios, stock disponible, envío y descuento en el servidor. Devuelve líneas, desglose y una cotización firmada válida durante diez minutos.
+3. El cliente confirma ese importe. POST/PATCH a `/api/orders` incluyen la cotización y una clave UUID de intento. El servidor comprueba que los datos y precios siguen coincidiendo. Si cambiaron, pide una nueva revisión.
+4. El pedido congela subtotal, envío, descuento, código y total; sus ?tems conservan nombres, precios, imágenes, tallas y atributos. Los cálculos monetarios se redondean en centavos.
+5. Crear usa clave ?nica y bloqueo transaccional: reintentar el mismo intento devuelve el mismo pedido. Un reintento con datos distintos se rechaza. La clave debe conservarse al perder una respuesta.
+6. La cookie de comprador autoriza hasta diez pedidos. Pago y confirmación exigen `?pedido=ID` y pertenencia a esa sesión; no seleccionan el ?ltimo pedido de otra pestaña.
+7. Un pedido pagado, reembolsado o que ya avanzó operativamente no se edita. Un intento de pago pendiente también bloquea la edición.
+8. La confirmación final exige estado pagado; navegar directamente con un pedido pendiente redirige al pago. Limpiar el carrito requiere que el pedido confirmado coincida con el activo de la pestaña.
 
-| Variable | Valor de producción | Sensibilidad |
-|---|---|---|
-| `DATABASE_URL` | URL pooled de Postgres con `sslmode=require` | secreta |
-| `ADMIN_SESSION_SECRET` | salida aleatoria del comando de la sección 2 | secreta |
-| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | `https://ik.imagekit.io/ID_DE_TU_CUENTA` | pública |
-| `IMAGEKIT_PUBLIC_KEY` | clave pública de ImageKit | pública |
-| `IMAGEKIT_PRIVATE_KEY` | clave privada de ImageKit | secreta |
-| `NEXT_PUBLIC_SITE_URL` | URL HTTPS canónica, sin `/` final | pública |
-| `NEXT_PUBLIC_SUPPORT_EMAIL` | correo de ventas | pública |
-| `NEXT_PUBLIC_SUPPORT_WHATSAPP` | número internacional, solo dígitos | pública |
-| `NEXT_PUBLIC_DREI_WHATSAPP` | número internacional de DREI, solo dígitos | pública |
-| `YOPAGO_MODE` | `sandbox` inicialmente; `live` al habilitar cobros | no secreta |
-| `YOPAGO_API_URL` | URL indicada por YoPago | no secreta |
-| `YOPAGO_API_KEY` | credencial indicada por YoPago | secreta |
-| `YOPAGO_SECRET` | secreto indicado por YoPago | secreta |
-| `YOPAGO_WEBHOOK_SECRET` | secreto usado para validar el webhook | secreta |
+La revisión final del servidor es la fuente del importe aceptado. El resumen inicial del carrito puede reflejar el precio visto anteriormente. La cotización no reserva inventario.
 
-`NETLIFY_NEXT_SKEW_PROTECTION=true` y `NODE_VERSION=22` ya se definen en
-`netlify.toml`; no hace falta duplicarlas en el panel.
+## Simulador y preparación de YoPago
 
-## 7. Fuera de alcance en esta etapa
+`POST /api/payments/yopago` solo genera intentos sandbox cuando están permitidos. Repetir el mismo método devuelve el intento vigente; cambiarlo invalida el anterior, exclusivamente porque no existe un cobro externo.
 
-- **Notificación al negocio** (WhatsApp/email al crearse un pedido). El enganche está en
-  `src/lib/notify.ts` (`notifyNewOrder`, `notifyPaymentConfirmed`) y el campo
-  `orders.notified_at` queda sin usar a propósito.
-- Cuentas de cliente: el checkout es de invitado.
-- Cupones y descuentos por código.
-- Multi-idioma y multi-moneda: solo español boliviano y Bs.
+`POST /api/payments/yopago/simulate` exige cookie del pedido e identificador vigente de transacción. El servicio interno comprueba importe/moneda/referencia y actualiza pago e inventario en una sola transacción. Bloquea el pedido y descuenta por producto en orden estable, con condición de stock suficiente. Si cualquier producto falla, se revierte todo. Un pago confirmado no se revierte por un resultado tardío ni descuenta dos veces.
 
-## 8. Pendiente del dueño
+Volver a envío llama a `POST /api/payments/yopago/cancel`, que invalida el intento sandbox antes de permitir la edición. Un intento de origen externo no se cancela de esta manera.
 
-- **Wordmark y logo DREI en SVG.** Hoy se componen con Anton, igual que en el prototipo.
-  Cuando lleguen los archivos, van a `public/brand/` como
-  `wordmark-guantearqueros.svg` y `drei-athletic.svg`, y se ponen en `true` los flags de
-  `src/lib/brand.ts`. El escudo sí es el real, vectorizado del PNG original.
-- **Credenciales de YoPago** para reemplazar el simulador por la pasarela real.
-- **Fotos de producto**: se suben desde el panel a ImageKit y van a
-  `/guantearqueros/productos/<slug>`.
+El estado operativo avanza `recibido -> en_proceso -> completado`, con pago confirmado. Un pedido recibido puede cancelarse si no tiene un cobro confirmado ni un intento pendiente. Cancelar no reembolsa. No hay reposición automática por reembolso.
+
+**El webhook devuelve 503 y no escribe datos.** No se conservan endpoints o firmas supuestos para una API real.
+
+Para la integración final, ver [INTEGRACION_PAGOS.md](INTEGRACION_PAGOS.md). Faltan el adaptador oficial, firma y validación de eventos, registro duradero de intentos/eventos, reservas con vencimiento, conciliación de cobros tardíos y reembolsos. El comportamiento de stock del simulador impide una confirmación local sin unidades, pero no resuelve por sí solo un cobro externo ya efectuado.
+
+## Verificación
+
+| Comando | Alcance |
+|---|---|
+| `npm run typecheck` | TypeScript |
+| `npm run lint` | ESLint; Next.js informa la deprecación de su wrapper |
+| `npm run verify:sql` | 14 migraciones, nueve tablas, secuencia e historial en PGlite |
+| `npm run verify:checkout` | Sesiones, revocación, límite de login, cotizaciones, idempotencia, importes, stock y rollback en PGlite |
+| `npm run build` | Compilación de producción |
+| `npm run db:generate -- --name nombre` | Generar una nueva migración |
+| `npm run db:migrate` | Aplicar migraciones a DATABASE_URL |
+
+Los verificadores usan una base embebida sin cargar `.env.local`. PGlite serializa las transacciones: estas pruebas no sustituyen pruebas de concurrencia con conexiones PostgreSQL independientes ni pruebas de la pasarela.
+
+El desarrollo usa `.next-dev` y producción `.next`. `npm run clean` elimina ambos directorios de artefactos si se necesita una compilación limpia.
+
+## Despliegue
+
+`netlify.toml` configura build `npm run build`, publicación `.next`, Node 22 y protección de versiones. Configura variables en Netlify y aplica las migraciones sobre la base elegida como paso controlado antes del despliegue. Las variables `NEXT_PUBLIC_*` se incorporan durante el build.
+
+No subas `.env.local`, claves privadas ni contraseñas al repositorio. No incluyas migraciones ni seeds dentro del comando de build. Al cambiar el dominio, actualiza `NEXT_PUBLIC_SITE_URL` y reconstruye.
+
+## Referencias y límites
+
+Los handoffs HTML/Markdown son referencias históricas de diseño. Para arquitectura, seguridad y comportamiento actual rigen este README y el código.
+
+El stock es por producto, no por talla. No hay cuentas de clientes, multimoneda, emisión fiscal ni notificaciones automáticas. Algunas páginas y tablas todavía paginan en cliente; el rendimiento con grandes catálogos y las métricas por zona horaria requieren evaluación independiente. El informe [ANALISIS_PROYECTO.md](ANALISIS_PROYECTO.md) distingue los hallazgos iniciales de las correcciones realizadas.

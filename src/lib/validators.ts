@@ -93,10 +93,15 @@ export const orderItemSchema = z.object({
   quantity: z.number().int().min(1).max(99),
 });
 
-export const createOrderSchema = z.object({
+export const quoteOrderSchema = z.object({
   shipping: shippingSchema,
   items: z.array(orderItemSchema).min(1, "El carrito está vacío.").max(50),
   discountCode: trimmed(40).optional().default(""),
+  checkoutKey: z.string().uuid(),
+});
+
+export const createOrderSchema = quoteOrderSchema.extend({
+  quoteToken: z.string().min(1).max(8192),
 });
 
 export const updateOrderSchema = createOrderSchema.extend({

@@ -18,8 +18,15 @@ export const adminUsers = pgTable("admin_users", {
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("owner"),
+  sessionVersion: integer("session_version").notNull().default(1),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const loginAttempts = pgTable("login_attempts", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  until: timestamp("until", { withTimezone: true }).notNull(),
 });
 
 /* ---------- catálogo ---------- */
@@ -110,6 +117,12 @@ export const orders = pgTable("orders", {
   paymentStatus: paymentStatus("payment_status").notNull().default("pendiente"),
   paymentMethod: text("payment_method"),          // qr | card
   paymentRef: text("payment_ref"),                // TX id de YoPago
+  checkoutKey: text("checkout_key").unique(),
+  requestHash: text("request_hash"),
+  subtotal: numeric("subtotal", { precision: 10, scale: 2 }),
+  shippingAmount: numeric("shipping_amount", { precision: 10, scale: 2 }),
+  discountAmount: numeric("discount_amount", { precision: 10, scale: 2 }),
+  discountCode: text("discount_code"),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("BOB"),
   notifiedAt: timestamp("notified_at", { withTimezone: true }), // WhatsApp/email: etapa posterior

@@ -7,17 +7,16 @@ import { CheckoutSteps } from "./CheckoutSteps";
 import { useCart } from "./CartProvider";
 import { SupportModal } from "./SupportModal";
 
-export function ConfirmationView({ number, delivery }: { number: number; delivery: string }) {
+export function ConfirmationView({ orderId, number, delivery }: { orderId: number; number: number; delivery: string }) {
   const cart = useCart();
   const [supportOpen, setSupportOpen] = useState(false);
 
   // Red de seguridad: si se llegó acá sin pasar por el polling, el carrito igual se limpia.
   useEffect(() => {
-    if (cart.items.length > 0) cart.clear();
-    if (cart.orderId !== null) cart.setOrderId(null);
-    // Solo al montar: no queremos reaccionar a cada cambio del carrito.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!cart.ready || cart.orderId !== orderId) return;
+    cart.clear();
+    cart.setOrderId(null);
+  }, [cart, orderId]);
 
   return (
     <section className="mx-auto w-full max-w-[700px] px-5 py-14 pb-28 text-center sm:px-8 sm:py-[90px]">

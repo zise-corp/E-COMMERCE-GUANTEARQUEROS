@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ADMIN_COOKIE, verifyToken, type AdminSession } from "@/lib/session";
+import { ADMIN_COOKIE, verifyToken } from "@/lib/session";
 
 /**
  * Protege todo /admin/* salvo el login. El panel además va con noindex: no se
@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname === "/admin/login";
 
-  const session = await verifyToken<AdminSession>(request.cookies.get(ADMIN_COOKIE)?.value).catch(
+  const session = await verifyToken(request.cookies.get(ADMIN_COOKIE)?.value, "admin").catch(
     () => null,
   );
 
@@ -20,13 +20,6 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     url.search = pathname === "/admin" ? "" : `?next=${encodeURIComponent(pathname)}`;
-    return NextResponse.redirect(url);
-  }
-
-  if (session && isLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    url.search = "";
     return NextResponse.redirect(url);
   }
 

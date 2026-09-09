@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, withFallback } from "../index";
 import { siteSettings } from "../schema";
+import { checkoutSettingsSchema } from "@/lib/validators";
 
 export type CampaignSettings = {
   enabled: boolean;
@@ -91,14 +92,14 @@ function parseCheckout(value: unknown): CheckoutSettings | null {
 }
 
 export async function getCheckoutSettings(): Promise<CheckoutSettings> {
-  return withFallback<CheckoutSettings>(CHECKOUT_DEFAULT, async () => {
+  // Una falla de lectura no puede cambiar el importe a cobrar.
     const [row] = await db
       .select({ value: siteSettings.value })
       .from(siteSettings)
       .where(eq(siteSettings.key, CHECKOUT_KEY))
       .limit(1);
-    return row ? (parseCheckout(row.value) ?? CHECKOUT_DEFAULT) : CHECKOUT_DEFAULT;
-  });
+    if (!row) return CHECKOUT_DEFAULT;
+    return checkoutSettingsSchema.parse(parseCheckout(row.value));
 }
 
 export async function setCheckoutSettings(next: CheckoutSettings): Promise<void> {

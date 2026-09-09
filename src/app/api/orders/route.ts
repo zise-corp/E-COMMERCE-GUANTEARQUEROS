@@ -4,10 +4,12 @@ import {
   OrderError,
   calculateOrderPricing,
   createOrder,
+  findCheckoutOrder,
   priceLines,
   updateOrder,
 } from "@/db/queries/orders";
 import { notifyNewOrder } from "@/lib/notify";
+import { checkoutHash, readQuote } from "@/lib/checkout-quote";
 import {
   ORDER_COOKIE,
   ORDER_MAX_AGE_SECONDS,
@@ -27,14 +29,15 @@ function fail(error: string, status = 400) {
 /** Cookie httpOnly con los pedidos creados en esta sesión: nadie toca los ajenos. */
 async function currentSession(): Promise<OrderSession | null> {
   const store = await cookies();
-  return verifyToken<OrderSession>(store.get(ORDER_COOKIE)?.value);
+  return verifyToken(store.get(ORDER_COOKIE)?.value, "order");
 }
 
 async function rememberOrder(orderId: number) {
   const store = await cookies();
-  const previous = await verifyToken<OrderSession>(store.get(ORDER_COOKIE)?.value);
+  const previous = await verifyToken(store.get(ORDER_COOKIE)?.value, "order");
   const orderIds = [...new Set([...(previous?.orderIds ?? []), orderId])].slice(-10);
   const token = await signToken({
+    kind: "order",
     orderIds,
     exp: Date.now() + ORDER_MAX_AGE_SECONDS * 1000,
   });
@@ -55,17 +58,25 @@ export async function POST(request: Request) {
   }
 
   try {
+    const quote = await readQuote(parsed.data, parsed.data.quoteToken);
+    if (!quote) return fail("La revisión expiró o cambió. Vuelve a revisar el pedido.", 409);
+    const existing = await findCheckoutOrder(parsed.data.checkoutKey, quote.requestHash);
+    if (existing) {
+      await rememberOrder(existing.id);
+      return NextResponse.json({ ok: true, orderId: existing.id, number: existing.number });
+    }
     const lines = await priceLines(parsed.data.items);
     const pricing = await calculateOrderPricing(
       lines,
       parsed.data.discountCode,
       parsed.data.shipping,
     );
-    const order = await createOrder(parsed.data.shipping, lines, pricing);
+    if (checkoutHash({ lines, pricing }) !== quote.priceHash) return fail("El precio o los datos del pedido cambiaron. Vuelve a revisar antes de confirmar.", 409);
+    const order = await createOrder(parsed.data.shipping, lines, pricing, parsed.data.checkoutKey, quote.requestHash);
     await rememberOrder(order.id);
 
     // Enganche pendiente de implementar: nunca debe tumbar la creación del pedido.
-    void notifyNewOrder({
+    if (order.created) void notifyNewOrder({
       id: order.id,
       number: order.number,
       customerName: `${parsed.data.shipping.name} ${parsed.data.shipping.lastName}`.trim(),
@@ -103,13 +114,16 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    const quote = await readQuote(parsed.data, parsed.data.quoteToken);
+    if (!quote) return fail("La revisión expiró o cambió. Vuelve a revisar el pedido.", 409);
     const lines = await priceLines(parsed.data.items);
     const pricing = await calculateOrderPricing(
       lines,
       parsed.data.discountCode,
       parsed.data.shipping,
     );
-    const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines, pricing);
+    if (checkoutHash({ lines, pricing }) !== quote.priceHash) return fail("El precio o los datos del pedido cambiaron. Vuelve a revisar antes de confirmar.", 409);
+    const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines, pricing, quote.requestHash);
     return NextResponse.json({ ok: true, orderId: order.id, number: order.number });
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);

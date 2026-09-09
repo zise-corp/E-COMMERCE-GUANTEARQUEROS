@@ -238,9 +238,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         shipping={shipping}
-        shippingPrice={effectiveShipping}
         discountCode={activeDiscount?.code ?? ""}
-        discountAmount={activeDiscount?.amount ?? 0}
       />
     </section>
   );

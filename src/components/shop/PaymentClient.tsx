@@ -28,9 +28,9 @@ export type PaymentOrder = {
   number: number;
   total: string;
   paymentStatus: string;
-  subtotal: number;
-  shipping: number;
-  discount: number;
+  subtotal: number | null;
+  shipping: number | null;
+  discount: number | null;
   pickup: boolean;
   items: {
     name: string;
@@ -55,10 +55,14 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
   const settled = useRef(false);
   const initialQrRequested = useRef(false);
   const requestSequence = useRef(0);
+  const requestBusy = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
 
   /** El pago se genera solo al elegir método, sin botón extra. */
   const pick = useCallback(
     async (next: Method) => {
+      if (requestBusy.current) return;
+      requestBusy.current = true;
       const requestId = ++requestSequence.current;
       setMethod(next);
       setIntent(null);
@@ -83,6 +87,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         if (requestId !== requestSequence.current) return;
         setError("No pudimos conectar con la pasarela. Prueba de nuevo o escríbenos.");
       } finally {
+        requestBusy.current = false;
         if (requestId === requestSequence.current) setLoading(false);
       }
     },
@@ -107,18 +112,21 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         if (!res.ok) return;
         const data = (await res.json()) as {
           ok: boolean;
-          order?: { paymentStatus: string };
+          order?: { paymentStatus: string; paymentRef: string | null; status: string };
         };
         if (cancelled || !data.ok || !data.order) return;
 
         if (data.order.paymentStatus === "pagado" && !settled.current) {
           settled.current = true;
-          cart.clear();
-          cart.setOrderId(null);
+          if (cart.orderId === order.id) { cart.clear(); cart.setOrderId(null); }
           window.scrollTo(0, 0);
-          router.replace("/checkout/confirmacion");
+          router.replace(`/checkout/confirmacion?pedido=${order.id}`);
         } else if (data.order.paymentStatus === "fallido") {
           setError("El pago fue rechazado. Prueba con el otro método o escríbenos.");
+          setIntent(null);
+          setMethod(null);
+        } else if (data.order.status === "cancelado" || data.order.paymentRef !== intent.txId) {
+          setError("Este intento cambió o fue cancelado. Vuelve a seleccionar un método de pago.");
           setIntent(null);
           setMethod(null);
         }
@@ -134,11 +142,37 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
   }, [intent, order.id, cart, router]);
 
   async function simulate(result: "pagado" | "fallido") {
-    await fetch("/api/payments/yopago/simulate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ orderId: order.id, result }),
-    });
+    if (!intent || requestBusy.current) return;
+    requestBusy.current = true;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/payments/yopago/simulate", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, transactionId: intent.txId, result }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) setError(data.error ?? "No pudimos confirmar el pago.");
+    } catch { setError("No pudimos conectar con el servidor. Intenta de nuevo."); }
+    finally { requestBusy.current = false; setSubmitting(false); }
+  }
+
+  async function backToShipping() {
+    if (requestBusy.current) return;
+    requestBusy.current = true;
+    setSubmitting(true);
+    try {
+      if (sandbox) {
+        const response = await fetch("/api/payments/yopago/cancel", {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orderId: order.id }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) { setError(data.error ?? "No pudimos volver a envío."); return; }
+      }
+      cart.setOrderId(order.id);
+      router.push("/checkout/envio");
+    } catch { setError("No pudimos conectar con el servidor. Intenta de nuevo."); }
+    finally { requestBusy.current = false; setSubmitting(false); }
   }
 
   return (
@@ -147,9 +181,8 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
 
       <button
         type="button"
-        onClick={() => {
-          router.push("/checkout/envio");
-        }}
+        onClick={backToShipping}
+        disabled={loading || submitting}
         className="mb-[22px] inline-flex items-center gap-2 text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-content-muted transition-colors duration-150 hover:text-brand"
       >
         ← Volver a envío
@@ -171,12 +204,14 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
               title="QR simple"
               detail="Cualquier banco · YoPago"
               onClick={() => pick("qr")}
+              disabled={loading || submitting}
             />
             <MethodCard
               active={method === "card"}
               title="Tarjeta"
               detail="Débito / crédito · YoPago"
               onClick={() => pick("card")}
+              disabled={loading || submitting}
             />
           </div>
 
@@ -287,7 +322,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
               ))}
             </ul>
 
-            <div className="mt-4 space-y-2 border-t border-ink-800 pt-4 text-[13px]">
+            {order.subtotal !== null && order.shipping !== null && order.discount !== null ? <div className="mt-4 space-y-2 border-t border-ink-800 pt-4 text-[13px]">
               <div className="flex justify-between">
                 <span className="text-content-dim">Subtotal</span>
                 <span>{formatBs(order.subtotal)}</span>
@@ -309,7 +344,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
                   <span>− {formatBs(order.discount)}</span>
                 </div>
               ) : null}
-            </div>
+            </div> : <p className="mt-4 text-xs text-content-dim">Pedido anterior: se conserva el total original; el desglose no está disponible.</p>}
 
             <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
               <span className="label-xs tracking-[0.14em] text-content-dim">Total</span>
@@ -349,6 +384,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
                 <button
                   type="button"
                   onClick={() => simulate("pagado")}
+                  disabled={!intent || loading || submitting}
                   className="border border-line-strong py-2 text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:border-state-ok hover:text-state-ok"
                 >
                   Simular pagado
@@ -356,6 +392,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
                 <button
                   type="button"
                   onClick={() => simulate("fallido")}
+                  disabled={!intent || loading || submitting}
                   className="border border-line-strong py-2 text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:border-alert hover:text-alert-soft"
                 >
                   Simular fallo
@@ -380,16 +417,19 @@ function MethodCard({
   title,
   detail,
   onClick,
+  disabled,
 }: {
   active: boolean;
   title: string;
   detail: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={cn(
         "border p-5 text-left transition-colors duration-150",

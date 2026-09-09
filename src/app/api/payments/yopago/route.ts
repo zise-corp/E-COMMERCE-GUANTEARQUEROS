@@ -1,69 +1,24 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getOrder, markPayment } from "@/db/queries/orders";
-import { ORDER_COOKIE, verifyToken, type OrderSession } from "@/lib/session";
-import { site } from "@/lib/site";
+import { OrderError } from "@/db/queries/orders";
+import { startSandboxPayment } from "@/db/queries/payments";
+import { ORDER_COOKIE, verifyToken } from "@/lib/session";
 import { paymentIntentSchema } from "@/lib/validators";
-import { createPayment } from "@/lib/yopago";
+import { isSandbox } from "@/lib/yopago";
 
 export const runtime = "nodejs";
 
-/** Genera el intento de pago del paso 2. Se dispara solo al elegir método. */
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "Cuerpo inválido." }, { status: 400 });
-  }
-
-  const parsed = paymentIntentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: "Datos inválidos." }, { status: 400 });
-  }
-
+  if (!isSandbox()) return NextResponse.json({ ok: false, error: "Los pagos en línea aún no están habilitados. Contacta con la tienda." }, { status: 503 });
+  const parsed = paymentIntentSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ ok: false, error: "Datos inválidos." }, { status: 400 });
   const store = await cookies();
-  const session = await verifyToken<OrderSession>(store.get(ORDER_COOKIE)?.value);
-  if (!session?.orderIds.includes(parsed.data.orderId)) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
-  }
-
-  const order = await getOrder(parsed.data.orderId);
-  if (!order) {
-    return NextResponse.json({ ok: false, error: "Pedido no encontrado." }, { status: 404 });
-  }
-  if (order.paymentStatus === "pagado") {
-    return NextResponse.json({ ok: false, error: "Este pedido ya está pagado." }, { status: 409 });
-  }
-
+  const session = await verifyToken(store.get(ORDER_COOKIE)?.value, "order");
+  if (!session?.orderIds.includes(parsed.data.orderId)) return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   try {
-    const intent = await createPayment({
-      orderId: order.id,
-      orderNumber: order.number,
-      amount: order.total,
-      method: parsed.data.method,
-      customerName: order.customerName,
-      callbackUrl: `${site.url}/api/payments/yopago/webhook`,
-    });
-
-    await markPayment(order.id, "pendiente", intent.txId, intent.method);
-
-    return NextResponse.json({
-      ok: true,
-      intent: {
-        txId: intent.txId,
-        method: intent.method,
-        amount: intent.amount,
-        qrImage: intent.qrImage,
-        checkoutUrl: intent.checkoutUrl,
-        sandbox: intent.sandbox,
-      },
-    });
+    const intent = await startSandboxPayment(parsed.data.orderId, parsed.data.method);
+    return NextResponse.json({ ok: true, intent }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
-    console.error("[api/payments/yopago] POST", error);
-    return NextResponse.json(
-      { ok: false, error: "No pudimos generar el pago. Prueba con el otro método o escríbenos." },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: error instanceof OrderError ? error.message : "No pudimos generar el pago." }, { status: error instanceof OrderError ? 409 : 503 });
   }
 }

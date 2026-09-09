@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
 import { getHeroCarouselProducts } from "@/db/queries/catalog";
-import { setOrderStatus } from "@/db/queries/orders";
+import { OrderError, setOrderStatus } from "@/db/queries/orders";
 import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
 import { toDbNumeric } from "@/lib/money";
@@ -432,7 +432,11 @@ export async function setOrderStatusAction(orderId: number, status: unknown): Pr
   const parsed = orderStatusSchema.safeParse({ status });
   if (!parsed.success) return { ok: false, error: "Estado inválido." };
 
-  await setOrderStatus(orderId, parsed.data.status);
+  try {
+    await setOrderStatus(orderId, parsed.data.status);
+  } catch (error) {
+    return { ok: false, error: error instanceof OrderError ? error.message : "No pudimos actualizar el pedido." };
+  }
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin");
   return { ok: true };

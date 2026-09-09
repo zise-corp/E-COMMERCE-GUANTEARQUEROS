@@ -38,6 +38,7 @@ async function main() {
     "admin_users",
     "brands",
     "categories",
+    "login_attempts",
     "order_items",
     "orders",
     "product_images",

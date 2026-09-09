@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatBs } from "@/lib/money";
 import { useCart } from "./CartProvider";
 import type { ShippingValues } from "./ShippingForm";
+import type { OrderPricing, PricedLine } from "@/db/queries/orders";
 
 /**
  * Último paso antes de crear el pedido. La orden se crea acá, en el server, y
@@ -17,37 +18,61 @@ export function ConfirmOrderModal({
   open,
   onClose,
   shipping,
-  shippingPrice,
   discountCode,
-  discountAmount,
 }: {
   open: boolean;
   onClose: () => void;
   shipping: ShippingValues;
-  shippingPrice: number;
   discountCode: string;
-  discountAmount: number;
 }) {
   const cart = useCart();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quote, setQuote] = useState<{ lines: PricedLine[]; pricing: OrderPricing; token: string; payload: string; source: string } | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const requestBody = JSON.stringify({
+    shipping, discountCode,
+    items: cart.items.map((i) => ({ productId: i.productId, size: i.size, personalization: i.personalization, quantity: i.quantity })),
+    ...(cart.orderId ? { orderId: cart.orderId } : {}),
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setQuote(null);
+    setError(null);
+    async function review() {
+      try {
+        const keyName = "gq.checkout-attempt.v2";
+        let attempt: { source: string; key: string } | null = null;
+        try { attempt = JSON.parse(sessionStorage.getItem(keyName) ?? "null"); } catch { /* Se reemplaza el valor inválido. */ }
+        if (attempt?.source !== requestBody || !attempt?.key) {
+          attempt = { source: requestBody, key: crypto.randomUUID() };
+          sessionStorage.setItem(keyName, JSON.stringify(attempt));
+        }
+        const payload = JSON.stringify({ ...JSON.parse(requestBody), checkoutKey: attempt.key });
+        const response = await fetch("/api/orders/quote", { method: "POST", headers: { "content-type": "application/json" }, body: payload, signal: controller.signal });
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        if (!response.ok || !data.ok) { setError(data.error ?? "No pudimos verificar el pedido."); return; }
+        setQuote({ ...data.quote, payload, source: requestBody });
+      } catch {
+        if (!controller.signal.aborted) setError("No pudimos verificar el pedido. Revisa tu conexión e intenta de nuevo.");
+      }
+    }
+    void review();
+    return () => controller.abort();
+  }, [open, requestBody, refresh]);
+
+  const currentQuote = quote?.source === requestBody ? quote : null;
 
   async function confirm() {
+    if (saving || !currentQuote) return;
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        shipping,
-        discountCode,
-        items: cart.items.map((i) => ({
-          productId: i.productId,
-          size: i.size,
-          personalization: i.personalization,
-          quantity: i.quantity,
-        })),
-        ...(cart.orderId ? { orderId: cart.orderId } : {}),
-      };
+      const payload = { ...JSON.parse(currentQuote.payload), quoteToken: currentQuote.token };
 
       const res = await fetch("/api/orders", {
         method: cart.orderId ? "PATCH" : "POST",
@@ -60,6 +85,8 @@ export function ConfirmOrderModal({
         | { ok: false; error: string };
 
       if (!res.ok || !data.ok) {
+        if (res.status === 409) setQuote(null);
+        if (res.status === 403) { cart.setOrderId(null); setQuote(null); }
         // No se avanza: el cliente vuelve al formulario con el error a la vista.
         setError(
           !data.ok && data.error
@@ -72,7 +99,7 @@ export function ConfirmOrderModal({
       cart.setOrderId(data.orderId);
       onClose();
       cart.closeCart();
-      router.push("/checkout/pago");
+      router.push(`/checkout/pago?pedido=${data.orderId}`);
     } catch {
       setError("No pudimos conectar con el servidor. Revisa tu conexión y prueba de nuevo.");
     } finally {
@@ -84,9 +111,9 @@ export function ConfirmOrderModal({
     { k: "Ítems", v: `${cart.count} ${cart.count === 1 ? "producto" : "productos"}` },
     ...(shipping.mode === "pickup"
       ? [{ k: "Retiro en el local", v: "Sin costo" }]
-      : [{ k: "Envío", v: formatBs(shippingPrice) }]),
-    ...(discountAmount > 0 ? [{ k: `Descuento · ${discountCode}`, v: `− ${formatBs(discountAmount)}` }] : []),
-    { k: "Total", v: formatBs(Math.max(0, cart.subtotal + shippingPrice - discountAmount)) },
+      : [{ k: "Envío", v: currentQuote ? formatBs(currentQuote.pricing.shipping) : "—" }]),
+    ...(currentQuote && Number(currentQuote.pricing.discount) > 0 ? [{ k: `Descuento · ${currentQuote.pricing.discountCode}`, v: `− ${formatBs(currentQuote.pricing.discount)}` }] : []),
+    { k: "Total", v: currentQuote ? formatBs(currentQuote.pricing.total) : "Verificando…" },
     { k: "Cliente", v: `${shipping.name} ${shipping.lastName}`.trim() || "Sin nombre" },
     ...(shipping.invoiceRequested
       ? [
@@ -106,6 +133,8 @@ export function ConfirmOrderModal({
       accent
       showClose={false}
     >
+      {!currentQuote && !error ? <p role="status" className="mb-4 text-sm text-content-muted">Verificando precios y disponibilidad…</p> : null}
+      {currentQuote ? <ul className="mb-4 space-y-2 text-sm">{currentQuote.lines.map((line, i) => <li key={i} className="flex justify-between gap-3"><span>{line.quantity} × {line.name}{line.size ? ` · ${line.size}` : ""}</span><span>{formatBs(Number(line.unitPrice) * line.quantity)}</span></li>)}</ul> : null}
       <dl className="border-t border-ink-800">
         {rows.map((r) => (
           <div
@@ -126,6 +155,7 @@ export function ConfirmOrderModal({
           {error}
         </p>
       ) : null}
+      {!currentQuote && error ? <button type="button" onClick={() => setRefresh((v) => v + 1)} className="mt-3 text-sm font-bold text-brand">Volver a verificar</button> : null}
 
       <div className="mt-[22px] grid gap-2.5 sm:grid-cols-[1fr_1.4fr]">
         <button
@@ -139,7 +169,7 @@ export function ConfirmOrderModal({
         <button
           type="button"
           onClick={confirm}
-          disabled={saving}
+          disabled={saving || !currentQuote}
           className="flex items-center justify-center gap-2.5 bg-brand px-4 py-[15px] text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-ink-950 transition-colors duration-150 hover:bg-brand-hot disabled:bg-ink-700 disabled:text-content-faint"
         >
           {saving ? <Spinner size={16} /> : null}
