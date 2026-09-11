@@ -198,15 +198,25 @@ function isProtected(category: NavCategory) {
 }
 
 function NavCategoryLink({ category, pathname }: { category: NavCategory; pathname: string }) {
+  const [open, setOpen] = useState(false);
   const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
   const isOffers = category.slug === "ofertas";
   const isNew = category.slug === "nuevos";
 
   if (!isOffers && !isNew && category.children && category.children.length > 0) {
     return (
-      <div className="nav-category-group group/category relative">
+      <div
+        className="nav-category-group relative"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}
+      >
         <Link
           href={`/${category.slug}`}
+          onClick={() => setOpen(false)}
           aria-current={pathname === `/${category.slug}` ? "page" : undefined}
           className={cn(
             "flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-1.5 text-[12px] font-bold uppercase tracking-[0.07em] transition-all",
@@ -216,12 +226,24 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
           )}
         >
           {category.name}
-          <span className="-mt-1 size-1.5 rotate-45 border-b border-r border-current transition-transform group-hover/category:mt-1 group-hover/category:rotate-[225deg] group-focus-within/category:mt-1 group-focus-within/category:rotate-[225deg]" aria-hidden />
+          <span
+            className={cn(
+              "-mt-1 size-1.5 rotate-45 border-b border-r border-current transition-transform",
+              open && "mt-1 rotate-[225deg]",
+            )}
+            aria-hidden
+          />
         </Link>
 
-        <div className="invisible pointer-events-none absolute -left-[18px] top-full z-50 w-[232px] border border-line-strong border-t-brand bg-ink-900 p-1.5 opacity-0 shadow-[0_22px_55px_rgba(0,0,0,0.68)] transition-[opacity,visibility] clip-corner group-hover/category:visible group-hover/category:pointer-events-auto group-hover/category:opacity-100 group-focus-within/category:visible group-focus-within/category:pointer-events-auto group-focus-within/category:opacity-100">
+        <div className={cn(
+          "absolute -left-[18px] top-full z-50 w-[232px] border border-line-strong border-t-brand bg-ink-900 p-1.5 shadow-[0_22px_55px_rgba(0,0,0,0.68)] transition-[opacity,visibility] clip-corner",
+          open
+            ? "visible pointer-events-auto opacity-100"
+            : "invisible pointer-events-none opacity-0",
+        )}>
           <Link
             href={`/${category.slug}`}
+            onClick={() => setOpen(false)}
             className="group/explore block border-b border-line px-[14px] pb-2 pt-1 transition-colors hover:bg-brand/[0.06] focus-visible:bg-brand/[0.06] focus-visible:outline-none"
           >
             <span className="block text-[9px] font-extrabold uppercase tracking-[0.18em] text-content-dim transition-colors group-hover/explore:text-brand group-focus-visible/explore:text-brand">
@@ -239,6 +261,7 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
                 <Link
                   key={child.slug}
                   href={`/${category.slug}/${child.slug}`}
+                  onClick={() => setOpen(false)}
                   className={cn(
                     "flex items-center border-l-2 px-3 py-2.5 text-[12.5px] font-semibold transition-colors",
                     childActive
