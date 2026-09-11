@@ -69,7 +69,8 @@ export type DashboardData = {
     customerName: string;
     total: string;
     status: string;
-    paymentStatus: string;
+    paymentStatus: (typeof orders.$inferSelect)["paymentStatus"];
+    financialStatus: (typeof orders.$inferSelect)["financialStatus"];
     createdAt: Date;
   }[];
 };
@@ -103,7 +104,8 @@ export async function getDashboard(): Promise<DashboardData> {
   const [lastWeek] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(orders)
-    .where(gte(orders.createdAt, weekAgo));
+    // El KPI dice "Pedidos pagados": antes contaba también los no pagados.
+    .where(and(gte(orders.createdAt, weekAgo), eq(orders.paymentStatus, "pagado")));
 
   const [low] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -182,6 +184,7 @@ export async function getDashboard(): Promise<DashboardData> {
       total: orders.total,
       status: orders.status,
       paymentStatus: orders.paymentStatus,
+      financialStatus: orders.financialStatus,
       createdAt: orders.createdAt,
     })
     .from(orders)

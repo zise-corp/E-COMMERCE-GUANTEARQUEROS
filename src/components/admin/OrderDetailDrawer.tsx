@@ -10,18 +10,24 @@ import { useToast } from "@/components/ui/Toast";
 import type { OrderSummary } from "@/db/queries/orders";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
+import { PAYMENT_METHOD_LABEL, paymentState } from "@/lib/order-status";
 import { LOCAL_DEPARTMENT, whatsappLink } from "@/lib/site";
 import { STATUS_META } from "./OrdersManager";
 import { OrderLocationMap } from "./OrderLocationMap";
+import { PaymentBadge } from "./PaymentBadge";
 
 const STATUSES: OrderSummary["status"][] = ["recibido", "en_proceso", "completado", "cancelado"];
 
-const PAYMENT_LABEL: Record<OrderSummary["paymentStatus"], string> = {
-  pendiente: "Pendiente",
-  pagado: "Pagado",
-  fallido: "Fallido",
-  reembolsado: "Reembolsado",
-};
+/** Las fechas llegan como texto desde la API: se aceptan ambas formas. */
+function formatDateTime(value: Date | string) {
+  return new Date(value).toLocaleString("es-BO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function OrderDetailDrawer({
   orderId,
@@ -71,6 +77,7 @@ export function OrderDetailDrawer({
   }
 
   const isLocal = order?.mode === "delivery" && order.department === LOCAL_DEPARTMENT;
+  const payState = order ? paymentState(order) : "unpaid";
   const customerWhatsapp = order
     ? whatsappLink(
         `Hola ${order.customerName}, te contactamos de Guantearqueros Bolivia por tu pedido #${order.number}.`,
@@ -105,17 +112,7 @@ export function OrderDetailDrawer({
       onClose={onClose}
       width={560}
       title={order ? `Pedido #${order.number}` : "Pedido"}
-      subtitle={
-        order
-          ? `${new Date(order.createdAt).toLocaleString("es-BO", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })} · Web · YoPago`
-          : undefined
-      }
+      subtitle={order ? `${formatDateTime(order.createdAt)} · Web · YoPago` : undefined}
       className="bg-ink-850"
     >
       {loading || !order ? (
@@ -141,8 +138,18 @@ export function OrderDetailDrawer({
               }
             />
             <Row k="Nota" v={order.note || "—"} />
-            <Row k="Pago" v={PAYMENT_LABEL[order.paymentStatus]} />
-            {order.paymentRef ? <Row k="TX ID" v={order.paymentRef} /> : null}
+          </Section>
+
+          <Section title="Pago">
+            <Row k="Estado" v={<PaymentBadge state={payState} />} />
+            <Row k="Método" v={order.paymentMethod ? PAYMENT_METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod : "—"} />
+            <Row k="ID de Transacción" v={order.transactionId ?? "—"} />
+            {order.paidAt ? <Row k="Pagado el" v={formatDateTime(order.paidAt)} /> : null}
+            {payState === "review" ? (
+              <p className="mt-2.5 border-l-[3px] border-alert bg-alert/10 px-3 py-2.5 text-[12px] leading-relaxed text-alert-soft">
+                YoPago confirmó el cobro, pero no había stock suficiente para todos los ítems. Revisa el inventario antes de despachar.
+              </p>
+            ) : null}
           </Section>
 
           {order.invoiceRequested ? (
@@ -258,6 +265,11 @@ export function OrderDetailDrawer({
                 );
               })}
             </div>
+            {order.paymentStatus !== "pagado" ? (
+              <p className="mt-2.5 text-[11.5px] leading-relaxed text-content-dim">
+                Para pasar a “En proceso” el pago tiene que estar confirmado por YoPago.
+              </p>
+            ) : null}
             <p className="mt-2.5 text-[11.5px] leading-relaxed text-content-faint">
               Notificación al negocio (WhatsApp/email): integración pendiente — el punto de enganche
               está marcado en el backend.

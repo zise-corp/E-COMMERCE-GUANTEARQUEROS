@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShieldIcon } from "@/components/ui/Icons";
 import { Spinner } from "@/components/ui/Spinner";
+import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/cn";
 import { formatBs, toNumber } from "@/lib/money";
 import { CheckoutSteps } from "./CheckoutSteps";
@@ -15,16 +16,16 @@ import { SupportModal } from "./SupportModal";
 type Method = "qr" | "card";
 
 type Intent = {
-  txId: string;
+  transactionId: string;
   method: Method;
   amount: string;
   qrImage: string | null;
   checkoutUrl: string | null;
-  sandbox: boolean;
 };
 
 export type PaymentOrder = {
   id: number;
+  publicId: string;
   number: number;
   total: string;
   paymentStatus: string;
@@ -44,7 +45,7 @@ export type PaymentOrder = {
 
 const POLL_MS = 4000;
 
-export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox: boolean }) {
+export function PaymentClient({ order }: { order: PaymentOrder }) {
   const router = useRouter();
   const cart = useCart();
   const [method, setMethod] = useState<Method | null>("qr");
@@ -52,6 +53,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const settled = useRef(false);
   const initialQrRequested = useRef(false);
   const requestSequence = useRef(0);
@@ -72,7 +74,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         const res = await fetch("/api/payments/yopago", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ orderId: order.id, method: next }),
+          body: JSON.stringify({ orderId: order.publicId, method: next }),
         });
         const data = (await res.json()) as
           | { ok: true; intent: Intent }
@@ -91,7 +93,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         if (requestId === requestSequence.current) setLoading(false);
       }
     },
-    [order.id],
+    [order.publicId],
   );
 
   // QR es la opción principal: se selecciona y genera al entrar, sin un clic extra.
@@ -108,24 +110,24 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
 
     const timer = setInterval(async () => {
       try {
-        const res = await fetch(`/api/orders/${order.id}`, { cache: "no-store" });
+        const res = await fetch(`/api/orders/payment-status/${order.publicId}`, { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as {
           ok: boolean;
-          order?: { paymentStatus: string; paymentRef: string | null; status: string };
+          status?: string;
         };
-        if (cancelled || !data.ok || !data.order) return;
+        if (cancelled || !data.ok || !data.status) return;
 
-        if (data.order.paymentStatus === "pagado" && !settled.current) {
+        if ((data.status === "paid" || data.status === "paid_inventory_review") && !settled.current) {
           settled.current = true;
-          if (cart.orderId === order.id) { cart.clear(); cart.setOrderId(null); }
+          if (cart.orderId === order.id) { cart.clear(); cart.setOrderId(null); cart.setShippingDraft(null); }
           window.scrollTo(0, 0);
           router.replace(`/checkout/confirmacion?pedido=${order.id}`);
-        } else if (data.order.paymentStatus === "fallido") {
+        } else if (data.status === "payment_failed") {
           setError("El pago fue rechazado. Prueba con el otro método o escríbenos.");
           setIntent(null);
           setMethod(null);
-        } else if (data.order.status === "cancelado" || data.order.paymentRef !== intent.txId) {
+        } else if (data.status === "cancelled") {
           setError("Este intento cambió o fue cancelado. Vuelve a seleccionar un método de pago.");
           setIntent(null);
           setMethod(null);
@@ -139,37 +141,37 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
       cancelled = true;
       clearInterval(timer);
     };
-  }, [intent, order.id, cart, router]);
+  }, [intent, order.id, order.publicId, cart, router]);
 
-  async function simulate(result: "pagado" | "fallido") {
-    if (!intent || requestBusy.current) return;
-    requestBusy.current = true;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/payments/yopago/simulate", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: order.id, transactionId: intent.txId, result }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) setError(data.error ?? "No pudimos confirmar el pago.");
-    } catch { setError("No pudimos conectar con el servidor. Intenta de nuevo."); }
-    finally { requestBusy.current = false; setSubmitting(false); }
-  }
+  useEffect(() => {
+    if (!intent) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [intent]);
 
   async function backToShipping() {
     if (requestBusy.current) return;
     requestBusy.current = true;
     setSubmitting(true);
+    setError(null);
     try {
-      if (sandbox) {
-        const response = await fetch("/api/payments/yopago/cancel", {
-          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orderId: order.id }),
-        });
-        const data = await response.json();
-        if (!response.ok || !data.ok) { setError(data.error ?? "No pudimos volver a envío."); return; }
+      const response = await fetch("/api/payments/yopago/abandon", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId: order.publicId }),
+      });
+      const data = await response.json() as { ok: boolean; error?: string };
+      if (!response.ok || !data.ok) {
+        setError(data.error ?? "No pudimos volver al formulario.");
+        return;
       }
-      cart.setOrderId(order.id);
+      setIntent(null);
+      cart.setOrderId(null);
+      setLeaveOpen(false);
       router.push("/checkout/envio");
     } catch { setError("No pudimos conectar con el servidor. Intenta de nuevo."); }
     finally { requestBusy.current = false; setSubmitting(false); }
@@ -181,7 +183,7 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
 
       <button
         type="button"
-        onClick={backToShipping}
+        onClick={() => intent ? setLeaveOpen(true) : void backToShipping()}
         disabled={loading || submitting}
         className="mb-[22px] inline-flex items-center gap-2 text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-content-muted transition-colors duration-150 hover:text-brand"
       >
@@ -252,39 +254,46 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
                       "repeating-conic-gradient(#F5F3F0 0% 25%, #0A0A0A 0% 50%) 0 0 / 22px 22px",
                   }}
                   role="img"
-                  aria-label="QR de ejemplo del modo sandbox"
+                  aria-label="Código QR de pago no disponible"
                 />
               )}
               <p className="text-xs tracking-[0.1em] text-content-dim tabular">
-                TX ID · {intent.txId}
+                ID de Transacción: {intent.transactionId}
               </p>
               <p className="text-center text-[13px] text-content-muted">
-                Escaneá con la app de tu banco. El monto ya viene cargado.
+                Escanea con la app de tu banco. El monto ya viene cargado.
               </p>
             </div>
           ) : null}
 
           {!loading && intent?.method === "card" ? (
-            <div
-              className="mt-[22px] border border-line bg-ink-950"
-              style={{ height: "min(70dvh, 500px)" }}
-            >
-              {intent.checkoutUrl ? (
-                <iframe
-                  src={intent.checkoutUrl}
-                  title="Formulario de pago con tarjeta de YoPago"
-                  className="h-full w-full"
-                  allow="payment"
-                />
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                  <p className="label-xs text-content-dim">Formulario de tarjeta · YoPago</p>
-                  <p className="text-[13px] text-content-muted">
-                    En modo sandbox no hay pasarela real embebida.
-                  </p>
-                  <p className="text-xs text-content-dim tabular">TX ID · {intent.txId}</p>
-                </div>
-              )}
+            <div className="mt-[22px]">
+              <div
+                className="border border-line bg-ink-950"
+                style={{ height: "min(70dvh, 500px)" }}
+              >
+                {intent.checkoutUrl ? (
+                  // Embebido como en Tienda-Virtual. El formulario vive en el
+                  // dominio de YoPago: la tienda nunca ve los datos de la tarjeta.
+                  // bg-white: si su página no pinta fondo, el texto sigue legible.
+                  <iframe
+                    src={intent.checkoutUrl}
+                    title="Formulario de pago con tarjeta de YoPago"
+                    className="h-full w-full border-0 bg-white"
+                    allow="payment"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                    <p className="label-xs text-content-dim">Formulario de tarjeta · YoPago</p>
+                    <p className="text-[13px] text-content-muted">
+                      No pudimos abrir la pasarela de tarjeta.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <p className="mt-3 text-center text-xs tracking-[0.1em] text-content-dim tabular">
+                Conexión segura con YoPago · ID de Transacción: {intent.transactionId}
+              </p>
             </div>
           ) : null}
         </div>
@@ -375,31 +384,6 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
             ¿Problemas con el pago? Contactar soporte
           </button>
 
-          {sandbox ? (
-            <div className="border border-dashed border-[#3A3A38] p-3">
-              <p className="mb-2 text-center text-[10.5px] uppercase tracking-[0.14em] text-content-faint">
-                Modo sandbox
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => simulate("pagado")}
-                  disabled={!intent || loading || submitting}
-                  className="border border-line-strong py-2 text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:border-state-ok hover:text-state-ok"
-                >
-                  Simular pagado
-                </button>
-                <button
-                  type="button"
-                  onClick={() => simulate("fallido")}
-                  disabled={!intent || loading || submitting}
-                  className="border border-line-strong py-2 text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:border-alert hover:text-alert-soft"
-                >
-                  Simular fallo
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -408,6 +392,18 @@ export function PaymentClient({ order, sandbox }: { order: PaymentOrder; sandbox
         onClose={() => setSupportOpen(false)}
         orderNumber={order.number}
       />
+      <Modal
+        open={leaveOpen}
+        onClose={() => submitting ? undefined : setLeaveOpen(false)}
+        title="Volver y editar la compra"
+        description="Ya existe un intento de pago para esta orden. No se eliminará: si ya pagaste, la confirmación seguirá procesándose aunque salgas. Si continúas, editaremos el carrito como una compra nueva; no pagues el intento anterior."
+        width={500}
+      >
+        <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+          <button type="button" disabled={submitting} onClick={() => setLeaveOpen(false)} className="border border-line-strong px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-content-muted disabled:opacity-50">Continuar con el pago</button>
+          <button type="button" disabled={submitting} onClick={() => void backToShipping()} className="bg-brand px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-ink-950 disabled:opacity-50">{submitting ? "Procesando…" : "Abandonar intento y editar"}</button>
+        </div>
+      </Modal>
     </section>
   );
 }

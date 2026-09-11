@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const existing = await findCheckoutOrder(parsed.data.checkoutKey, quote.requestHash);
     if (existing) {
       await rememberOrder(existing.id);
-      return NextResponse.json({ ok: true, orderId: existing.id, number: existing.number });
+      return NextResponse.json({ ok: true, orderId: existing.id, orderPublicId: existing.publicId, number: existing.number });
     }
     const lines = await priceLines(parsed.data.items);
     const pricing = await calculateOrderPricing(
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       paymentStatus: "pendiente",
     }).catch(() => undefined);
 
-    return NextResponse.json({ ok: true, orderId: order.id, number: order.number });
+    return NextResponse.json({ ok: true, orderId: order.id, orderPublicId: order.publicId, number: order.number });
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);
     console.error("[api/orders] POST", error);
@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
     );
     if (checkoutHash({ lines, pricing }) !== quote.priceHash) return fail("El precio o los datos del pedido cambiaron. Vuelve a revisar antes de confirmar.", 409);
     const order = await updateOrder(parsed.data.orderId, parsed.data.shipping, lines, pricing, quote.requestHash);
-    return NextResponse.json({ ok: true, orderId: order.id, number: order.number });
+    return NextResponse.json({ ok: true, orderId: order.id, orderPublicId: order.publicId, number: order.number });
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, 409);
     console.error("[api/orders] PATCH", error);

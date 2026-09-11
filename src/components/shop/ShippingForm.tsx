@@ -97,8 +97,6 @@ export function ShippingForm({
       lng: null,
       mapsUrl: "",
       address: "",
-      documentId: "",
-      email: "",
     });
   }
 
@@ -136,6 +134,25 @@ export function ShippingForm({
           error={err("phone")}
           onChange={(e) => set("phone", e.target.value)}
           fieldClassName="sm:col-span-2"
+        />
+        <Input
+          label="CI / NIT / Documento"
+          required
+          placeholder="Ej. 1234567 LP"
+          value={value.documentId}
+          error={err("documentId")}
+          onChange={(e) => set("documentId", e.target.value)}
+        />
+        <Input
+          label="Correo electrónico"
+          required
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="tucorreo@mail.com"
+          value={value.email}
+          error={err("email")}
+          onChange={(e) => set("email", e.target.value)}
         />
       </div>
 
@@ -282,27 +299,9 @@ export function ShippingForm({
             coordinará la empresa y la sucursal de transporte.
           </p>
 
-          <Input
-            label="CI / Documento"
-            required
-            placeholder="Ej. 1234567 LP"
-            value={value.documentId}
-            error={err("documentId")}
-            hint="Lo piden en la agencia para entregar el paquete."
-            onChange={(e) => set("documentId", e.target.value)}
-          />
-
-          <Input
-            label="Correo electrónico"
-            required
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder="tucorreo@mail.com"
-            value={value.email}
-            error={err("email")}
-            onChange={(e) => set("email", e.target.value)}
-          />
+          <p className="text-[12.5px] leading-relaxed text-content-muted">
+            Usaremos el documento y correo indicados arriba para coordinar el despacho y el comprobante de pago.
+          </p>
         </div>
       ) : null}
     </div>

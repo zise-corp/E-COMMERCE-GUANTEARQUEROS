@@ -1,7 +1,8 @@
 import {
   pgTable, serial, text, integer, numeric, boolean, timestamp,
-  jsonb, pgEnum, uniqueIndex, index,
+  jsonb, pgEnum, uniqueIndex, index, uuid, check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* ---------- enums ---------- */
 export const deliveryMode = pgEnum("delivery_mode", ["pickup", "delivery"]);
@@ -94,6 +95,7 @@ export const productImages = pgTable("product_images", {
 /* ---------- pedidos ---------- */
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
+  publicId: uuid("public_id").defaultRandom().notNull(),
   number: integer("number").notNull().unique(),   // correlativo visible (#1041)
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
@@ -115,8 +117,16 @@ export const orders = pgTable("orders", {
 
   status: orderStatus("status").notNull().default("recibido"),
   paymentStatus: paymentStatus("payment_status").notNull().default("pendiente"),
+  financialStatus: text("financial_status").$type<"pending" | "payment_created" | "paid" | "abandoned" | "expired" | "paid_inventory_review" | "payment_failed" | "cancelled">().notNull().default("pending"),
   paymentMethod: text("payment_method"),          // qr | card
-  paymentRef: text("payment_ref"),                // TX id de YoPago
+  // Campos de YoPago con sus mismos nombres. Se guardan al generar el QR o la
+  // tarjeta, se pague o no, y el callback los fija al intento que se pagó.
+  transactionId: text("transactionId"),           // ID de Transacción que devuelve YoPago
+  companyCode: text("companyCode"),
+  codeTransaction: text("codeTransaction"),       // código propio enviado a YoPago
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  inventoryProcessedAt: timestamp("inventory_processed_at", { withTimezone: true }),
+  confirmationEmailSentAt: timestamp("confirmation_email_sent_at", { withTimezone: true }),
   checkoutKey: text("checkout_key").unique(),
   requestHash: text("request_hash"),
   subtotal: numeric("subtotal", { precision: 10, scale: 2 }),
@@ -128,7 +138,11 @@ export const orders = pgTable("orders", {
   notifiedAt: timestamp("notified_at", { withTimezone: true }), // WhatsApp/email: etapa posterior
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => ({ statusIdx: index("orders_status_idx").on(t.status) }));
+}, (t) => ({
+  publicIdUq: uniqueIndex("orders_public_id_unique").on(t.publicId),
+  statusIdx: index("orders_status_idx").on(t.status),
+  transactionCompanyIdx: index("orders_transaction_company_idx").on(t.transactionId, t.companyCode),
+}));
 
 // Precio y nombre CONGELADOS al momento de la compra.
 export const orderItems = pgTable("order_items", {
@@ -142,6 +156,60 @@ export const orderItems = pgTable("order_items", {
   imagePublicId: text("image_public_id"),
   attributesSnapshot: jsonb("attributes_snapshot").$type<{ name: string; value: string }[]>().notNull().default([]),
 });
+
+export const paymentAttempts = pgTable("payment_attempts", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: "restrict" }).notNull(),
+  provider: text("provider").notNull().default("yopago"),
+  method: text("method").$type<"qr" | "card">().notNull(),
+  companyCode: text("company_code").notNull(),
+  transactionCode: text("transaction_code").notNull(),
+  transactionId: text("transaction_id"),
+  qrId: text("qr_id"),
+  qrData: text("qr_data"),
+  cardUrl: text("card_url"),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").$type<"BOB" | "USD">().notNull(),
+  status: text("status").$type<"pending" | "created" | "paid" | "abandoned" | "failed" | "expired" | "cancelled">().notNull().default("pending"),
+  providerStatus: text("provider_status"),
+  failureCode: text("failure_code"),
+  failureMessage: text("failure_message"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  transactionCodeUq: uniqueIndex("payment_attempts_transaction_code_unique").on(t.transactionCode),
+  transactionCompanyUq: uniqueIndex("payment_attempts_transaction_company_unique").on(t.transactionId, t.companyCode),
+  orderIdx: index("payment_attempts_order_id_idx").on(t.orderId),
+  statusIdx: index("payment_attempts_status_idx").on(t.status),
+  methodCheck: check("payment_attempts_method_check", sql`${t.method} in ('qr', 'card')`),
+  statusCheck: check("payment_attempts_status_check", sql`${t.status} in ('pending', 'created', 'paid', 'abandoned', 'failed', 'expired', 'cancelled')`),
+  currencyCheck: check("payment_attempts_currency_check", sql`${t.currency} in ('BOB', 'USD')`),
+  amountCheck: check("payment_attempts_amount_check", sql`${t.amount} >= 0`),
+}));
+
+export const paymentEvents = pgTable("payment_events", {
+  id: serial("id").primaryKey(),
+  paymentAttemptId: integer("payment_attempt_id").references(() => paymentAttempts.id, { onDelete: "restrict" }),
+  provider: text("provider").notNull().default("yopago"),
+  eventType: text("event_type").notNull(),
+  eventKey: text("event_key").notNull(),
+  payloadHash: text("payload_hash").notNull(),
+  processingStatus: text("processing_status").$type<"received" | "processed" | "duplicate" | "failed">().notNull().default("received"),
+  errorMessage: text("error_message"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  // El callback tal como lo manda YoPago, con sus mismos nombres. Se registra
+  // siempre, aunque no se encuentre el pago al que se refiere.
+  transactionId: text("transactionId"),
+  companyCode: text("companyCode"),
+  description: text("description"),
+  dateRequest: text("dateRequest"),               // tal cual llega, sin convertir a fecha
+}, (t) => ({
+  eventKeyUq: uniqueIndex("payment_events_event_key_unique").on(t.eventKey),
+  attemptIdx: index("payment_events_payment_attempt_id_idx").on(t.paymentAttemptId),
+}));
 
 /* ---------- ajustes del sitio ----------
    Agregado sobre el esquema del bundle: la franja de campaña tiene que poder

@@ -74,11 +74,14 @@ La migración fue verificada en una base embebida de pruebas y aplicada a la bas
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, sin slash final |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP` | Contacto |
-| `YOPAGO_MODE` | `sandbox`, `disabled` o `live`; live aún no está implementado |
-| `ALLOW_PAYMENT_SANDBOX` | Debe ser `true` para permitir simulación en un build de producción destinado a pruebas |
-| `YOPAGO_API_URL`, `YOPAGO_API_KEY`, `YOPAGO_SECRET`, `YOPAGO_WEBHOOK_SECRET` | Reservadas para la integración final; actualmente no habilitan cobros |
+| `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
+| `YOPAGO_COMPANY_CODE` | Código de empresa entregado por YoPago; solo servidor |
+| `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |
+| `YOPAGO_QR_URL`, `YOPAGO_CARD_URL` | Endpoints de QR Simple y tarjeta |
+| `YOPAGO_ALLOWED_CARD_HOSTS` | Hosts HTTPS permitidos para la redirección de tarjeta |
+| `APP_BASE_URL` | Origen público HTTPS usado en las URLs de retorno; reutiliza `NEXT_PUBLIC_SITE_URL` si se omite |
 
-Sin modo explícito, desarrollo usa sandbox y producción deshabilita pagos. `YOPAGO_MODE=live`, un valor desconocido o credenciales ausentes **nunca** activan el simulador por sustitución. Para una tienda publicada, usa `YOPAGO_MODE=disabled` hasta terminar la integración. No habilites `ALLOW_PAYMENT_SANDBOX` en una tienda que reciba ventas reales: las compras simuladas modifican pedidos y stock de la base configurada.
+La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, el código de empresa, las credenciales del callback y una URL pública válida. Si falta cualquier dato, el intento se rechaza antes de contactar a YoPago.
 
 Sin base configurada, el catálogo público puede renderizar contenido vacío/de respaldo. El checkout falla si no puede leer sus ajustes; nunca sustituye un error de base por tarifas predeterminadas para cobrar. Cuando la tabla es accesible pero aún no existe la fila de ajustes, se usan los valores iniciales documentados en `CHECKOUT_DEFAULT`.
 
@@ -118,11 +121,11 @@ La revisión final del servidor es la fuente del importe aceptado. El resumen in
 
 ## Simulador y preparación de YoPago
 
-`POST /api/payments/yopago` solo genera intentos sandbox cuando están permitidos. Repetir el mismo método devuelve el intento vigente; cambiarlo invalida el anterior, exclusivamente porque no existe un cobro externo.
+`POST /api/payments/yopago` genera intentos reales. Repetir el mismo método devuelve el intento vigente y conserva el historial de intentos anteriores.
 
 `POST /api/payments/yopago/simulate` exige cookie del pedido e identificador vigente de transacción. El servicio interno comprueba importe/moneda/referencia y actualiza pago e inventario en una sola transacción. Bloquea el pedido y descuenta por producto en orden estable, con condición de stock suficiente. Si cualquier producto falla, se revierte todo. Un pago confirmado no se revierte por un resultado tardío ni descuenta dos veces.
 
-Volver a envío llama a `POST /api/payments/yopago/cancel`, que invalida el intento sandbox antes de permitir la edición. Un intento de origen externo no se cancela de esta manera.
+Un intento externo no se cancela localmente: la edición queda bloqueada mientras exista la posibilidad de cobro y debe resolverse conforme al contrato de cancelación de YoPago.
 
 El estado operativo avanza `recibido -> en_proceso -> completado`, con pago confirmado. Un pedido recibido puede cancelarse si no tiene un cobro confirmado ni un intento pendiente. Cancelar no reembolsa. No hay reposición automática por reembolso.
 

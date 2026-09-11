@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatBs, toNumber } from "@/lib/money";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
@@ -16,12 +17,11 @@ import {
   type ShippingValues,
 } from "./ShippingForm";
 
-const SHIPPING_KEY = "gq.shipping.v1";
-
 export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { localDeliveryPrice: number; transportPrice: number }) {
   const cart = useCart();
-  const [shipping, setShipping] = useState<ShippingValues>(emptyShipping);
-  const [hydrated, setHydrated] = useState(false);
+  const { setShippingDraft } = cart;
+  const router = useRouter();
+  const [shipping, setShipping] = useState<ShippingValues>(() => cart.shippingDraft ?? emptyShipping);
   const [showErrors, setShowErrors] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -29,6 +29,29 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
   const [codeError, setCodeError] = useState<string | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
   const cartImagesSynced = useRef(false);
+  const previousPaymentChecked = useRef(false);
+
+  useEffect(() => {
+    if (!cart.ready || !cart.orderId || previousPaymentChecked.current) return;
+    previousPaymentChecked.current = true;
+    void fetch(`/api/orders/${cart.orderId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json() as Promise<{ ok: boolean; order?: { publicId: string; paymentStatus: string; financialStatus: string } }>;
+      })
+      .then(async (data) => {
+        if (!data?.ok || !data.order) return;
+        if (data.order.paymentStatus === "pagado" || data.order.financialStatus === "paid" || data.order.financialStatus === "paid_inventory_review") {
+          router.replace(`/checkout/confirmacion?pedido=${cart.orderId}`);
+          return;
+        }
+        if (data.order.financialStatus === "payment_created") {
+          await fetch("/api/payments/yopago/abandon", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orderId: data.order.publicId }) });
+          cart.setOrderId(null);
+        }
+      })
+      .catch(() => undefined);
+  }, [cart, router]);
 
   useEffect(() => {
     if (!cart.ready || cart.items.length === 0 || cartImagesSynced.current) return;
@@ -53,22 +76,8 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
   }, [cart]);
 
   useEffect(() => {
-    try {
-      const stored = window.sessionStorage.getItem(SHIPPING_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Partial<ShippingValues>;
-        setShipping({ ...emptyShipping, ...parsed });
-      }
-    } catch {
-      window.sessionStorage.removeItem(SHIPPING_KEY);
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    window.sessionStorage.setItem(SHIPPING_KEY, JSON.stringify(shipping));
-  }, [shipping, hydrated]);
+    setShippingDraft(shipping);
+  }, [shipping, setShippingDraft]);
 
   function reviewOrder() {
     setShowErrors(true);
@@ -111,7 +120,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
       : transportPrice;
   const total = Math.max(0, cart.subtotal + effectiveShipping - (activeDiscount?.amount ?? 0));
 
-  if (!cart.ready || !hydrated) {
+  if (!cart.ready) {
     return <div className="min-h-[55vh]" />;
   }
 

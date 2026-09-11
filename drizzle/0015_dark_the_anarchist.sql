@@ -1,0 +1,4 @@
+ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_method_check" CHECK ("payment_attempts"."method" in ('qr', 'card'));--> statement-breakpoint
+ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_status_check" CHECK ("payment_attempts"."status" in ('pending', 'created', 'paid', 'failed', 'expired', 'cancelled'));--> statement-breakpoint
+ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_currency_check" CHECK ("payment_attempts"."currency" in ('BOB', 'USD'));--> statement-breakpoint
+ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_amount_check" CHECK ("payment_attempts"."amount" >= 0);

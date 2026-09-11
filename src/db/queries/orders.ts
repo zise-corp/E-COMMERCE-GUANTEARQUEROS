@@ -147,9 +147,11 @@ function deliveryColumns(shipping: ShippingOutput) {
       lat: null,
       lng: null,
       mapsUrl: null,
-      documentId: null,
+      // El formulario pide CI y email en todas las modalidades: se guardan para
+      // el administrador (antes se descartaban justo en retiro).
+      documentId: shipping.documentId,
       branch: null,
-      email: null,
+      email: shipping.email,
     };
   }
   const local = shipping.department === LOCAL_DEPARTMENT;
@@ -160,10 +162,10 @@ function deliveryColumns(shipping: ShippingOutput) {
     lat: local && shipping.lat !== null ? shipping.lat.toFixed(6) : null,
     lng: local && shipping.lng !== null ? shipping.lng.toFixed(6) : null,
     mapsUrl: local && shipping.mapsUrl ? shipping.mapsUrl : null,
-    documentId: local ? null : shipping.documentId,
+    documentId: shipping.documentId,
     // La empresa y sucursal de transporte se definen internamente después.
     branch: null,
-    email: local ? null : shipping.email,
+    email: shipping.email,
   };
 }
 
@@ -171,7 +173,7 @@ export async function findCheckoutOrder(checkoutKey: string, requestHash: string
   const [existing] = await db.select().from(orders).where(eq(orders.checkoutKey, checkoutKey)).limit(1);
   if (!existing) return null;
   if (existing.requestHash !== requestHash) throw new OrderError("Este intento ya fue guardado con otros datos. Inicia una nueva revisión.");
-  return { id: existing.id, number: existing.number };
+  return { id: existing.id, publicId: existing.publicId, number: existing.number };
 }
 
 function pricingColumns(pricing: OrderPricing) {
@@ -185,7 +187,7 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
     const [existing] = await tx.select().from(orders).where(eq(orders.checkoutKey, checkoutKey)).limit(1);
     if (existing) {
       if (existing.requestHash !== requestHash) throw new OrderError("Este intento ya fue guardado con otros datos.");
-      return { id: existing.id, number: existing.number, created: false };
+      return { id: existing.id, publicId: existing.publicId, number: existing.number, created: false };
     }
     const [seq] = await tx.select({ number: sql<number>`nextval('orders_number_seq')::int` })
       .from(sql`(SELECT 1) AS sequence_source`);
@@ -207,7 +209,7 @@ export async function createOrder(shipping: ShippingOutput, lines: PricedLine[],
         checkoutKey,
         requestHash,
       })
-      .returning({ id: orders.id, number: orders.number });
+      .returning({ id: orders.id, publicId: orders.publicId, number: orders.number });
 
     if (!order) throw new OrderError("No pudimos crear el pedido.");
 
@@ -247,7 +249,7 @@ export async function updateOrder(
         number: orders.number,
         status: orders.status,
         paymentStatus: orders.paymentStatus,
-        paymentRef: orders.paymentRef,
+        transactionId: orders.transactionId,
       })
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -260,7 +262,7 @@ export async function updateOrder(
     if (current.status !== "recibido") {
       throw new OrderError("Este pedido ya no se puede modificar.");
     }
-    if (current.paymentRef && current.paymentStatus === "pendiente") {
+    if (current.transactionId && current.paymentStatus === "pendiente") {
       throw new OrderError("Hay un pago en curso. Vuelve al pago y cancela el intento antes de editar.");
     }
 
@@ -276,7 +278,7 @@ export async function updateOrder(
         ...deliveryColumns(shipping),
         ...pricingColumns(pricing),
         requestHash,
-        paymentRef: null,
+        transactionId: null,
         paymentMethod: null,
         paymentStatus: "pendiente",
         updatedAt: new Date(),
@@ -297,12 +299,14 @@ export async function updateOrder(
       })),
     );
 
-    return { id: current.id, number: current.number };
+    const [updated] = await tx.select({ publicId: orders.publicId }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    return { id: current.id, publicId: updated!.publicId, number: current.number };
   });
 }
 
 export type OrderSummary = {
   id: number;
+  publicId: string;
   number: number;
   customerName: string;
   customerPhone: string;
@@ -321,8 +325,10 @@ export type OrderSummary = {
   email: string | null;
   status: "recibido" | "en_proceso" | "completado" | "cancelado";
   paymentStatus: "pendiente" | "pagado" | "fallido" | "reembolsado";
+  financialStatus: "pending" | "payment_created" | "paid" | "abandoned" | "expired" | "paid_inventory_review" | "payment_failed" | "cancelled";
   paymentMethod: string | null;
-  paymentRef: string | null;
+  transactionId: string | null;
+  paidAt: Date | null;
   total: string;
   subtotal: string | null;
   shippingAmount: string | null;
@@ -369,6 +375,11 @@ export async function getOrder(orderId: number): Promise<OrderSummary | null> {
   return { ...order, items } as OrderSummary;
 }
 
+export async function getOrderByPublicId(publicId: string): Promise<OrderSummary | null> {
+  const [row] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
+  return row ? getOrder(row.id) : null;
+}
+
 /* ── Consultas del admin ──────────────────────────────────────────────────── */
 
 export async function listOrders(status?: OrderSummary["status"], localDate?: string) {
@@ -390,6 +401,9 @@ export async function listOrders(status?: OrderSummary["status"], localDate?: st
       department: orders.department,
       status: orders.status,
       paymentStatus: orders.paymentStatus,
+      financialStatus: orders.financialStatus,
+      paymentMethod: orders.paymentMethod,
+      transactionId: orders.transactionId,
       total: orders.total,
       createdAt: orders.createdAt,
     })
@@ -431,7 +445,7 @@ export async function setOrderStatus(orderId: number, status: OrderSummary["stat
     if (order.status === status) return;
     const transitions: Record<OrderSummary["status"], OrderSummary["status"][]> = { recibido: ["en_proceso", "cancelado"], en_proceso: ["completado"], completado: [], cancelado: [] };
     if (!transitions[order.status].includes(status)) throw new OrderError("Ese cambio de estado no está permitido.");
-    if (status === "cancelado" && (order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado" || (order.paymentRef && order.paymentStatus === "pendiente"))) {
+    if (status === "cancelado" && (order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado" || (order.transactionId && order.paymentStatus === "pendiente"))) {
       throw new OrderError("Resuelve primero el pago. Cancelar un pedido no cancela ni reembolsa un cobro.");
     }
     if (status !== "cancelado" && order.paymentStatus !== "pagado") throw new OrderError("El pedido debe estar pagado para avanzar.");

@@ -36,6 +36,8 @@ export const shippingSchema = z
       .default(""),
   })
   .superRefine((v, ctx) => {
+    if (!v.email) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Falta el correo." });
+    if (v.documentId.trim().length < 4) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Falta el CI, NIT o documento." });
     if (v.invoiceRequested) {
       if (v.businessName.trim().length < 2) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["businessName"], message: "Escribe la razón social." });
@@ -73,12 +75,6 @@ export const shippingSchema = z
       }
       // En otro departamento el comprador solo deja sus datos. La empresa y la
       // sucursal de transporte las coordina posteriormente el vendedor.
-      if (v.documentId.trim().length < 4) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Falta el CI o documento." });
-      }
-      if (!v.email) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Falta el correo." });
-      }
     }
   });
 
@@ -113,7 +109,7 @@ export const orderStatusSchema = z.object({
 });
 
 export const paymentIntentSchema = z.object({
-  orderId: z.number().int().positive(),
+  orderId: z.string().uuid(),
   method: z.enum(["qr", "card"]),
 });
 

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { sumLines } from "@/lib/money";
+import type { ShippingValues } from "./ShippingForm";
 
 export type CartItem = {
   productId: number;
@@ -35,6 +36,7 @@ type CartState = {
   ready: boolean;
   /** Pedido ya creado en el server durante esta sesión: se actualiza, no se duplica. */
   orderId: number | null;
+  shippingDraft: ShippingValues | null;
   add: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   setQuantity: (productId: number, size: string | null, personalization: string | null, quantity: number) => void;
   remove: (productId: number, size: string | null, personalization: string | null) => void;
@@ -44,6 +46,7 @@ type CartState = {
   closeCart: () => void;
   setStep: (step: CartStep) => void;
   setOrderId: (id: number | null) => void;
+  setShippingDraft: (value: ShippingValues | null) => void;
 };
 
 const Ctx = createContext<CartState | null>(null);
@@ -81,6 +84,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [step, setStep] = useState<CartStep>("items");
   const [ready, setReady] = useState(false);
   const [orderId, setOrderIdState] = useState<number | null>(null);
+  const [shippingDraft, setShippingDraft] = useState<ShippingValues | null>(null);
 
   // Hidratación: el carrito vive en localStorage, el pedido en la sesión.
   useEffect(() => {
@@ -177,6 +181,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       step,
       ready,
       orderId,
+      shippingDraft,
       add,
       setQuantity,
       remove,
@@ -186,8 +191,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       closeCart,
       setStep,
       setOrderId,
+      setShippingDraft,
     };
-  }, [items, open, step, ready, orderId, add, setQuantity, remove, clear, syncImages, openCart, closeCart, setOrderId]);
+  }, [items, open, step, ready, orderId, shippingDraft, add, setQuantity, remove, clear, syncImages, openCart, closeCart, setOrderId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

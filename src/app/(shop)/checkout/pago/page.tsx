@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { PaymentClient } from "@/components/shop/PaymentClient";
 import { getOrder } from "@/db/queries/orders";
 import { ORDER_COOKIE, verifyToken } from "@/lib/session";
-import { isSandbox } from "@/lib/yopago";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +30,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
     <PaymentClient
       order={{
         id: order.id,
+        publicId: order.publicId,
         number: order.number,
         total: order.total,
         paymentStatus: order.paymentStatus,
@@ -47,7 +47,6 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
           personalization: i.attributesSnapshot.find((attribute) => attribute.name === "Personalización")?.value ?? null,
         })),
       }}
-      sandbox={isSandbox()}
     />
   );
 }

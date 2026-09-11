@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { formatBs, formatBsCompact } from "@/lib/money";
-import { ORDER_STATUS_META, ORDER_STATUS_ORDER } from "@/lib/order-status";
+import { ORDER_STATUS_META, ORDER_STATUS_ORDER, PAYMENT_STATE_META, paymentState } from "@/lib/order-status";
 
 /* ── Utilidades de escala ─────────────────────────────────────────────────── */
 
@@ -307,11 +307,11 @@ export function CategoryPerformance({ data }: { data: { name: string; units: num
   );
 }
 
-export function RecentOrders({ data }: { data: { number: number; customerName: string; total: string; status: string; paymentStatus: string; createdAt: Date }[] }) {
+export function RecentOrders({ data }: { data: ({ number: number; customerName: string; total: string; status: string; createdAt: Date } & Parameters<typeof paymentState>[0])[] }) {
   return (
     <section className="admin-panel min-w-0 overflow-hidden border border-ink-700 bg-ink-850">
       <header className="flex items-center justify-between border-b border-ink-700 px-5 py-4"><div><h2 className="text-[13.5px] font-extrabold uppercase tracking-[0.08em]">Actividad reciente</h2><p className="mt-1 text-[11.5px] text-content-dim">Últimos pedidos registrados</p></div><Link href="/admin/pedidos" className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-brand hover:text-brand-hot">Ver pedidos →</Link></header>
-      {data.length ? <ol className="admin-dashboard-scroll max-h-[360px] overflow-y-auto">{data.map((order) => { const meta = ORDER_STATUS_META[order.status as keyof typeof ORDER_STATUS_META]; return <li key={order.number} className="admin-data-row grid min-w-0 grid-cols-[52px_minmax(0,1fr)_minmax(72px,auto)] items-center gap-3 border-b border-line-soft px-5 py-3 last:border-0"><span className="font-display text-lg text-brand tabular">#{order.number}</span><div className="min-w-0"><p className="truncate text-[12.5px] font-semibold" title={order.customerName}>{order.customerName}</p><p className="mt-0.5 truncate text-[9.5px] uppercase tracking-[0.1em] text-content-dim">{new Intl.DateTimeFormat("es-BO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(order.createdAt)} · {meta?.label ?? order.status}</p></div><div className="min-w-0 text-right"><p className="truncate text-[12px] font-bold tabular">{formatBs(order.total)}</p><p className={cn("mt-0.5 truncate text-[9px] font-bold uppercase tracking-[0.1em]", order.paymentStatus === "pagado" ? "text-state-ok" : "text-state-warn")}>{order.paymentStatus}</p></div></li>; })}</ol> : <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay actividad.</p>}
+      {data.length ? <ol className="admin-dashboard-scroll max-h-[360px] overflow-y-auto">{data.map((order) => { const meta = ORDER_STATUS_META[order.status as keyof typeof ORDER_STATUS_META]; return <li key={order.number} className="admin-data-row grid min-w-0 grid-cols-[52px_minmax(0,1fr)_minmax(72px,auto)] items-center gap-3 border-b border-line-soft px-5 py-3 last:border-0"><span className="font-display text-lg text-brand tabular">#{order.number}</span><div className="min-w-0"><p className="truncate text-[12.5px] font-semibold" title={order.customerName}>{order.customerName}</p><p className="mt-0.5 truncate text-[9.5px] uppercase tracking-[0.1em] text-content-dim">{new Intl.DateTimeFormat("es-BO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(order.createdAt)} · {meta?.label ?? order.status}</p></div><div className="min-w-0 text-right"><p className="truncate text-[12px] font-bold tabular">{formatBs(order.total)}</p><p className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: PAYMENT_STATE_META[paymentState(order)].color }}>{PAYMENT_STATE_META[paymentState(order)].label}</p></div></li>; })}</ol> : <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay actividad.</p>}
     </section>
   );
 }
