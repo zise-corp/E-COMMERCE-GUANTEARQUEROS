@@ -149,6 +149,16 @@ Los verificadores usan una base embebida sin cargar `.env.local`. PGlite seriali
 
 El desarrollo usa `.next-dev` y producción `.next`. `npm run clean` elimina ambos directorios de artefactos si se necesita una compilación limpia.
 
+## Rendimiento del catálogo
+
+Las páginas públicas de categorías y productos se regeneran cada cinco minutos. Las lecturas del árbol de categorías, listados, filtros y fichas usan la caché de datos de Next; cualquier escritura de categorías, marcas o productos desde el panel invalida esa caché. El webhook de YoPago también la invalida cuando descuenta stock.
+
+El árbol ejecuta en paralelo sus lecturas independientes y calcula Ofertas/Nuevos en una sola agregación. La ficha trae producto e imágenes en una consulta. El pool de desarrollo mantiene sus conexiones durante cinco minutos para evitar repetir el handshake TLS tras una pausa corta.
+
+La base configurada se encuentra detrás del pooler de Supabase en `us-west-2`. En la medición del 11 de septiembre de 2026, con 51 productos, PostgreSQL planificó la consulta de categoría en 1,266 ms y la ejecutó en 0,508 ms; desde el equipo local, sin embargo, una conexión nueva más `SELECT 1` tardó 1,99 s y una consulta caliente 187,5 ms. La distancia y apertura de conexión dominan el tiempo, no el volumen ni el plan SQL. Para producción conviene ubicar la función de Netlify y PostgreSQL en la misma región o en regiones cercanas.
+
+`next dev` compila una ruta la primera vez que se visita y no representa la velocidad del despliegue. Para evaluar navegación se debe usar `npm run build` seguido de `npm start`; el prefetch de enlaces y las páginas estáticas operan plenamente en ese modo.
+
 ## Despliegue
 
 `netlify.toml` configura build `npm run build`, publicación `.next`, Node 22 y protección de versiones. Configura variables en Netlify y aplica las migraciones sobre la base elegida como paso controlado antes del despliegue. Las variables `NEXT_PUBLIC_*` se incorporan durante el build.

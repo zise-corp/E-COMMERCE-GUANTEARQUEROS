@@ -1,6 +1,6 @@
 # Análisis del proyecto Guantearqueros Bolivia
 
-Fecha: 9 de septiembre de 2026. Revisión de arquitectura, código, configuración, documentación y verificaciones locales. No se modificó la implementación ni se ejecutaron migraciones o semillas sobre la base configurada.
+Fecha: 11 de septiembre de 2026. Revisión de arquitectura, código, configuración, documentación y verificaciones locales. No se ejecutaron migraciones, semillas ni escrituras sobre la base configurada durante el análisis de rendimiento.
 
 ## Correcciones posteriores al análisis
 
@@ -15,6 +15,7 @@ Este informe conserva el diagnóstico inicial como referencia histórica. Los si
 - Sin vuelta automática a sandbox cuando faltan credenciales. Simulación en producción requiere habilitación explícita. El webhook live permanece cerrado hasta la integración real.
 - Transiciones operativas protegidas y buscador de pedidos corregido para consultas por nombre.
 - README y handoffs actualizados para distinguir implementación vigente de referencias históricas.
+- Consultas públicas del catálogo agrupadas y almacenadas en la caché de Next durante cinco minutos, con invalidación inmediata desde el administrador y tras el descuento de stock de YoPago. La ficha de producto obtiene sus imágenes en la misma consulta.
 
 Migración nueva: `0013_checkout_security.sql`, aditiva, verificada en PGlite y aplicada a la base PostgreSQL de nube configurada el 9 de septiembre de 2026.
 
@@ -68,7 +69,7 @@ Los ítems del pedido conservan nombre, precio, talla, imagen y atributos. Borra
 - Notificaciones: `src/lib/notify.ts` solo registra mensajes; no envía WhatsApp ni correo. Solicitar factura únicamente guarda los datos correspondientes.
 - Diseño: componentes propios, base oscura, naranja principal, acento azul DREI, tipografía Anton local y Manrope mediante `next/font/google`. Hay modales, drawers, control de foco, toasts y reglas responsive. No se verificó visualmente la fidelidad en navegador.
 - SEO: metadata, canonical, JSON-LD de producto con escape de `<`, sitemap, Open Graph y exclusión del panel/checkout. Algunas descripciones aún mencionan retiro en Cochabamba.
-- Renderizado: revalidación de 300 segundos en diversas rutas públicas, páginas dinámicas para checkout y panel. Las acciones del panel invalidan rutas; el webhook no invalida el catálogo tras descontar stock.
+- Renderizado: revalidación de 300 segundos en diversas rutas públicas, páginas dinámicas para checkout y panel. Las acciones del panel y el webhook que descuenta stock invalidan las rutas y datos del catálogo afectados.
 - Despliegue: configuración para Netlify y Node 22; artefactos separados `.next-dev` y `.next`. Pool PostgreSQL reutilizado por proceso, con límite menor durante build.
 
 ## Hallazgos prioritarios de la revisión de código
@@ -90,6 +91,18 @@ Estos hallazgos se derivan del código; no se realizaron ataques contra un despl
 | Media | El límite de intentos de login vive en memoria y por usuario: no es compartido entre instancias. La sesión no consulta revocación ni estado del usuario en cada autorización. | `src/app/admin/login/actions.ts`, `src/lib/admin-auth.ts` |
 
 La primera corrección de seguridad debería separar y validar los tipos de token, no limitarse a cambiar sus nombres de cookie. El cierre de pagos necesita una operación transaccional con control de transiciones, identidad del intento y política explícita de inventario.
+
+## Diagnóstico de rendimiento del catálogo
+
+La base contiene 51 productos, 20 categorías y 51 imágenes. Un `EXPLAIN ANALYZE` de la consulta de productos de una categoría registró 1,266 ms de planificación y 0,508 ms de ejecución dentro de PostgreSQL. No hay un problema actual de volumen, bloqueo o plan de consulta que explique esperas de varios segundos.
+
+La demora observada proviene de la red y del entorno de ejecución. La base configurada usa el pooler de Supabase en AWS `us-west-2`; desde el equipo de desarrollo una conexión fría más `SELECT 1` tardó 1,99–2,13 s y una conexión caliente 184–188 ms. El código anterior sumaba cuatro consultas consecutivas para construir categorías, luego otra ronda para productos y facetas, y dos rondas para una ficha. Las mediciones anteriores a la corrección fueron 1,53 s para el árbol ya caliente, 2,01 s para productos/facetas y 0,77–0,89 s para una ficha.
+
+La implementación corregida ejecuta en paralelo las lecturas del árbol, combina los conteos reservados, trae ficha e imágenes juntas y almacena árbol, resolución de slugs, listados, facetas y fichas en la caché de Next. React también comparte dentro del mismo render las lecturas repetidas por layout, metadatos y página. Los fallbacks quedan fuera de la caché para que una caída temporal no conserve un catálogo vacío. Las escrituras administrativas y el webhook invalidan la etiqueta pública; por ello los cinco minutos son un límite de respaldo y no una espera obligatoria para ver cambios.
+
+En una compilación de producción se generaron 88 páginas, incluidas todas las categorías y 51 fichas. Sobre `next start`, una categoría respondió primero en 283 ms y luego en 51–78 ms; una ficha respondió en 39 ms y luego en 8–16 ms. En `next dev`, el primer acceso a una categoría tardó 9,8 s, de los cuales 5,4 s fueron compilación de Turbopack y el resto incluyó conexiones frías; accesos calientes siguieron alrededor de 0,8–1,0 s por la instrumentación y renderizado de desarrollo. La velocidad que debe evaluarse para el usuario final es la de producción.
+
+Para minimizar fallos de caché en el despliegue, la función de Netlify y PostgreSQL deben residir en la misma región o en regiones cercanas. Si el catálogo crece de decenas a miles de productos, entonces corresponde añadir paginación SQL en categorías y revisar índices con métricas reales; con 51 filas, esos cambios no reducirían la latencia actual de red.
 
 ## Mantenimiento y crecimiento
 

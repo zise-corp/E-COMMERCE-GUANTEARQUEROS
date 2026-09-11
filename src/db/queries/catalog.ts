@@ -1,12 +1,17 @@
 import { and, arrayOverlaps, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { db, withFallback } from "../index";
 import { brands, categories, productImages, products } from "../schema";
+import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import type { HomeSettings } from "./settings";
 
 /** `categories` se une dos veces (categoría y subcategoría): hacen falta alias. */
 const parentCategory = alias(categories, "cat");
 const childCategory = alias(categories, "sub");
+
+const CATALOG_REVALIDATE_SECONDS = 300;
 
 /* Modelos de vista: los componentes no dependen de la forma de las filas de Drizzle. */
 
@@ -199,9 +204,11 @@ function toCard(row: CardRow): ProductCard {
 /* ── Categorías ───────────────────────────────────────────────────────────── */
 
 /** Árbol de dos niveles con el conteo de productos publicados de cada rama. */
-export async function getCategoryTree(): Promise<CategoryNode[]> {
-  return withFallback<CategoryNode[]>([], async () => {
-    const rows = await db
+async function queryCategoryTree(): Promise<CategoryNode[]> {
+    // Las tres lecturas son independientes. Al ejecutarlas juntas solo pagamos
+    // una ronda de red hacia la base remota.
+    const [rows, counts, specialCounts] = await Promise.all([
+      db
       .select({
         id: categories.id,
         name: categories.name,
@@ -213,9 +220,9 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
       })
       .from(categories)
       .where(eq(categories.active, true))
-      .orderBy(asc(categories.position), asc(categories.name));
+      .orderBy(asc(categories.position), asc(categories.name)),
 
-    const counts = await db
+      db
       .select({
         categoryId: products.categoryId,
         subcategoryId: products.subcategoryId,
@@ -223,21 +230,18 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
       })
       .from(products)
       .where(eq(products.published, true))
-      .groupBy(products.categoryId, products.subcategoryId);
+      .groupBy(products.categoryId, products.subcategoryId),
 
-    const [offerCountRow] = await db
-      .select({ n: sql<number>`count(*)::int` })
+      db
+      .select({
+        offers: sql<number>`count(*) filter (where ${products.compareAtPrice} is not null and ${products.compareAtPrice} > ${products.price})::int`,
+        newProducts: sql<number>`count(*) filter (where ${products.isNew} = true)::int`,
+      })
       .from(products)
-      .where(and(
-        eq(products.published, true),
-        sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`,
-      ));
-    const offerCount = offerCountRow?.n ?? 0;
-    const [newCountRow] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(products)
-      .where(and(eq(products.published, true), eq(products.isNew, true)));
-    const newCount = newCountRow?.n ?? 0;
+      .where(eq(products.published, true)),
+    ]);
+    const offerCount = specialCounts[0]?.offers ?? 0;
+    const newCount = specialCounts[0]?.newProducts ?? 0;
 
     const byCategory = new Map<number, number>();
     const bySubcategory = new Map<number, number>();
@@ -282,16 +286,25 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
       }
     }
     return roots;
-  });
 }
 
-export async function getCategoryBySlug(slug: string) {
-  return withFallback<{
-    id: number;
-    name: string;
-    slug: string;
-    parentId: number | null;
-  } | null>(null, async () => {
+const getCachedCategoryTree = unstable_cache(
+  queryCategoryTree,
+  ["public-category-tree-v2"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+const getCategoryTreeForRequest = cache(() =>
+  withFallback<CategoryNode[]>([], getCachedCategoryTree),
+);
+
+export async function getCategoryTree(): Promise<CategoryNode[]> {
+  // El fallback queda fuera de la caché para no guardar un catálogo vacío si
+  // la base sufre una interrupción temporal.
+  return getCategoryTreeForRequest();
+}
+
+async function queryCategoryBySlug(slug: string) {
     const [row] = await db
       .select({
         id: categories.id,
@@ -303,7 +316,23 @@ export async function getCategoryBySlug(slug: string) {
       .where(and(eq(categories.slug, slug), eq(categories.active, true)))
       .limit(1);
     return row ?? null;
-  });
+}
+
+const getCachedCategoryBySlug = unstable_cache(
+  queryCategoryBySlug,
+  ["public-category-by-slug-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+const getCategoryBySlugForRequest = cache((slug: string) =>
+  withFallback<Awaited<ReturnType<typeof queryCategoryBySlug>>>(
+    null,
+    () => getCachedCategoryBySlug(slug),
+  ),
+);
+
+export async function getCategoryBySlug(slug: string) {
+  return getCategoryBySlugForRequest(slug);
 }
 
 export async function getAllCategorySlugs(): Promise<
@@ -338,11 +367,19 @@ export async function getBrands() {
 }
 
 /** Estado público de la marca propia; controla todos los accesos a DREI. */
-export async function isDreiVisible(): Promise<boolean> {
-  return withFallback(true, async () => {
+async function queryDreiVisible(): Promise<boolean> {
     const [drei] = await db.select({ active: brands.active }).from(brands).where(eq(brands.slug, "drei")).limit(1);
     return drei?.active ?? false;
-  });
+}
+
+const getCachedDreiVisible = unstable_cache(
+  queryDreiVisible,
+  ["public-drei-visible-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function isDreiVisible(): Promise<boolean> {
+  return withFallback(true, getCachedDreiVisible);
 }
 
 /* ── Productos ────────────────────────────────────────────────────────────── */
@@ -398,13 +435,12 @@ export type CatalogFilters = {
 
 export type ResolvedCategory = { id: number; parentId: number | null };
 
-export async function getProductsByCategory(
+async function queryProductsByCategory(
   categorySlug: string,
   subcategorySlug?: string,
   filters: CatalogFilters = {},
   resolvedCategory?: ResolvedCategory,
 ): Promise<ProductCard[]> {
-  return withFallback<ProductCard[]>([], async () => {
     const target = subcategorySlug ?? categorySlug;
     const cat =
       resolvedCategory ??
@@ -446,18 +482,31 @@ export async function getProductsByCategory(
       .where(and(...where))
       .orderBy(desc(products.featured), asc(products.name));
     return rows.map(toCard);
-  });
+}
+
+const getCachedProductsByCategory = unstable_cache(
+  queryProductsByCategory,
+  ["public-products-by-category-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getProductsByCategory(
+  categorySlug: string,
+  subcategorySlug?: string,
+  filters: CatalogFilters = {},
+  resolvedCategory?: ResolvedCategory,
+): Promise<ProductCard[]> {
+  return withFallback<ProductCard[]>([], () =>
+    getCachedProductsByCategory(categorySlug, subcategorySlug, filters, resolvedCategory),
+  );
 }
 
 /** Rango de precios y tallas disponibles de una rama, para armar los filtros. */
-export async function getCategoryFacets(
+async function queryCategoryFacets(
   categorySlug: string,
   subcategorySlug?: string,
   resolvedCategory?: ResolvedCategory,
 ) {
-  return withFallback<{ sizes: string[]; brandNames: string[]; maxPrice: number }>(
-    { sizes: [], brandNames: [], maxPrice: 900 },
-    async () => {
       const target = subcategorySlug ?? categorySlug;
       const cat =
         resolvedCategory ??
@@ -502,13 +551,30 @@ export async function getCategoryFacets(
         brandNames,
         maxPrice: Math.ceil((maxPrice || 900) / 10) * 10,
       };
-    },
+}
+
+const getCachedCategoryFacets = unstable_cache(
+  queryCategoryFacets,
+  ["public-category-facets-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getCategoryFacets(
+  categorySlug: string,
+  subcategorySlug?: string,
+  resolvedCategory?: ResolvedCategory,
+) {
+  return withFallback<{ sizes: string[]; brandNames: string[]; maxPrice: number }>(
+    { sizes: [], brandNames: [], maxPrice: 900 },
+    () => getCachedCategoryFacets(categorySlug, subcategorySlug, resolvedCategory),
   );
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
-  return withFallback<ProductDetail | null>(null, async () => {
-    const [row] = await db
+async function queryProductBySlug(slug: string): Promise<ProductDetail | null> {
+    // Producto e imágenes se recuperan con un solo viaje a PostgreSQL. La fila
+    // del producto se repite por imagen y se normaliza aquí, donde el costo es
+    // mínimo frente a otra ronda de red.
+    const rows = await db
       .select({
         id: products.id,
         slug: products.slug,
@@ -528,20 +594,24 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
         categorySlug: parentCategory.slug,
         subcategoryName: childCategory.name,
         subcategorySlug: childCategory.slug,
+        imagePublicId: productImages.publicId,
+        imageAlt: productImages.alt,
       })
       .from(products)
       .leftJoin(brands, eq(products.brandId, brands.id))
       .innerJoin(parentCategory, eq(parentCategory.id, products.categoryId))
       .leftJoin(childCategory, eq(childCategory.id, products.subcategoryId))
+      .leftJoin(productImages, eq(productImages.productId, products.id))
       .where(and(eq(products.slug, slug), eq(products.published, true)))
-      .limit(1);
+      .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id));
+    const row = rows[0];
     if (!row) return null;
 
-    const images = await db
-      .select({ publicId: productImages.publicId, alt: productImages.alt })
-      .from(productImages)
-      .where(eq(productImages.productId, row.id))
-      .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id));
+    const images = rows.flatMap((item) =>
+      item.imagePublicId === null
+        ? []
+        : [{ publicId: item.imagePublicId, alt: item.imageAlt ?? "" }],
+    );
 
     return {
       id: row.id,
@@ -565,17 +635,38 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       subcategorySlug: row.subcategorySlug,
       updatedAt: row.updatedAt,
     };
-  });
 }
 
-export async function getAllProductSlugs(): Promise<string[]> {
-  return withFallback<string[]>([], async () => {
+const getCachedProductBySlug = unstable_cache(
+  queryProductBySlug,
+  ["public-product-by-slug-v2"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+const getProductBySlugForRequest = cache((slug: string) =>
+  withFallback<ProductDetail | null>(null, () => getCachedProductBySlug(slug)),
+);
+
+export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+  return getProductBySlugForRequest(slug);
+}
+
+async function queryAllProductSlugs(): Promise<string[]> {
     const rows = await db
       .select({ slug: products.slug })
       .from(products)
       .where(eq(products.published, true));
     return rows.map((r) => r.slug);
-  });
+}
+
+const getCachedAllProductSlugs = unstable_cache(
+  queryAllProductSlugs,
+  ["public-product-slugs-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getAllProductSlugs(): Promise<string[]> {
+  return withFallback<string[]>([], getCachedAllProductSlugs);
 }
 
 /** Categorías y subcategorías activas para la navegación global. */

@@ -1,7 +1,7 @@
 "use server";
 
 import { eq, isNull, or, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
@@ -9,6 +9,7 @@ import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
 import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
+import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
 import { SYSTEM_CATEGORY_SLUGS } from "@/lib/slug";
@@ -25,6 +26,10 @@ import {
 } from "@/lib/validators";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+function invalidatePublicCatalog() {
+  revalidateTag(PUBLIC_CATALOG_CACHE_TAG);
+}
 
 /**
  * Las server actions son endpoints públicos: cada una vuelve a verificar la
@@ -65,6 +70,7 @@ export async function saveCategoryAction(
       await db.update(categories).set({ active: values.active }).where(eq(categories.id, id));
       revalidatePath("/admin/categorias");
       revalidatePath("/", "layout");
+      invalidatePublicCatalog();
       return { ok: true };
     }
   }
@@ -152,6 +158,7 @@ export async function saveCategoryAction(
 
   revalidatePath("/admin/categorias");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -189,6 +196,7 @@ export async function reorderCategoriesAction(input: unknown): Promise<ActionRes
 
   revalidatePath("/admin/categorias");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -216,6 +224,7 @@ export async function deleteCategoryAction(id: number): Promise<ActionResult> {
   await db.delete(categories).where(eq(categories.id, id));
   revalidatePath("/admin/categorias");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -261,6 +270,7 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
   revalidatePath("/admin/productos");
   revalidatePath("/drei");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -275,6 +285,7 @@ export async function deleteBrandAction(id: number): Promise<ActionResult> {
   revalidatePath("/admin/marcas");
   revalidatePath("/admin/productos");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -300,6 +311,7 @@ export async function reorderBrandsAction(input: unknown): Promise<ActionResult>
   revalidatePath("/admin/marcas");
   revalidatePath("/admin/productos");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 
@@ -407,6 +419,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     revalidatePath("/admin/productos");
     revalidatePath(`/p/${slug}`);
     revalidatePath("/", "layout");
+    invalidatePublicCatalog();
     return { ok: true };
   } catch (error) {
     console.error("[admin] saveProduct", error);
@@ -421,6 +434,7 @@ export async function deleteProductAction(id: number): Promise<ActionResult> {
   await db.delete(products).where(eq(products.id, id));
   revalidatePath("/admin/productos");
   revalidatePath("/", "layout");
+  invalidatePublicCatalog();
   return { ok: true };
 }
 

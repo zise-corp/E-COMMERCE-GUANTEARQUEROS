@@ -1,8 +1,10 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { processYoPagoCallback } from "@/db/queries/payments";
 import { OrderError } from "@/db/queries/orders";
+import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
     // Todo callback autenticado queda registrado en payment_events, se encuentre o no el pago.
     const result = await processYoPagoCallback(parsed.data, eventKey, payloadHash);
     if (result === "not_found") return NextResponse.json(notFound);
+    if (result !== "duplicate") revalidateTag(PUBLIC_CATALOG_CACHE_TAG);
     return NextResponse.json({ State: "00", message: result === "duplicate" ? "COMPLETADO (YA PROCESADA)" : "COMPLETADO" });
   } catch (error) {
     if (error instanceof OrderError) return NextResponse.json(notFound);

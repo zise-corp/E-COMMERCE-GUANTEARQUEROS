@@ -41,9 +41,15 @@ export function getDb(): Db {
   // alcanza de sobra; el pool grande es para el server ya arriba, que sí
   // atiende tráfico real concurrente en un solo proceso.
   const isBuildPhase = process.env["NEXT_PHASE"] === PHASE_PRODUCTION_BUILD;
+  const isProduction = process.env.NODE_ENV === "production";
   const client = postgres(url, {
-    max: isBuildPhase ? 2 : process.env.NODE_ENV === "production" ? 10 : 3,
-    idle_timeout: 20,
+    max: isBuildPhase ? 2 : isProduction ? 10 : 3,
+    // El handshake TLS con el pooler remoto tarda alrededor de dos segundos
+    // desde el entorno local. En desarrollo conservamos las conexiones durante
+    // la sesión de trabajo para que una pausa breve no obligue a abrirlas otra
+    // vez en el siguiente clic. En producción el límite corto sigue liberando
+    // conexiones de instancias serverless ociosas.
+    idle_timeout: isBuildPhase || isProduction ? 20 : 300,
     // Los poolers (Supabase pgbouncer, Neon pooled) no soportan prepared statements.
     prepare: false,
   });
