@@ -4,13 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SizeChip } from "@/components/ui/Chip";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
-import { useToast } from "@/components/ui/Toast";
 import type { ProductDetail } from "@/db/queries/catalog";
-import { useCart } from "./CartProvider";
+import { announceNavigationStart } from "@/lib/navigation-feedback";
+import { useCart, type CartItem } from "./CartProvider";
 
 export function AddToCart({ product }: { product: ProductDetail }) {
   const cart = useCart();
-  const toast = useToast();
   const router = useRouter();
   const hasSizes = product.sizes.length > 0;
   const [size, setSize] = useState<string | null>(hasSizes ? (product.sizes[1] ?? product.sizes[0] ?? null) : null);
@@ -22,38 +21,45 @@ export function AddToCart({ product }: { product: ProductDetail }) {
   const outOfStock = product.stock <= 0;
   const sizeLabel = product.categorySlug === "guantes" ? "Talla de guante" : "Talla";
 
-  function add(openDrawer: boolean) {
+  function selectedItem(): Omit<CartItem, "quantity"> | null {
     if (hasSizes && !size) {
       setError("Elige una talla.");
-      return;
+      return null;
     }
     const engraving = wantsPersonalization ? personalization.trim() : "";
     if (product.customizable && wantsPersonalization && !engraving) {
       setError("Escribe qué quieres grabar.");
-      return;
+      return null;
     }
     setError(null);
-    cart.add(
-      {
-        productId: product.id,
-        slug: product.slug,
-        name: product.name,
-        brandName: product.brandName,
-        unitPrice: product.price,
-        size,
-        imagePublicId: product.imagePublicId,
-        stock: product.stock,
-        personalization: product.customizable && engraving ? engraving : null,
-      },
-      quantity,
-    );
-    if (openDrawer) {
-      cart.openCart("items");
-      toast.show("Agregado al carrito");
-    } else {
-      cart.closeCart();
-      router.push("/checkout/envio");
-    }
+    return {
+      productId: product.id,
+      slug: product.slug,
+      name: product.name,
+      brandName: product.brandName,
+      unitPrice: product.price,
+      size,
+      imagePublicId: product.imagePublicId,
+      stock: product.stock,
+      personalization: product.customizable && engraving ? engraving : null,
+    };
+  }
+
+  function addToCart() {
+    const item = selectedItem();
+    if (!item) return;
+    cart.startCartCheckout();
+    cart.add(item, quantity);
+    // El carrito abierto con el producto ya es la confirmación: sin aviso aparte.
+    cart.openCart("items");
+  }
+
+  function buyNow() {
+    const item = selectedItem();
+    if (!item) return;
+    cart.startDirectCheckout(item, quantity);
+    announceNavigationStart();
+    router.push("/checkout/envio");
   }
 
   return (
@@ -109,7 +115,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
         <div className="grid flex-1 grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={() => add(true)}
+            onClick={addToCart}
             disabled={outOfStock}
             className="flex min-h-[52px] items-center justify-center border border-brand px-3 text-center text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand transition-colors hover:bg-brand/10 disabled:border-line disabled:text-content-faint"
           >
@@ -117,7 +123,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
           </button>
           <button
             type="button"
-            onClick={() => add(false)}
+            onClick={buyNow}
             disabled={outOfStock}
             className="flex min-h-[52px] items-center justify-center bg-brand px-3 text-center text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-[background-color,box-shadow] clip-slash-lg hover:bg-brand-hot hover:shadow-glow-brand disabled:bg-ink-700 disabled:text-content-faint disabled:shadow-none"
           >

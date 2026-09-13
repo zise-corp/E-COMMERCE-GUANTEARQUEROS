@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { db, withFallback } from "../index";
 import { siteSettings } from "../schema";
+import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import { checkoutSettingsSchema } from "@/lib/validators";
 
 export type CampaignSettings = {
@@ -128,15 +130,23 @@ function parseHomeSettings(value: unknown): HomeSettings | null {
   };
 }
 
-export async function getHomeSettings(): Promise<HomeSettings> {
-  return withFallback<HomeSettings>(HOME_DEFAULT, async () => {
+async function queryHomeSettings(): Promise<HomeSettings> {
     const [row] = await db
       .select({ value: siteSettings.value })
       .from(siteSettings)
       .where(eq(siteSettings.key, HOME_KEY))
       .limit(1);
     return row ? (parseHomeSettings(row.value) ?? HOME_DEFAULT) : HOME_DEFAULT;
-  });
+}
+
+const getCachedHomeSettings = unstable_cache(
+  queryHomeSettings,
+  ["public-home-settings-v1"],
+  { revalidate: 300, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getHomeSettings(): Promise<HomeSettings> {
+  return withFallback<HomeSettings>(HOME_DEFAULT, getCachedHomeSettings);
 }
 
 export async function setHomeSettings(next: HomeSettings): Promise<void> {

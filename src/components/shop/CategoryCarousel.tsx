@@ -113,15 +113,29 @@ export function CategoryCarousel({ categories, categoryImages = {} }: { categori
 function CategoryImages({ images, fallback }: { images?: string[]; fallback: string | null }) {
   const availableImages = images?.length ? images : fallback ? [fallback] : [];
   const [activeImage, setActiveImage] = useState(0);
+  const [previousImage, setPreviousImage] = useState<number | null>(null);
+  const activeImageRef = useRef(0);
 
   useEffect(() => {
+    activeImageRef.current = 0;
     setActiveImage(0);
+    setPreviousImage(null);
     if (availableImages.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => {
-      setActiveImage((current) => (current + 1) % availableImages.length);
+      const current = activeImageRef.current;
+      const next = (current + 1) % availableImages.length;
+      setPreviousImage(current);
+      activeImageRef.current = next;
+      setActiveImage(next);
     }, 3000);
     return () => window.clearInterval(timer);
   }, [availableImages.length]);
+
+  useEffect(() => {
+    if (previousImage === null) return;
+    const timer = window.setTimeout(() => setPreviousImage(null), 750);
+    return () => window.clearTimeout(timer);
+  }, [previousImage]);
 
   if (availableImages.length === 0) {
     return (
@@ -131,9 +145,15 @@ function CategoryImages({ images, fallback }: { images?: string[]; fallback: str
     );
   }
 
+  const nextImage = availableImages.length > 1 ? (activeImage + 1) % availableImages.length : activeImage;
+
   return (
     <div className="absolute inset-0 opacity-[0.55] transition-opacity duration-300 group-hover:opacity-80">
-      {availableImages.map((image, index) => (
+      {availableImages.map((image, index) => {
+        // La siguiente imagen permanece montada para llegar descargada al
+        // fundido; las demás no consumen DOM, decodificación ni memoria.
+        if (index !== activeImage && index !== previousImage && index !== nextImage) return null;
+        return (
         <div
           key={`${image}-${index}`}
           className={cn(
@@ -144,7 +164,8 @@ function CategoryImages({ images, fallback }: { images?: string[]; fallback: str
         >
           <ProductImage publicId={image} alt="" preset="category" />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

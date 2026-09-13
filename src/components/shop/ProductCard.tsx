@@ -34,24 +34,31 @@ export function ProductCard({
         )}
       >
         <Link href={`/p/${product.slug}`} className="absolute inset-0">
+          {/* Zoom leve solo de la foto para marcar dónde está el cursor: el
+              contenedor recorta (overflow-hidden) y los badges no se escalan.
+              Solo con mouse real (en táctil el hover queda pegado) o con foco. */}
           <ProductImage
             publicId={product.imagePublicId}
             alt={product.name}
             preset={aspect === "1/1" ? "square" : "grid"}
             priority={priority}
+            className="transition-transform duration-500 ease-out group-focus-within:scale-[1.06] [@media(hover:hover)]:group-hover:scale-[1.06]"
           />
 
-          <div className="absolute left-0 top-0 flex flex-col items-start gap-1">
-            {product.isNew ? <span className="bg-[#39BDF8] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-ink-950">Nuevo</span> : null}
-            {off !== null ? <DiscountBadge percent={off} /> : null}
+          {/* Badges y barra de stock en una sola columna: con "Nuevo" + descuento
+              la pila mide ~65px y la barra, fija a 40px, tapaba el descuento. El
+              mínimo de 40px mantiene la barra donde estaba en los demás casos y
+              evita que suba sobre la etiqueta DREI de la esquina derecha. */}
+          <div className="absolute inset-x-0 top-0 flex flex-col">
+            <div className="flex min-h-10 flex-col items-start gap-1 pb-1">
+              {product.isNew ? <span className="bg-[#39BDF8] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-ink-950">Nuevo</span> : null}
+              {off !== null ? <DiscountBadge percent={off} /> : null}
+            </div>
+            {low ? <LowStockBar stock={product.stock} /> : null}
           </div>
 
           {product.isDrei ? (
             <DreiTag className="absolute right-2.5 top-2.5" />
-          ) : null}
-
-          {low ? (
-            <LowStockBar stock={product.stock} className="absolute inset-x-0 top-10" />
           ) : null}
 
           {product.stock === 0 ? (

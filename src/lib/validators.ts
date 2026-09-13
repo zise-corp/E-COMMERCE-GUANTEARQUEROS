@@ -8,6 +8,9 @@ import { DEPARTMENTS, LOCAL_DEPARTMENT } from "./site";
 
 const trimmed = (max: number) => z.string().trim().max(max);
 
+export const documentTypes = ["ci", "nit", "passport", "foreign_id"] as const;
+export type DocumentType = (typeof documentTypes)[number];
+
 export const phoneSchema = trimmed(30)
   .min(7, "Falta el teléfono.")
   .regex(/^[+0-9()\s-]+$/, "Solo números, espacios y +.")
@@ -30,20 +33,40 @@ export const shippingSchema = z
     lat: z.number().min(-90).max(90).nullable().default(null),
     lng: z.number().min(-180).max(180).nullable().default(null),
     mapsUrl: trimmed(500).optional().default(""),
+    documentType: z.enum(documentTypes).default("ci"),
     documentId: trimmed(40).optional().default(""),
+    documentComplement: trimmed(4).optional().default(""),
     email: z.union([z.literal(""), z.string().trim().email("Correo inválido.").max(160)])
       .optional()
       .default(""),
   })
   .superRefine((v, ctx) => {
     if (!v.email) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Falta el correo." });
-    if (v.documentId.trim().length < 4) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Falta el CI, NIT o documento." });
+    const documentId = v.documentId.trim();
+    const documentComplement = v.documentComplement.trim();
+    if (v.documentType === "ci") {
+      if (!/^\d{4,12}$/.test(documentId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Escribe el número de CI (solo dígitos)." });
+      }
+      if (documentComplement && !/^[A-Z0-9]{1,4}$/i.test(documentComplement)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentComplement"], message: "Complemento inválido. Usa hasta 4 letras o números." });
+      }
+    } else if (v.documentType === "nit") {
+      if (!/^\d{5,13}$/.test(documentId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Escribe un NIT válido (solo dígitos)." });
+      }
+    } else if (!/^[A-Z0-9][A-Z0-9 .\/-]{2,38}[A-Z0-9]$/i.test(documentId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "Escribe un documento válido usando letras y números." });
+    }
     if (v.invoiceRequested) {
       if (v.businessName.trim().length < 2) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["businessName"], message: "Escribe la razón social." });
       }
-      if (v.taxId.trim().length < 4) {
+      const taxId = v.taxId.trim();
+      if (taxId.length < 4) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["taxId"], message: "Escribe un NIT válido." });
+      } else if (!/^\d+$/.test(taxId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["taxId"], message: "El NIT solo puede contener números." });
       }
     }
 

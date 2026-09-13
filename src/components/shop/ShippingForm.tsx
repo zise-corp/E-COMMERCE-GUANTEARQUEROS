@@ -3,7 +3,7 @@
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DEPARTMENTS, LOCAL_DEPARTMENT, type Department } from "@/lib/site";
-import { shippingSchema } from "@/lib/validators";
+import { shippingSchema, type DocumentType } from "@/lib/validators";
 import { LocationPicker } from "./LocationPicker";
 
 export type ShippingValues = {
@@ -20,9 +20,25 @@ export type ShippingValues = {
   lat: number | null;
   lng: number | null;
   mapsUrl: string;
+  documentType: DocumentType;
   documentId: string;
+  documentComplement: string;
   email: string;
 };
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  ci: "Cédula de identidad",
+  nit: "NIT",
+  passport: "Pasaporte",
+  foreign_id: "Documento extranjero",
+};
+
+export function formatIdentityDocument(value: Pick<ShippingValues, "documentType" | "documentId" | "documentComplement">) {
+  const number = value.documentId.trim();
+  return value.documentType === "ci" && value.documentComplement.trim()
+    ? `${number}-${value.documentComplement.trim().toUpperCase()}`
+    : number;
+}
 
 export const emptyShipping: ShippingValues = {
   name: "",
@@ -38,7 +54,9 @@ export const emptyShipping: ShippingValues = {
   lat: null,
   lng: null,
   mapsUrl: "",
+  documentType: "ci",
   documentId: "",
+  documentComplement: "",
   email: "",
 };
 
@@ -135,14 +153,51 @@ export function ShippingForm({
           onChange={(e) => set("phone", e.target.value)}
           fieldClassName="sm:col-span-2"
         />
-        <Input
-          label="CI / NIT / Documento"
+        <Select
+          label="Tipo de documento"
           required
-          placeholder="Ej. 1234567 LP"
-          value={value.documentId}
-          error={err("documentId")}
-          onChange={(e) => set("documentId", e.target.value)}
-        />
+          value={value.documentType}
+          onChange={(event) => onChange({
+            ...value,
+            documentType: event.target.value as DocumentType,
+            documentId: "",
+            documentComplement: "",
+          })}
+        >
+          <option value="ci">Cédula de identidad</option>
+          <option value="nit">NIT</option>
+          <option value="passport">Pasaporte</option>
+          <option value="foreign_id">Documento extranjero</option>
+        </Select>
+        <div className={cn("grid gap-3", value.documentType === "ci" && "grid-cols-[minmax(0,1fr)_92px]") }>
+          <Input
+            label={value.documentType === "ci" ? "Número de CI" : DOCUMENT_TYPE_LABELS[value.documentType]}
+            required
+            inputMode={value.documentType === "ci" || value.documentType === "nit" ? "numeric" : "text"}
+            pattern={value.documentType === "ci" || value.documentType === "nit" ? "[0-9]*" : undefined}
+            maxLength={value.documentType === "ci" ? 12 : value.documentType === "nit" ? 13 : 40}
+            placeholder={value.documentType === "ci" ? "Ej. 1234567" : value.documentType === "nit" ? "Número de NIT" : "Número de documento"}
+            value={value.documentId}
+            error={err("documentId")}
+            onChange={(event) => set(
+              "documentId",
+              value.documentType === "ci" || value.documentType === "nit"
+                ? event.target.value.replace(/\D/g, "")
+                : event.target.value.toUpperCase().replace(/[^A-Z0-9 .\/-]/g, ""),
+            )}
+          />
+          {value.documentType === "ci" ? (
+            <Input
+              label="Complemento"
+              hint="Opcional"
+              maxLength={4}
+              placeholder="Ej. 1A"
+              value={value.documentComplement}
+              error={err("documentComplement")}
+              onChange={(event) => set("documentComplement", event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+            />
+          ) : null}
+        </div>
         <Input
           label="Correo electrónico"
           required
@@ -199,10 +254,12 @@ export function ShippingForm({
               label="NIT"
               required
               inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={40}
               placeholder="Número de NIT"
               value={value.taxId}
               error={err("taxId")}
-              onChange={(event) => set("taxId", event.target.value)}
+              onChange={(event) => set("taxId", event.target.value.replace(/\D/g, ""))}
             />
           </div>
         ) : null}

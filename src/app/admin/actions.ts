@@ -499,6 +499,7 @@ export async function saveHomeSettingsAction(input: unknown): Promise<ActionResu
   }
 
   await setHomeSettings(parsed.data);
+  invalidatePublicCatalog();
   revalidatePath("/");
   revalidatePath("/admin/inicio");
   return { ok: true };

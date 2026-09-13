@@ -92,6 +92,12 @@ async function main() {
       shipping: { name: "Ana", lastName: "Prueba", phone: "71234567", email: "ana@example.com", documentId: "1234567", mode: "pickup", department: "La Paz" },
       items: [{ productId: product!.id, size: "8", quantity: 1 }],
     });
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, documentType: "ci", documentId: "1234567", documentComplement: "1A" } }).success, true);
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, documentType: "ci", documentId: "1234567 LP" } }).success, false);
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, documentType: "passport", documentId: "AB-123456" } }).success, true);
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, documentType: "foreign_id", documentId: "CE 987654" } }).success, true);
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, documentType: "nit", documentId: "123ABC" } }).success, false);
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, invoiceRequested: true, businessName: "Prueba", taxId: "123ABC" } }).success, false);
     const lines = await priceLines(input.items);
     const pricing = await calculateOrderPricing(lines, input.discountCode, input.shipping);
     assert.deepEqual(pricing, { subtotal: "10.05", shipping: "0.00", discount: "5.03", total: "5.02", discountCode: "MITAD" });
@@ -165,7 +171,7 @@ async function main() {
     try {
       const pickupInput = quoteOrderSchema.parse({
         checkoutKey: randomUUID(), discountCode: "",
-        shipping: { name: "Ana", lastName: "Retiro", phone: "71234567", email: "ana@example.com", documentId: "1234567 LP", mode: "pickup", department: "La Paz" },
+        shipping: { name: "Ana", lastName: "Retiro", phone: "71234567", email: "ana@example.com", documentId: "1234567", mode: "pickup", department: "La Paz" },
         items: [{ productId: product!.id, size: "9", quantity: 1 }],
       });
       const pickupLines = await priceLines(pickupInput.items);
@@ -191,7 +197,7 @@ async function main() {
       assert.equal(pendingRow?.companyCode, "AA45-QE59-56ER-RO99");
       assert.equal(pendingRow?.codeTransaction, sentToProvider[0]?.["codeTransaction"]);
       assert.equal(savedPickup.email, "ana@example.com");
-      assert.equal(savedPickup.documentId, "1234567 LP");
+      assert.equal(savedPickup.documentId, "1234567");
       const { POST: callback } = await import("../src/app/api/payments/yopago/webhook/route");
       const callYoPago = (body: unknown, headers: Record<string, string> = {}) => callback(new Request("https://shop.example.com/api/checkout/callback", {
         method: "POST", headers: { Username: "cb-user", Password: "cb-pass", ...headers }, body: JSON.stringify(body),
@@ -220,6 +226,36 @@ async function main() {
       globalThis.fetch = realFetch;
     }
     console.log("ok integración yopago: transactionId en el pedido antes de pagar, callback con los campos de YoPago, y todo callback queda registrado");
+
+    // La llamada a YoPago corre sin transacción abierta: un "pending" reciente impide
+    // un segundo cobro en paralelo, uno huérfano se descarta, y un abandono durante
+    // la espera se respeta (con la transacción abierta, este abandono quedaría bloqueado).
+    const flowInput = { ...input, checkoutKey: randomUUID(), discountCode: "" };
+    const flowPricing = await calculateOrderPricing(lines, "", input.shipping);
+    const flowOrder = await createOrder(input.shipping, lines, flowPricing, flowInput.checkoutKey, requestHash(flowInput));
+    const [inFlight] = await database.insert(schema.paymentAttempts).values({ orderId: flowOrder.id, method: "qr", companyCode: "AA45-QE59-56ER-RO99", transactionCode: "IN-FLIGHT-1", amount: flowPricing.total, currency: "BOB", status: "pending" }).returning();
+    await assert.rejects(startYoPagoPayment(flowOrder.id, "qr"), /Ya estamos generando/);
+    await database.update(schema.paymentAttempts).set({ createdAt: new Date(Date.now() - 60_000) }).where(eq(schema.paymentAttempts.id, inFlight!.id));
+    const flowFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      await abandonYoPagoPayment(flowOrder.id);
+      return new Response(
+        JSON.stringify({ status: 0, transactionId: "QR-ABANDONED-1", qrId: "Q-2", qr: "iVBORw0KGgo=" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as typeof fetch;
+    try {
+      await assert.rejects(startYoPagoPayment(flowOrder.id, "qr"), /ya no admite/);
+    } finally {
+      globalThis.fetch = flowFetch;
+    }
+    const flowAttempts = await database.select().from(schema.paymentAttempts).where(eq(schema.paymentAttempts.orderId, flowOrder.id));
+    assert.deepEqual(
+      flowAttempts.map((a) => [a.transactionCode === "IN-FLIGHT-1" ? "huérfano" : "nuevo", a.status, a.transactionId]).sort(),
+      [["huérfano", "failed", null], ["nuevo", "abandoned", "QR-ABANDONED-1"]],
+    );
+    assert.equal((await getOrder(flowOrder.id))?.financialStatus, "abandoned");
+    console.log("ok generación de pago: YoPago fuera de la transacción, sin cobros en paralelo y respetando un abandono");
 
     await database.update(schema.siteSettings).set({ value: { localDeliveryPrice: -99, transportPrice: 0, discounts: [] } }).where(eq(schema.siteSettings.key, "checkout"));
     await assert.rejects(getCheckoutSettings());

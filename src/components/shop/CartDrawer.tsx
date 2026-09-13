@@ -16,6 +16,7 @@ export function CartDrawer() {
   const empty = cart.items.length === 0;
 
   function continueToShipping() {
+    cart.startCartCheckout();
     cart.closeCart();
     router.push("/checkout/envio");
   }
@@ -36,6 +37,7 @@ export function CartDrawer() {
             <button
               type="button"
               onClick={continueToShipping}
+              data-payment-destination="/checkout/envio"
               disabled={empty}
               className="w-full bg-brand px-4 py-[18px] text-center text-[13.5px] font-extrabold uppercase tracking-[0.14em] text-ink-950 transition-colors duration-150 clip-slash-lg hover:bg-brand-hot disabled:bg-ink-700 disabled:text-content-faint"
             >

@@ -40,7 +40,8 @@ export type ProductDetail = ProductCard & {
   subcategoryName: string | null;
   subcategorySlug: string | null;
   images: { publicId: string; alt: string }[];
-  updatedAt: Date;
+  /** ISO: unstable_cache guarda JSON, así que un Date volvería como texto desde la caché. */
+  updatedAt: string;
 };
 
 export type CategoryNode = {
@@ -63,9 +64,7 @@ export type HomeHeroProduct = {
   imagePublicId: string;
 };
 
-export async function getHomeHeroProduct(productId: number | null): Promise<HomeHeroProduct | null> {
-  if (productId === null) return null;
-  return withFallback<HomeHeroProduct | null>(null, async () => {
+async function queryHomeHeroProduct(productId: number): Promise<HomeHeroProduct | null> {
     const [row] = await db
       .select({
         id: products.id,
@@ -81,7 +80,17 @@ export async function getHomeHeroProduct(productId: number | null): Promise<Home
       .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id))
       .limit(1);
     return row ?? null;
-  });
+}
+
+const getCachedHomeHeroProduct = unstable_cache(
+  queryHomeHeroProduct,
+  ["public-home-hero-product-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getHomeHeroProduct(productId: number | null): Promise<HomeHeroProduct | null> {
+  if (productId === null) return null;
+  return withFallback<HomeHeroProduct | null>(null, () => getCachedHomeHeroProduct(productId));
 }
 
 /**
@@ -92,8 +101,7 @@ export async function getHomeHeroProduct(productId: number | null): Promise<Home
  * Se excluyen los agotados: sería un anuncio grande de algo que no se puede
  * comprar. El orden es por descuento descendente, así lo más atractivo va primero.
  */
-export async function getHeroCarouselProducts(source: HomeSettings["heroSource"] = "offers", limit = 6): Promise<HomeHeroProduct[]> {
-  return withFallback<HomeHeroProduct[]>([], async () => {
+async function queryHeroCarouselProducts(source: HomeSettings["heroSource"], limit: number): Promise<HomeHeroProduct[]> {
     const rows = await db
       .select({
         id: products.id,
@@ -118,12 +126,20 @@ export async function getHeroCarouselProducts(source: HomeSettings["heroSource"]
         : desc(sql`(${products.compareAtPrice} - ${products.price}) / ${products.compareAtPrice}`))
       .limit(limit);
     return rows;
-  });
+}
+
+const getCachedHeroCarouselProducts = unstable_cache(
+  queryHeroCarouselProducts,
+  ["public-home-hero-carousel-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getHeroCarouselProducts(source: HomeSettings["heroSource"] = "offers", limit = 6): Promise<HomeHeroProduct[]> {
+  return withFallback<HomeHeroProduct[]>([], () => getCachedHeroCarouselProducts(source, limit));
 }
 
 /** Hasta seis imágenes recientes por categoría para las tarjetas animadas del inicio. */
-export async function getCategoryCarouselImages(limitPerCategory = 6): Promise<Record<number, string[]>> {
-  return withFallback<Record<number, string[]>>({}, async () => {
+async function queryCategoryCarouselImages(limitPerCategory: number): Promise<Record<number, string[]>> {
     const rows = await db
       .select({
         categoryId: products.categoryId,
@@ -146,7 +162,16 @@ export async function getCategoryCarouselImages(limitPerCategory = 6): Promise<R
       images[row.categoryId] = categoryImages;
     }
     return images;
-  });
+}
+
+const getCachedCategoryCarouselImages = unstable_cache(
+  queryCategoryCarouselImages,
+  ["public-home-category-images-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getCategoryCarouselImages(limitPerCategory = 6): Promise<Record<number, string[]>> {
+  return withFallback<Record<number, string[]>>({}, () => getCachedCategoryCarouselImages(limitPerCategory));
 }
 
 /* Imagen principal por producto, como subconsulta reutilizable. */
@@ -349,21 +374,27 @@ export async function getAllCategorySlugs(): Promise<
 
 /* ── Marcas ───────────────────────────────────────────────────────────────── */
 
+async function queryBrands() {
+  return db
+    .select({
+      id: brands.id,
+      name: brands.name,
+      slug: brands.slug,
+      accentHex: brands.accentHex,
+    })
+    .from(brands)
+    .where(eq(brands.active, true))
+    .orderBy(asc(brands.position), asc(brands.name));
+}
+
+const getCachedBrands = unstable_cache(
+  queryBrands,
+  ["public-brands-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
 export async function getBrands() {
-  return withFallback<{ id: number; name: string; slug: string; accentHex: string | null }[]>(
-    [],
-    async () =>
-      db
-        .select({
-          id: brands.id,
-          name: brands.name,
-          slug: brands.slug,
-          accentHex: brands.accentHex,
-        })
-        .from(brands)
-        .where(eq(brands.active, true))
-        .orderBy(asc(brands.position), asc(brands.name)),
-  );
+  return withFallback<{ id: number; name: string; slug: string; accentHex: string | null }[]>([], getCachedBrands);
 }
 
 /** Estado público de la marca propia; controla todos los accesos a DREI. */
@@ -405,8 +436,7 @@ export type ProductPage = {
 };
 
 /** Página acotada del catálogo para la portada; evita enviar todos los productos. */
-export async function getProductsPage(requestedPage = 1, pageSize = 12): Promise<ProductPage> {
-  return withFallback<ProductPage>({ products: [], page: 1, pageCount: 0, total: 0 }, async () => {
+async function queryProductsPage(requestedPage: number, pageSize: number): Promise<ProductPage> {
     const [countRow] = await db
       .select({ total: sql<number>`count(*)::int` })
       .from(products)
@@ -423,7 +453,19 @@ export async function getProductsPage(requestedPage = 1, pageSize = 12): Promise
       .limit(pageSize)
       .offset((page - 1) * pageSize);
     return { products: rows.map(toCard), page, pageCount, total };
-  });
+}
+
+const getCachedProductsPage = unstable_cache(
+  queryProductsPage,
+  ["public-products-page-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getProductsPage(requestedPage = 1, pageSize = 12): Promise<ProductPage> {
+  return withFallback<ProductPage>(
+    { products: [], page: 1, pageCount: 0, total: 0 },
+    () => getCachedProductsPage(requestedPage, pageSize),
+  );
 }
 
 export type CatalogFilters = {
@@ -633,7 +675,7 @@ async function queryProductBySlug(slug: string): Promise<ProductDetail | null> {
       categorySlug: row.categorySlug,
       subcategoryName: row.subcategoryName,
       subcategorySlug: row.subcategorySlug,
-      updatedAt: row.updatedAt,
+      updatedAt: row.updatedAt.toISOString(),
     };
 }
 

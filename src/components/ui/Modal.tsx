@@ -31,7 +31,11 @@ export function Modal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6">
+      {/* Un diálogo es siempre la capa superior: por encima del carrito (60), la
+          búsqueda (80) y el menú móvil (90). En z-70 el aviso de abandonar el
+          pago se abría escondido detrás de la búsqueda o del menú. Debajo solo
+          quedan los toasts (100), que no capturan clics, y el loader (250). */}
+      <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6">
         <button
           type="button"
           aria-label="Cerrar"

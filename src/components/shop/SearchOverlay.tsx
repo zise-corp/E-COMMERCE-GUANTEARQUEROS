@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Portal } from "@/components/ui/Portal";
 import { Spinner } from "@/components/ui/Spinner";
@@ -22,6 +23,11 @@ type Result = {
 
 export function SearchButton() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Si la página cambia con la búsqueda abierta (atrás/adelante del navegador),
+  // se cierra: si no, quedaba tapando la página nueva con su fondo desenfocado.
+  useEffect(() => { setOpen(false); }, [pathname]);
   return (
     <>
       <button

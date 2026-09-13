@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatBs, toNumber } from "@/lib/money";
+import { announceNavigationStart } from "@/lib/navigation-feedback";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
 import { CheckoutSteps } from "./CheckoutSteps";
 import { ConfirmOrderModal } from "./ConfirmOrderModal";
@@ -20,6 +21,8 @@ import {
 export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { localDeliveryPrice: number; transportPrice: number }) {
   const cart = useCart();
   const { setShippingDraft } = cart;
+  const checkoutItems = cart.checkoutItems;
+  const checkoutSubtotal = cart.checkoutSubtotal;
   const router = useRouter();
   const [shipping, setShipping] = useState<ShippingValues>(() => cart.shippingDraft ?? emptyShipping);
   const [showErrors, setShowErrors] = useState(false);
@@ -54,13 +57,13 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
   }, [cart, router]);
 
   useEffect(() => {
-    if (!cart.ready || cart.items.length === 0 || cartImagesSynced.current) return;
+    if (!cart.ready || checkoutItems.length === 0 || cartImagesSynced.current) return;
     cartImagesSynced.current = true;
     void fetch("/api/cart/refresh", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        items: cart.items.map((item) => ({
+        items: checkoutItems.map((item) => ({
           productId: item.productId,
           size: item.size,
           personalization: item.personalization,
@@ -73,7 +76,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         if (data.ok && data.images) cart.syncImages(data.images);
       })
       .catch(() => undefined);
-  }, [cart]);
+  }, [cart, checkoutItems]);
 
   useEffect(() => {
     setShippingDraft(shipping);
@@ -94,7 +97,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           code,
-          items: cart.items.map((item) => ({ productId: item.productId, size: item.size, personalization: item.personalization, quantity: item.quantity })),
+          items: checkoutItems.map((item) => ({ productId: item.productId, size: item.size, personalization: item.personalization, quantity: item.quantity })),
         }),
       });
       const data = await response.json() as { ok: true; code: string; discount: string } | { ok: false; error: string };
@@ -104,7 +107,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         return;
       }
       setCode(data.code);
-      setDiscount({ code: data.code, amount: Number(data.discount), subtotal: cart.subtotal });
+      setDiscount({ code: data.code, amount: Number(data.discount), subtotal: checkoutSubtotal });
     } catch {
       setCodeError("No pudimos validar el código.");
     } finally {
@@ -112,19 +115,19 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
     }
   }
 
-  const activeDiscount = discount?.subtotal === cart.subtotal ? discount : null;
+  const activeDiscount = discount?.subtotal === checkoutSubtotal ? discount : null;
   const effectiveShipping = !shipping.department || shipping.mode === "pickup"
     ? 0
     : shipping.department === LOCAL_DEPARTMENT
       ? localDeliveryPrice
       : transportPrice;
-  const total = Math.max(0, cart.subtotal + effectiveShipping - (activeDiscount?.amount ?? 0));
+  const total = Math.max(0, checkoutSubtotal + effectiveShipping - (activeDiscount?.amount ?? 0));
 
   if (!cart.ready) {
     return <div className="min-h-[55vh]" />;
   }
 
-  if (cart.items.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <section className="container-shop py-16 text-center sm:py-24">
         <CheckoutSteps current={1} />
@@ -168,7 +171,13 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
             <h2 className="font-display text-xl uppercase skew-fast-6">Resumen del pedido</h2>
             <button
               type="button"
-              onClick={() => cart.openCart("items")}
+              onClick={() => {
+                if (cart.directCheckout && checkoutItems[0]) {
+                  announceNavigationStart();
+                  router.push(`/p/${checkoutItems[0].slug}`);
+                }
+                else cart.openCart("items");
+              }}
               className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand hover:text-brand-hot"
             >
               Editar
@@ -176,7 +185,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
           </div>
 
           <ul>
-            {cart.items.map((item) => (
+            {checkoutItems.map((item) => (
               <li
                 key={`${item.productId}-${item.size ?? "u"}-${item.personalization ?? "normal"}`}
                 className="flex gap-3 border-b border-ink-800 py-2.5 last:border-b-0"
@@ -200,7 +209,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
           </ul>
 
           <div className="mt-4 space-y-2 border-t border-ink-800 pt-4 text-[13px]">
-            <div className="flex justify-between"><span className="text-content-dim">Subtotal</span><span>{formatBs(cart.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-content-dim">Subtotal</span><span>{formatBs(checkoutSubtotal)}</span></div>
             {!shipping.department ? (
               <div className="flex justify-between"><span className="text-content-dim">Envío</span><span className="text-content-dim">Por definir</span></div>
             ) : shipping.mode === "pickup" ? (

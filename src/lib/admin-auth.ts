@@ -2,6 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { verify } from "@node-rs/argon2";
 import { db } from "@/db/index";
 import { adminUsers } from "@/db/schema";
@@ -15,7 +16,7 @@ import {
   type AdminSession,
 } from "./session";
 
-export async function getAdminSession(): Promise<AdminSession | null> {
+export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   const store = await cookies();
   try {
     const session = await verifyToken(store.get(ADMIN_COOKIE)?.value, "admin");
@@ -25,7 +26,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   } catch {
     return null;
   }
-}
+});
 
 /** Para páginas y acciones del panel: sin sesión no se sigue. */
 export async function requireAdmin(): Promise<AdminSession> {

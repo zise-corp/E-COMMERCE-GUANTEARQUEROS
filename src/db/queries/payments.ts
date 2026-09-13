@@ -2,69 +2,145 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../index";
 import { orderItems, orders, paymentAttempts, paymentEvents, products } from "../schema";
 import { OrderError } from "./orders";
-import { YOPAGO_COMPANY_CODE, generateYoPagoCard, generateYoPagoQr, normalizeYoPagoCurrency, type YoPagoCurrency } from "@/lib/yopago";
+import { YOPAGO_COMPANY_CODE, generateYoPagoCard, generateYoPagoQr, normalizeYoPagoCurrency } from "@/lib/yopago";
 
 export type PaymentMethod = "qr" | "card";
 export type LivePaymentIntent = { transactionId: string; method: PaymentMethod; amount: string; qrImage: string | null; checkoutUrl: string | null };
 
-/** Creates or reuses one provider attempt while holding an order-scoped lock. */
+/*
+ * Los flujos de pago leen del pedido solo las columnas que necesitan. Un select
+ * completo arrastra cada columna del schema: si un dato del cliente (documento,
+ * dirección…) queda sin migrar, la consulta falla y bloquea el cobro o su
+ * confirmación, aunque la pasarela no use ese dato.
+ */
+const paymentOrderColumns = {
+  id: orders.id,
+  publicId: orders.publicId,
+  number: orders.number,
+  total: orders.total,
+  currency: orders.currency,
+  status: orders.status,
+  paymentStatus: orders.paymentStatus,
+  financialStatus: orders.financialStatus,
+};
+
+const paidAttemptSelection = {
+  id: paymentAttempts.id,
+  orderId: paymentAttempts.orderId,
+  method: paymentAttempts.method,
+  transactionId: paymentAttempts.transactionId,
+  companyCode: paymentAttempts.companyCode,
+  transactionCode: paymentAttempts.transactionCode,
+};
+
+type OrderPaymentState = Pick<typeof orders.$inferSelect, "status" | "paymentStatus" | "financialStatus">;
+type PaidAttempt = Pick<typeof paymentAttempts.$inferSelect, "id" | "orderId" | "method" | "transactionId" | "companyCode" | "transactionCode">;
+
+function acceptsNewPayment(order: OrderPaymentState): boolean {
+  return !["paid", "paid_inventory_review", "abandoned", "expired", "cancelled"].includes(order.financialStatus)
+    && order.status !== "cancelado"
+    && order.paymentStatus !== "pagado"
+    && order.paymentStatus !== "reembolsado";
+}
+
+/** Un intento "pending" más reciente que esto sigue esperando a YoPago (su timeout es de 15 s). */
+const IN_FLIGHT_MS = 30_000;
+
+/**
+ * Crea o reutiliza un intento de pago en tres pasos. La llamada a YoPago (hasta
+ * 15 s) queda fuera de toda transacción: con el pool chico de producción, una
+ * transacción abierta durante esa espera retenía conexiones que necesitan el
+ * resto de la tienda y las confirmaciones de pago.
+ */
 export async function startYoPagoPayment(orderId: number, method: PaymentMethod): Promise<LivePaymentIntent> {
-  const outcome = await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${orderId}, ${method === "qr" ? 1 : 2})`);
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+  // 1. Reserva: valida el pedido y deja el intento en "pending", o reutiliza uno vigente.
+  const reservation = await db.transaction(async (tx) => {
+    const [order] = await tx.select(paymentOrderColumns).from(orders).where(eq(orders.id, orderId)).for("update");
     if (!order) throw new OrderError("El pedido no existe.");
-    if (["paid", "paid_inventory_review", "abandoned", "expired", "cancelled"].includes(order.financialStatus) || order.status === "cancelado" || order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado") throw new OrderError("Este pedido ya no admite un nuevo pago.");
+    if (!acceptsNewPayment(order)) throw new OrderError("Este pedido ya no admite un nuevo pago.");
 
-    const [reusable] = await tx.select().from(paymentAttempts).where(and(
-      eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.method, method), eq(paymentAttempts.status, "created"),
+    const [latest] = await tx.select({
+      ...paidAttemptSelection,
+      status: paymentAttempts.status,
+      amount: paymentAttempts.amount,
+      qrData: paymentAttempts.qrData,
+      cardUrl: paymentAttempts.cardUrl,
+      createdAt: paymentAttempts.createdAt,
+    }).from(paymentAttempts).where(and(
+      eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.method, method), inArray(paymentAttempts.status, ["pending", "created"]),
     )).orderBy(desc(paymentAttempts.id)).limit(1);
-    if (reusable?.transactionId && (method === "qr" ? reusable.qrData : reusable.cardUrl)) {
-      // El pedido refleja el pago que el cliente tiene en pantalla, como el sync de Tienda-Virtual.
-      await tx.update(orders).set({ paymentMethod: method, transactionId: reusable.transactionId, companyCode: reusable.companyCode, codeTransaction: reusable.transactionCode, updatedAt: new Date() }).where(eq(orders.id, order.id));
-      return { intent: { transactionId: reusable.transactionId, method, amount: reusable.amount, qrImage: reusable.qrData, checkoutUrl: reusable.cardUrl } };
-    }
 
-    const companyCode = YOPAGO_COMPANY_CODE;
+    if (latest?.status === "created" && latest.transactionId && (method === "qr" ? latest.qrData : latest.cardUrl)) {
+      // El pedido refleja el pago que el cliente tiene en pantalla, como el sync de Tienda-Virtual.
+      await tx.update(orders).set({ paymentMethod: method, transactionId: latest.transactionId, companyCode: latest.companyCode, codeTransaction: latest.transactionCode, updatedAt: new Date() }).where(eq(orders.id, order.id));
+      return { kind: "reused" as const, intent: { transactionId: latest.transactionId, method, amount: latest.amount, qrImage: latest.qrData, checkoutUrl: latest.cardUrl } };
+    }
+    if (latest?.status === "pending" && Date.now() - latest.createdAt.getTime() < IN_FLIGHT_MS) {
+      throw new OrderError("Ya estamos generando este pago. Espera unos segundos e intenta de nuevo.");
+    }
+    // Un "pending" más viejo quedó huérfano: el proceso se cortó esperando a YoPago.
+    await tx.update(paymentAttempts).set({ status: "failed", failureCode: "stale_pending", failureMessage: "Payment generation did not finish", updatedAt: new Date() })
+      .where(and(eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.method, method), eq(paymentAttempts.status, "pending")));
+
     // Mismo formato que Tienda-Virtual (`${orderId}-${Date.now()}`, ~18
     // caracteres). Único: number no se repite entre pedidos y el FOR UPDATE de
     // arriba serializa los intentos de un mismo pedido.
     const codeTransaction = `${order.number}-${Date.now()}`;
-    const currency: YoPagoCurrency = normalizeYoPagoCurrency(order.currency);
-    const [attempt] = await tx.insert(paymentAttempts).values({ orderId: order.id, method, companyCode, transactionCode: codeTransaction, amount: order.total, currency }).returning();
+    const currency = normalizeYoPagoCurrency(order.currency);
+    const [attempt] = await tx.insert(paymentAttempts).values({ orderId: order.id, method, companyCode: YOPAGO_COMPANY_CODE, transactionCode: codeTransaction, amount: order.total, currency }).returning({ id: paymentAttempts.id });
     if (!attempt) throw new OrderError("No pudimos registrar el intento de pago.");
-
-    try {
-      // La pasarela solo cobra el monto del pedido: ningún dato del cliente
-      // (email, CI, NIT) puede impedir que se genere el pago.
-      const input = { orderId: order.id, codeTransaction, amount: order.total, currency, concept: `Pago de pedido ${order.number}` };
-      const result = method === "qr" ? await generateYoPagoQr(input) : await generateYoPagoCard(input);
-      const transactionId = result.transactionId;
-      const qrImage = "qrImage" in result ? result.qrImage : null;
-      const qrId = "qrId" in result ? result.qrId : null;
-      const checkoutUrl = "checkoutUrl" in result ? result.checkoutUrl : null;
-      await tx.update(paymentAttempts).set({ transactionId, qrId, qrData: qrImage, cardUrl: checkoutUrl, providerStatus: result.providerStatus, status: "created", updatedAt: new Date() }).where(eq(paymentAttempts.id, attempt.id));
-      // Queda en el pedido apenas se genera, se pague o no (como en Tienda-Virtual).
-      await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode, codeTransaction, updatedAt: new Date() }).where(eq(orders.id, order.id));
-      console.info(JSON.stringify({ event: "payment_attempt.created", orderId: order.id, orderPublicId: order.publicId, paymentAttemptId: attempt.id, paymentMethod: method, provider: "yopago", codeTransaction }));
-      return { intent: { transactionId, method, amount: order.total, qrImage, checkoutUrl } };
-    } catch (error) {
-      await tx.update(paymentAttempts).set({
-        status: "failed",
-        failureCode: error instanceof Error && "code" in error ? String(error.code).slice(0, 100) : "provider_error",
-        failureMessage: error instanceof Error ? error.message.slice(0, 500) : "YoPago payment creation failed",
-        updatedAt: new Date(),
-      }).where(eq(paymentAttempts.id, attempt.id));
-      return { error };
-    }
+    return { kind: "pending" as const, order, attemptId: attempt.id, codeTransaction, currency };
   });
-  if ("error" in outcome) throw outcome.error;
-  return outcome.intent;
+  if (reservation.kind === "reused") return reservation.intent;
+  const { order, attemptId, codeTransaction, currency } = reservation;
+
+  // 2. YoPago, sin ninguna conexión de base tomada. Solo viaja el monto.
+  let result: Awaited<ReturnType<typeof generateYoPagoQr>> | Awaited<ReturnType<typeof generateYoPagoCard>>;
+  try {
+    const input = { orderId: order.id, codeTransaction, amount: order.total, currency, concept: `Pago de pedido ${order.number}` };
+    result = method === "qr" ? await generateYoPagoQr(input) : await generateYoPagoCard(input);
+  } catch (error) {
+    await db.update(paymentAttempts).set({
+      status: "failed",
+      failureCode: error instanceof Error && "code" in error ? String(error.code).slice(0, 100) : "provider_error",
+      failureMessage: error instanceof Error ? error.message.slice(0, 500) : "YoPago payment creation failed",
+      updatedAt: new Date(),
+    }).where(and(eq(paymentAttempts.id, attemptId), eq(paymentAttempts.status, "pending")));
+    throw error;
+  }
+
+  const transactionId = result.transactionId;
+  const providerStatus = result.providerStatus;
+  const qrImage = "qrImage" in result ? result.qrImage : null;
+  const qrId = "qrId" in result ? result.qrId : null;
+  const checkoutUrl = "checkoutUrl" in result ? result.checkoutUrl : null;
+
+  // 3. Registro: el intento guarda siempre lo que respondió YoPago; el pedido
+  // solo se actualiza si nadie lo abandonó, pagó o canceló mientras se esperaba.
+  const saved = await db.transaction(async (tx) => {
+    const [current] = await tx.select({ status: orders.status, paymentStatus: orders.paymentStatus, financialStatus: orders.financialStatus }).from(orders).where(eq(orders.id, order.id)).for("update");
+    const [attempt] = await tx.select({ status: paymentAttempts.status }).from(paymentAttempts).where(eq(paymentAttempts.id, attemptId)).for("update");
+    const stillPending = attempt?.status === "pending";
+    await tx.update(paymentAttempts).set({
+      transactionId, qrId, qrData: qrImage, cardUrl: checkoutUrl, providerStatus,
+      ...(stillPending ? { status: "created" as const } : {}),
+      updatedAt: new Date(),
+    }).where(eq(paymentAttempts.id, attemptId));
+    if (!stillPending || !current || !acceptsNewPayment(current)) return false;
+    // Queda en el pedido apenas se genera, se pague o no (como en Tienda-Virtual).
+    await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode: YOPAGO_COMPANY_CODE, codeTransaction, updatedAt: new Date() }).where(eq(orders.id, order.id));
+    return true;
+  });
+  if (!saved) throw new OrderError("Este pedido ya no admite un nuevo pago.");
+
+  console.info(JSON.stringify({ event: "payment_attempt.created", orderId: order.id, orderPublicId: order.publicId, paymentAttemptId: attemptId, paymentMethod: method, provider: "yopago", codeTransaction }));
+  return { transactionId, method, amount: order.total, qrImage, checkoutUrl };
 }
 
 /** Stops the browser flow without pretending the provider transaction was cancelled. */
 export async function abandonYoPagoPayment(orderId: number): Promise<void> {
   await db.transaction(async (tx) => {
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+    const [order] = await tx.select({ id: orders.id, publicId: orders.publicId, paymentStatus: orders.paymentStatus, financialStatus: orders.financialStatus }).from(orders).where(eq(orders.id, orderId)).for("update");
     if (!order) throw new OrderError("El pedido no existe.");
     if (order.financialStatus === "paid" || order.financialStatus === "paid_inventory_review" || order.paymentStatus === "pagado") throw new OrderError("El pago ya fue confirmado.");
     const now = new Date();
@@ -77,22 +153,21 @@ export async function abandonYoPagoPayment(orderId: number): Promise<void> {
 /** El callback de YoPago, con sus mismos nombres de campo. */
 export type YoPagoCallback = { transactionId: string; companyCode: string; description?: string | null; dateRequest?: string | null };
 
-type PaymentAttempt = typeof paymentAttempts.$inferSelect;
-
 class InventoryReviewRequired extends Error {
-  constructor(readonly attempt: PaymentAttempt, readonly orderId: number) {
+  constructor(readonly attempt: PaidAttempt, readonly orderId: number) {
     super("Paid payment requires inventory review");
   }
 }
 
 /** El pedido muestra los datos de YoPago del intento que efectivamente se pagó. */
-function paidAttemptColumns(attempt: PaymentAttempt) {
+function paidAttemptColumns(attempt: PaidAttempt) {
   return { paymentMethod: attempt.method, transactionId: attempt.transactionId, companyCode: attempt.companyCode, codeTransaction: attempt.transactionCode };
 }
 
 /**
  * Registra todo callback autenticado, se encuentre o no el pago al que se
- * refiere, y confirma dinero y stock de forma atómica.
+ * refiere, y confirma dinero y stock de forma atómica. Solo toca columnas de
+ * pago y stock: ningún dato del cliente puede impedir que un cobro se confirme.
  */
 export async function processYoPagoCallback(payload: YoPagoCallback, eventKey: string, payloadHash: string): Promise<"processed" | "duplicate" | "not_found"> {
   const received = {
@@ -111,14 +186,14 @@ export async function processYoPagoCallback(payload: YoPagoCallback, eventKey: s
       event = previous;
     }
     const eventId = event.id;
-    const [attempt] = await tx.select().from(paymentAttempts).where(and(eq(paymentAttempts.transactionId, payload.transactionId), eq(paymentAttempts.companyCode, payload.companyCode))).limit(1).for("update");
+    const [attempt] = await tx.select(paidAttemptSelection).from(paymentAttempts).where(and(eq(paymentAttempts.transactionId, payload.transactionId), eq(paymentAttempts.companyCode, payload.companyCode))).limit(1).for("update");
     if (!attempt) {
       // Sin throw: el callback queda registrado aunque no corresponda a un pago nuestro.
       await tx.update(paymentEvents).set({ processingStatus: "failed", errorMessage: "Payment attempt not found", processedAt: new Date() }).where(eq(paymentEvents.id, eventId));
       return "not_found";
     }
     await tx.update(paymentEvents).set({ paymentAttemptId: attempt.id }).where(eq(paymentEvents.id, eventId));
-    const [order] = await tx.select().from(orders).where(eq(orders.id, attempt.orderId)).for("update");
+    const [order] = await tx.select({ id: orders.id, paymentStatus: orders.paymentStatus, financialStatus: orders.financialStatus }).from(orders).where(eq(orders.id, attempt.orderId)).for("update");
     if (!order) throw new OrderError("No se encontró el pedido.");
     if (order.financialStatus === "paid" || order.financialStatus === "paid_inventory_review" || order.paymentStatus === "pagado") {
       await tx.update(paymentEvents).set({ processingStatus: "duplicate", processedAt: new Date() }).where(eq(paymentEvents.id, eventId));

@@ -1,7 +1,6 @@
 import { AdminTopbar } from "@/components/admin/AdminShell";
 import {
   KpiTile,
-  SalesChart,
   StatusBreakdown,
   TopProducts,
   OperationsOverview,
@@ -64,7 +63,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      <AdminTopbar title="Resumen" subtitle="Mes en curso · últimas 12 semanas" />
+      <AdminTopbar title="Resumen" subtitle="Mes en curso · visión general" />
 
       <div className="flex flex-col gap-4 px-5 py-[26px] pb-16 sm:px-7">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -72,8 +71,6 @@ export default async function AdminDashboard() {
             <KpiTile key={k.label} {...k} />
           ))}
         </div>
-
-        <SalesChart data={data.weeklySales} />
 
         <div className="grid items-stretch gap-4 [grid-template-columns:minmax(0,1fr)] xl:[grid-template-columns:minmax(0,1.15fr)_minmax(0,0.85fr)]">
           <InventoryHealth data={data.inventory} />

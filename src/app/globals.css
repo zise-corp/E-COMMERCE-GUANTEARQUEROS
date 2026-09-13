@@ -369,9 +369,11 @@
       visibility 0s linear 180ms;
   }
 
+  /* El velo sigue el estado real de cada menú, no :hover ni :focus-within: tras
+     hacer clic en una categoría el enlace conserva el foco y la página nueva
+     quedaba desenfocada con el menú ya cerrado. */
   body:has(.desktop-nav details[open]) .shop-frame::after,
-  body:has(.desktop-nav .nav-category-group:hover) .shop-frame::after,
-  body:has(.desktop-nav .nav-category-group:focus-within) .shop-frame::after {
+  body:has(.desktop-nav .nav-category-group[data-open="true"]) .shop-frame::after {
     visibility: visible;
     opacity: 1;
     transition-delay: 0s;
@@ -998,6 +1000,145 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Feedback global para navegaciones que superan el umbral de respuesta. */
+.route-wait {
+  position: fixed;
+  z-index: 250;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  cursor: wait;
+  background: rgb(5 5 5 / 30%);
+  animation: route-wait-veil .18s ease-out both;
+}
+
+.route-wait__assembly {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  transform: scale(1.65);
+  transform-origin: center;
+}
+
+.route-wait__assembly > * {
+  grid-area: 1 / 1;
+}
+
+.route-wait__loader {
+  width: 50px;
+  aspect-ratio: 1.154;
+  position: relative;
+  background: conic-gradient(from 120deg at 50% 64%, transparent, #fa2a00 1deg 120deg, transparent 121deg);
+  animation: route-loader-turn 1.5s infinite cubic-bezier(.3, 1, 0, 1);
+}
+
+.route-wait__loader::before,
+.route-wait__loader::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: inherit;
+  transform-origin: 50% 66%;
+  animation: route-loader-fold 1.5s infinite;
+}
+
+.route-wait__loader::after {
+  --s: -1;
+}
+
+@keyframes route-wait-veil {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes route-loader-turn {
+  0%, 30% { transform: rotate(0); }
+  70% { transform: rotate(120deg); }
+  70.01%, 100% { transform: rotate(360deg); }
+}
+
+@keyframes route-loader-fold {
+  0% {
+    transform: rotate(calc(var(--s, 1) * 120deg)) translate(0);
+  }
+  30%, 70% {
+    transform: rotate(calc(var(--s, 1) * 120deg)) translate(calc(var(--s, 1) * -5px), 10px);
+  }
+  100% {
+    transform: rotate(calc(var(--s, 1) * 120deg)) translate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-wait,
+  .route-wait__loader,
+  .route-wait__loader::before,
+  .route-wait__loader::after {
+    animation-duration: .01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/*
+ * Stepper del checkout (CheckoutSteps). Cada paso es otra página: la animación
+ * corre al montar. La línea que llega al paso actual se llena, el paso recién
+ * cumplido dibuja su check y el número actual entra con rebote y un pulso.
+ * --step-delay (en el <ol>) espera a que la línea termine de llenarse.
+ */
+.checkout-step-fill {
+  animation: checkout-line-fill .42s cubic-bezier(.65, 0, .35, 1) both;
+}
+
+.checkout-check-draw {
+  stroke-dasharray: 16;
+  animation: checkout-check-draw .32s ease-out both;
+}
+
+.checkout-step-current {
+  animation:
+    checkout-step-pop .46s cubic-bezier(.34, 1.56, .64, 1) var(--step-delay, 0ms) both,
+    checkout-step-ring .9s ease-out calc(var(--step-delay, 0ms) + 280ms) both;
+}
+
+.checkout-step-label {
+  animation: checkout-label-in .36s ease-out var(--step-delay, 0ms) both;
+}
+
+@keyframes checkout-line-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes checkout-check-draw {
+  from { stroke-dashoffset: 16; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes checkout-step-pop {
+  0% { opacity: 0; transform: scale(.5); }
+  60% { opacity: 1; transform: scale(1.14); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes checkout-step-ring {
+  0% { box-shadow: 0 0 0 0 rgb(250 42 0 / 60%); }
+  100% { box-shadow: 0 0 0 11px rgb(250 42 0 / 0%); }
+}
+
+@keyframes checkout-label-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin movimiento, el paso actual aparece de inmediato en su estado final. */
+  .checkout-step-current,
+  .checkout-step-label {
+    animation-delay: 0s !important;
+  }
+}
+
 @media (max-width: 1023px) {
   .admin-sidebar::after { display: none; }
   .admin-sidebar { box-shadow: 0 12px 34px rgb(0 0 0 / 22%); }
@@ -1007,6 +1148,10 @@
 }
 
 @media (max-width: 639px) {
+  .route-wait__assembly {
+    transform: scale(1.45);
+  }
+
   .admin-topbar {
     position: relative;
     align-items: flex-start;

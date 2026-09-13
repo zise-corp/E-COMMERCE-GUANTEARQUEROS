@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { DelayedNavigationLoader } from "@/components/ui/DelayedNavigationLoader";
 import { anton, manrope } from "@/lib/fonts";
 import { site } from "@/lib/site";
 import "./globals.css";
@@ -48,7 +50,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${anton.variable} ${manrope.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Suspense fallback={null}>
+          <DelayedNavigationLoader />
+        </Suspense>
+      </body>
     </html>
   );
 }

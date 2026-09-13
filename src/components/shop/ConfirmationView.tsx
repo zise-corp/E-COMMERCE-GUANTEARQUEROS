@@ -14,7 +14,7 @@ export function ConfirmationView({ orderId, number, delivery }: { orderId: numbe
   // Red de seguridad: si se llegó acá sin pasar por el polling, el carrito igual se limpia.
   useEffect(() => {
     if (!cart.ready || cart.orderId !== orderId) return;
-    cart.clear();
+    cart.finishCheckout();
     cart.setOrderId(null);
   }, [cart, orderId]);
 

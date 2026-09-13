@@ -54,6 +54,8 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
   const [error, setError] = useState<string | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveDestination, setLeaveDestination] = useState<string | null>(null);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const settled = useRef(false);
   const initialQrRequested = useRef(false);
   const requestSequence = useRef(0);
@@ -120,7 +122,7 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
 
         if ((data.status === "paid" || data.status === "paid_inventory_review") && !settled.current) {
           settled.current = true;
-          if (cart.orderId === order.id) { cart.clear(); cart.setOrderId(null); cart.setShippingDraft(null); }
+          if (cart.orderId === order.id) { cart.finishCheckout(); cart.setOrderId(null); cart.setShippingDraft(null); }
           window.scrollTo(0, 0);
           router.replace(`/checkout/confirmacion?pedido=${order.id}`);
         } else if (data.status === "payment_failed") {
@@ -153,11 +155,65 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [intent]);
 
-  async function backToShipping() {
+  useEffect(() => {
+    if (!intent) return;
+
+    const guardNavigation = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented
+        || event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+      ) return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const navigationTarget = target.closest("a[href], [data-payment-destination]");
+      if (!(navigationTarget instanceof HTMLElement)) return;
+
+      let destinationHref: string | null = null;
+      if (navigationTarget instanceof HTMLAnchorElement) {
+        // Enlaces que abren otra pestaña no abandonan el pago actual.
+        if (navigationTarget.target && navigationTarget.target !== "_self") return;
+        if (navigationTarget.hasAttribute("download")) return;
+        destinationHref = navigationTarget.href;
+      } else {
+        destinationHref = navigationTarget.dataset.paymentDestination ?? null;
+      }
+      if (!destinationHref) return;
+
+      const destination = new URL(destinationHref, window.location.href);
+      if (destination.href === window.location.href) return;
+      if (!["http:", "https:"].includes(destination.protocol)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      setLeaveDestination(destination.href);
+      setLeaveError(null);
+      setLeaveOpen(true);
+    };
+
+    document.addEventListener("click", guardNavigation, true);
+    return () => document.removeEventListener("click", guardNavigation, true);
+  }, [intent]);
+
+  function closeLeaveDialog() {
+    if (submitting) return;
+    setLeaveOpen(false);
+    setLeaveDestination(null);
+    setLeaveError(null);
+  }
+
+  async function abandonAndNavigate(destination: string | null = null) {
     if (requestBusy.current) return;
+    const openedFromDialog = leaveOpen;
     requestBusy.current = true;
     setSubmitting(true);
-    setError(null);
+    setLeaveError(null);
+    if (!openedFromDialog) setError(null);
     try {
       const response = await fetch("/api/payments/yopago/abandon", {
         method: "POST",
@@ -166,14 +222,36 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
       });
       const data = await response.json() as { ok: boolean; error?: string };
       if (!response.ok || !data.ok) {
-        setError(data.error ?? "No pudimos volver al formulario.");
+        const message = data.error ?? "No pudimos abandonar el pago.";
+        if (openedFromDialog) setLeaveError(message);
+        else setError(message);
         return;
       }
       setIntent(null);
       cart.setOrderId(null);
       setLeaveOpen(false);
-      router.push("/checkout/envio");
-    } catch { setError("No pudimos conectar con el servidor. Intenta de nuevo."); }
+      setLeaveDestination(null);
+
+      if (!destination) {
+        router.push("/checkout/envio");
+        return;
+      }
+
+      const nextUrl = new URL(destination, window.location.href);
+      cart.closeCart();
+      if (nextUrl.origin === window.location.origin && nextUrl.pathname === "/checkout/envio") {
+        cart.startCartCheckout();
+      }
+      if (nextUrl.origin === window.location.origin) {
+        router.push(`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      } else {
+        window.location.assign(nextUrl.href);
+      }
+    } catch {
+      const message = "No pudimos conectar con el servidor. Intenta de nuevo.";
+      if (openedFromDialog) setLeaveError(message);
+      else setError(message);
+    }
     finally { requestBusy.current = false; setSubmitting(false); }
   }
 
@@ -183,7 +261,15 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
 
       <button
         type="button"
-        onClick={() => intent ? setLeaveOpen(true) : void backToShipping()}
+        onClick={() => {
+          if (intent) {
+            setLeaveDestination(null);
+            setLeaveError(null);
+            setLeaveOpen(true);
+          } else {
+            void abandonAndNavigate();
+          }
+        }}
         disabled={loading || submitting}
         className="mb-[22px] inline-flex items-center gap-2 text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-content-muted transition-colors duration-150 hover:text-brand"
       >
@@ -394,14 +480,21 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
       />
       <Modal
         open={leaveOpen}
-        onClose={() => submitting ? undefined : setLeaveOpen(false)}
-        title="Volver y editar la compra"
-        description="Ya existe un intento de pago para esta orden. No se eliminará: si ya pagaste, la confirmación seguirá procesándose aunque salgas. Si continúas, editaremos el carrito como una compra nueva; no pagues el intento anterior."
+        onClose={closeLeaveDialog}
+        title={leaveDestination ? "Abandonar el pago" : "Volver y editar la compra"}
+        description={leaveDestination
+          ? "Ya existe un intento de pago para esta orden. Si sales, no se eliminará y una confirmación tardía seguirá procesándose. No pagues el intento anterior después de abandonar esta pantalla."
+          : "Ya existe un intento de pago para esta orden. No se eliminará: si ya pagaste, la confirmación seguirá procesándose aunque salgas. Si continúas, editaremos el carrito como una compra nueva; no pagues el intento anterior."}
         width={500}
       >
+        {leaveError ? (
+          <p role="alert" className="mb-3 border-l-[3px] border-alert bg-alert/10 px-3 py-2.5 text-[12.5px] leading-relaxed text-alert-soft">
+            {leaveError}
+          </p>
+        ) : null}
         <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-          <button type="button" disabled={submitting} onClick={() => setLeaveOpen(false)} className="border border-line-strong px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-content-muted disabled:opacity-50">Continuar con el pago</button>
-          <button type="button" disabled={submitting} onClick={() => void backToShipping()} className="bg-brand px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-ink-950 disabled:opacity-50">{submitting ? "Procesando…" : "Abandonar intento y editar"}</button>
+          <button type="button" disabled={submitting} onClick={closeLeaveDialog} className="border border-line-strong px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-content-muted disabled:opacity-50">Continuar con el pago</button>
+          <button type="button" disabled={submitting} onClick={() => void abandonAndNavigate(leaveDestination)} className="bg-brand px-4 py-3 text-xs font-extrabold uppercase tracking-[0.1em] text-ink-950 disabled:opacity-50">{submitting ? "Procesando…" : leaveDestination ? "Abandonar intento y salir" : "Abandonar intento y editar"}</button>
         </div>
       </Modal>
     </section>

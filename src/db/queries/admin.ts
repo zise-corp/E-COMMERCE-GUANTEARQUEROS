@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../index";
 import {
@@ -19,17 +19,21 @@ const LOW_STOCK = 5;
 /* ── Badges del sidebar ───────────────────────────────────────────────────── */
 
 export async function getAdminCounts() {
-  const [cats] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(categories)
-    .where(isNull(categories.parentId));
+  const [categoryRows, productRows, newOrderRows] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(categories)
+      .where(isNull(categories.parentId)),
+    db.select({ n: sql<number>`count(*)::int` }).from(products),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(eq(orders.status, "recibido")),
+  ]);
 
-  const [prods] = await db.select({ n: sql<number>`count(*)::int` }).from(products);
-
-  const [nuevos] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(orders)
-    .where(eq(orders.status, "recibido"));
+  const cats = categoryRows[0];
+  const prods = productRows[0];
+  const nuevos = newOrderRows[0];
 
   return {
     categories: cats?.n ?? 0,
@@ -82,114 +86,125 @@ export async function getDashboard(): Promise<DashboardData> {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
   const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 3600 * 1000);
 
-  const [thisMonth] = await db
-    .select({
-      total: sql<string>`COALESCE(SUM(${orders.total}), 0)::text`,
-      n: sql<number>`count(*)::int`,
-    })
-    .from(orders)
-    .where(and(gte(orders.createdAt, monthStart), eq(orders.paymentStatus, "pagado")));
-
-  const [prevMonth] = await db
-    .select({ total: sql<string>`COALESCE(SUM(${orders.total}), 0)::text` })
-    .from(orders)
-    .where(
-      and(
-        gte(orders.createdAt, prevMonthStart),
-        lte(orders.createdAt, monthStart),
-        eq(orders.paymentStatus, "pagado"),
+  // Son métricas independientes. Ejecutarlas juntas evita pagar doce veces la
+  // latencia de red de la base remota sin modificar ninguna agregación.
+  const [
+    thisMonthRows,
+    prevMonthRows,
+    lastWeekRows,
+    lowRows,
+    weekly,
+    byStatus,
+    top,
+    byPayment,
+    byDelivery,
+    inventoryRows,
+    topCategories,
+    recentOrders,
+  ] = await Promise.all([
+    db
+      .select({
+        total: sql<string>`COALESCE(SUM(${orders.total}), 0)::text`,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(orders)
+      .where(and(gte(orders.createdAt, monthStart), eq(orders.paymentStatus, "pagado"))),
+    db
+      .select({ total: sql<string>`COALESCE(SUM(${orders.total}), 0)::text` })
+      .from(orders)
+      .where(
+        and(
+          gte(orders.createdAt, prevMonthStart),
+          lt(orders.createdAt, monthStart),
+          eq(orders.paymentStatus, "pagado"),
+        ),
       ),
-    );
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(and(gte(orders.createdAt, weekAgo), eq(orders.paymentStatus, "pagado"))),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(lte(products.stock, LOW_STOCK), eq(products.published, true))),
+    db
+      .select({
+        week: sql<string>`to_char(date_trunc('week', ${orders.createdAt}), 'YYYY-MM-DD')`,
+        total: sql<number>`COALESCE(SUM(${orders.total}), 0)::float`,
+        orders: sql<number>`count(*)::int`,
+      })
+      .from(orders)
+      .where(and(gte(orders.createdAt, twelveWeeksAgo), eq(orders.paymentStatus, "pagado")))
+      .groupBy(sql`date_trunc('week', ${orders.createdAt})`)
+      .orderBy(sql`date_trunc('week', ${orders.createdAt})`),
+    db
+      .select({ status: orders.status, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .groupBy(orders.status),
+    db
+      .select({
+        name: orderItems.name,
+        units: sql<number>`SUM(${orderItems.quantity})::int`,
+        amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(eq(orders.paymentStatus, "pagado"))
+      .groupBy(orderItems.name)
+      .orderBy(desc(sql`SUM(${orderItems.quantity})`))
+      .limit(5),
+    db
+      .select({ status: orders.paymentStatus, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .groupBy(orders.paymentStatus),
+    db
+      .select({ mode: orders.mode, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .groupBy(orders.mode),
+    db
+      .select({
+        total: sql<number>`count(*)::int`,
+        published: sql<number>`count(*) filter (where ${products.published} = true)::int`,
+        outOfStock: sql<number>`count(*) filter (where ${products.stock} <= 0)::int`,
+        customizable: sql<number>`count(*) filter (where ${products.customizable} = true)::int`,
+        newProducts: sql<number>`count(*) filter (where ${products.isNew} = true)::int`,
+        onOffer: sql<number>`count(*) filter (where ${products.compareAtPrice} is not null and ${products.compareAtPrice} > ${products.price})::int`,
+      })
+      .from(products),
+    db
+      .select({
+        name: categories.name,
+        units: sql<number>`SUM(${orderItems.quantity})::int`,
+        amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .innerJoin(products, eq(products.id, orderItems.productId))
+      .innerJoin(categories, eq(categories.id, products.categoryId))
+      .where(eq(orders.paymentStatus, "pagado"))
+      .groupBy(categories.id, categories.name)
+      .orderBy(desc(sql`SUM(${orderItems.unitPrice} * ${orderItems.quantity})`))
+      .limit(6),
+    db
+      .select({
+        number: orders.number,
+        customerName: orders.customerName,
+        total: orders.total,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+        financialStatus: orders.financialStatus,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .orderBy(desc(orders.createdAt))
+      .limit(6),
+  ]);
 
-  const [lastWeek] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(orders)
-    // El KPI dice "Pedidos pagados": antes contaba también los no pagados.
-    .where(and(gte(orders.createdAt, weekAgo), eq(orders.paymentStatus, "pagado")));
-
-  const [low] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(products)
-    .where(and(lte(products.stock, LOW_STOCK), eq(products.published, true)));
-
-  const weekly = await db
-    .select({
-      week: sql<string>`to_char(date_trunc('week', ${orders.createdAt}), 'YYYY-MM-DD')`,
-      total: sql<number>`COALESCE(SUM(${orders.total}), 0)::float`,
-      orders: sql<number>`count(*)::int`,
-    })
-    .from(orders)
-    .where(and(gte(orders.createdAt, twelveWeeksAgo), eq(orders.paymentStatus, "pagado")))
-    .groupBy(sql`date_trunc('week', ${orders.createdAt})`)
-    .orderBy(sql`date_trunc('week', ${orders.createdAt})`);
-
-  const byStatus = await db
-    .select({ status: orders.status, n: sql<number>`count(*)::int` })
-    .from(orders)
-    .groupBy(orders.status);
-
-  const top = await db
-    .select({
-      name: orderItems.name,
-      units: sql<number>`SUM(${orderItems.quantity})::int`,
-      amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orders.id, orderItems.orderId))
-    .where(eq(orders.paymentStatus, "pagado"))
-    .groupBy(orderItems.name)
-    .orderBy(desc(sql`SUM(${orderItems.quantity})`))
-    .limit(5);
-
-  const byPayment = await db
-    .select({ status: orders.paymentStatus, n: sql<number>`count(*)::int` })
-    .from(orders)
-    .groupBy(orders.paymentStatus);
-
-  const byDelivery = await db
-    .select({ mode: orders.mode, n: sql<number>`count(*)::int` })
-    .from(orders)
-    .groupBy(orders.mode);
-
-  const [inventory] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      published: sql<number>`count(*) filter (where ${products.published} = true)::int`,
-      outOfStock: sql<number>`count(*) filter (where ${products.stock} <= 0)::int`,
-      customizable: sql<number>`count(*) filter (where ${products.customizable} = true)::int`,
-      newProducts: sql<number>`count(*) filter (where ${products.isNew} = true)::int`,
-      onOffer: sql<number>`count(*) filter (where ${products.compareAtPrice} is not null and ${products.compareAtPrice} > ${products.price})::int`,
-    })
-    .from(products);
-
-  const topCategories = await db
-    .select({
-      name: categories.name,
-      units: sql<number>`SUM(${orderItems.quantity})::int`,
-      amount: sql<string>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)::text`,
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orders.id, orderItems.orderId))
-    .innerJoin(products, eq(products.id, orderItems.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .where(eq(orders.paymentStatus, "pagado"))
-    .groupBy(categories.id, categories.name)
-    .orderBy(desc(sql`SUM(${orderItems.unitPrice} * ${orderItems.quantity})`))
-    .limit(6);
-
-  const recentOrders = await db
-    .select({
-      number: orders.number,
-      customerName: orders.customerName,
-      total: orders.total,
-      status: orders.status,
-      paymentStatus: orders.paymentStatus,
-      financialStatus: orders.financialStatus,
-      createdAt: orders.createdAt,
-    })
-    .from(orders)
-    .orderBy(desc(orders.createdAt))
-    .limit(6);
+  const thisMonth = thisMonthRows[0];
+  const prevMonth = prevMonthRows[0];
+  const lastWeek = lastWeekRows[0];
+  const low = lowRows[0];
+  const inventory = inventoryRows[0];
 
   const monthSales = thisMonth?.total ?? "0";
   const monthOrders = thisMonth?.n ?? 0;

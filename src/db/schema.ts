@@ -42,7 +42,10 @@ export const categories = pgTable("categories", {
   highlighted: boolean("highlighted").notNull().default(true),
   imagePath: text("image_path"),
   imageFileId: text("image_file_id"),
-}, (t) => ({ slugUq: uniqueIndex("categories_slug_uq").on(t.slug) }));
+}, (t) => ({
+  slugUq: uniqueIndex("categories_slug_uq").on(t.slug),
+  parentPositionIdx: index("categories_parent_position_idx").on(t.parentId, t.position),
+}));
 
 export const brands = pgTable("brands", {
   id: serial("id").primaryKey(),
@@ -79,6 +82,10 @@ export const products = pgTable("products", {
 }, (t) => ({
   slugUq: uniqueIndex("products_slug_uq").on(t.slug),
   catIdx: index("products_category_idx").on(t.categoryId),
+  subcategoryIdx: index("products_subcategory_idx").on(t.subcategoryId),
+  brandIdx: index("products_brand_idx").on(t.brandId),
+  publishedUpdatedIdx: index("products_published_updated_idx").on(t.published, t.updatedAt),
+  publishedNewIdx: index("products_published_new_idx").on(t.published, t.isNew),
 }));
 
 export const productImages = pgTable("product_images", {
@@ -90,7 +97,9 @@ export const productImages = pgTable("product_images", {
   alt: text("alt").notNull().default(""),
   position: integer("position").notNull().default(0),
   isPrimary: boolean("is_primary").notNull().default(false),
-});
+}, (t) => ({
+  productOrderIdx: index("product_images_product_order_idx").on(t.productId, t.isPrimary, t.position),
+}));
 
 /* ---------- pedidos ---------- */
 export const orders = pgTable("orders", {
@@ -111,7 +120,9 @@ export const orders = pgTable("orders", {
   lat: numeric("lat", { precision: 9, scale: 6 }),
   lng: numeric("lng", { precision: 9, scale: 6 }),
   mapsUrl: text("maps_url"),
+  documentType: text("document_type").$type<"ci" | "nit" | "passport" | "foreign_id">().notNull().default("ci"),
   documentId: text("document_id"),                // delivery + otro departamento (CI)
+  documentComplement: text("document_complement"),
   email: text("email"),
   branch: text("branch"),                         // delivery + otro departamento: sucursal de la agencia
 
@@ -141,6 +152,7 @@ export const orders = pgTable("orders", {
 }, (t) => ({
   publicIdUq: uniqueIndex("orders_public_id_unique").on(t.publicId),
   statusIdx: index("orders_status_idx").on(t.status),
+  paymentCreatedIdx: index("orders_payment_created_idx").on(t.paymentStatus, t.createdAt),
   transactionCompanyIdx: index("orders_transaction_company_idx").on(t.transactionId, t.companyCode),
 }));
 
@@ -155,7 +167,10 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   imagePublicId: text("image_public_id"),
   attributesSnapshot: jsonb("attributes_snapshot").$type<{ name: string; value: string }[]>().notNull().default([]),
-});
+}, (t) => ({
+  orderIdx: index("order_items_order_id_idx").on(t.orderId),
+  productIdx: index("order_items_product_id_idx").on(t.productId),
+}));
 
 export const paymentAttempts = pgTable("payment_attempts", {
   id: serial("id").primaryKey(),

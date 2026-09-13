@@ -28,6 +28,18 @@ function equalSecret(actual: string | null, expected: string | undefined): boole
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function invalidateCatalogAfterPayment(): void {
+  try {
+    revalidateTag(PUBLIC_CATALOG_CACHE_TAG);
+  } catch (error) {
+    // El pago ya quedó conciliado. Una falla secundaria de caché nunca debe
+    // pedirle a YoPago que reintente ni convertir un callback válido en 500.
+    console.warn("[payments/yopago/webhook] Catalog cache invalidation skipped", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
 export async function POST(request: Request) {
   if (!equalSecret(request.headers.get("Username"), process.env.YOPAGO_CALLBACK_USERNAME) || !equalSecret(request.headers.get("Password"), process.env.YOPAGO_CALLBACK_PASSWORD)) {
     return NextResponse.json({ State: "01", message: "Acceso No Autorizado" }, { status: 401 });
@@ -48,7 +60,7 @@ export async function POST(request: Request) {
     // Todo callback autenticado queda registrado en payment_events, se encuentre o no el pago.
     const result = await processYoPagoCallback(parsed.data, eventKey, payloadHash);
     if (result === "not_found") return NextResponse.json(notFound);
-    if (result !== "duplicate") revalidateTag(PUBLIC_CATALOG_CACHE_TAG);
+    if (result !== "duplicate") invalidateCatalogAfterPayment();
     return NextResponse.json({ State: "00", message: result === "duplicate" ? "COMPLETADO (YA PROCESADA)" : "COMPLETADO" });
   } catch (error) {
     if (error instanceof OrderError) return NextResponse.json(notFound);

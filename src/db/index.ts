@@ -34,16 +34,16 @@ export function getDb(): Db {
     );
   }
 
-  // `next build` genera las páginas estáticas en varios workers en paralelo,
-  // cada uno como proceso aparte con su propio pool: con max:10 por worker, unos
-  // pocos workers a la vez ya superan el límite de conexiones de Postgres
-  // ("sorry, too many clients already"). En build, un pool chico por worker
-  // alcanza de sobra; el pool grande es para el server ya arriba, que sí
-  // atiende tráfico real concurrente en un solo proceso.
+  // `next build` genera páginas estáticas en varios procesos, cada uno con su
+  // propio pool. Un solo cliente por worker alcanza y mantiene el total bajo el
+  // límite de sesiones de Postgres; el servidor usa un pool pequeño compartido.
   const isBuildPhase = process.env["NEXT_PHASE"] === PHASE_PRODUCTION_BUILD;
   const isProduction = process.env.NODE_ENV === "production";
   const client = postgres(url, {
-    max: isBuildPhase ? 2 : isProduction ? 10 : 3,
+    // El pooler configurado admite 15 sesiones en total. Los builds levantan
+    // varios workers y cada instancia de producción puede coexistir con otra;
+    // límites conservadores evitan colas de 15-20 s y EMAXCONNSESSION.
+    max: isBuildPhase ? 1 : isProduction ? 4 : 3,
     // El handshake TLS con el pooler remoto tarda alrededor de dos segundos
     // desde el entorno local. En desarrollo conservamos las conexiones durante
     // la sesión de trabajo para que una pausa breve no obligue a abrirlas otra

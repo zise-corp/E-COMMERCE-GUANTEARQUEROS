@@ -149,7 +149,9 @@ function deliveryColumns(shipping: ShippingOutput) {
       mapsUrl: null,
       // El formulario pide CI y email en todas las modalidades: se guardan para
       // el administrador (antes se descartaban justo en retiro).
+      documentType: shipping.documentType,
       documentId: shipping.documentId,
+      documentComplement: shipping.documentType === "ci" ? shipping.documentComplement || null : null,
       branch: null,
       email: shipping.email,
     };
@@ -162,7 +164,9 @@ function deliveryColumns(shipping: ShippingOutput) {
     lat: local && shipping.lat !== null ? shipping.lat.toFixed(6) : null,
     lng: local && shipping.lng !== null ? shipping.lng.toFixed(6) : null,
     mapsUrl: local && shipping.mapsUrl ? shipping.mapsUrl : null,
+    documentType: shipping.documentType,
     documentId: shipping.documentId,
+    documentComplement: shipping.documentType === "ci" ? shipping.documentComplement || null : null,
     // La empresa y sucursal de transporte se definen internamente después.
     branch: null,
     email: shipping.email,
@@ -320,7 +324,9 @@ export type OrderSummary = {
   lat: string | null;
   lng: string | null;
   mapsUrl: string | null;
+  documentType: "ci" | "nit" | "passport" | "foreign_id";
   documentId: string | null;
+  documentComplement: string | null;
   branch: string | null;
   email: string | null;
   status: "recibido" | "en_proceso" | "completado" | "cancelado";
@@ -378,6 +384,19 @@ export async function getOrder(orderId: number): Promise<OrderSummary | null> {
 export async function getOrderByPublicId(publicId: string): Promise<OrderSummary | null> {
   const [row] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
   return row ? getOrder(row.id) : null;
+}
+
+/**
+ * Lo mínimo para el polling del pago (cada 4 s): solo columnas de pago, así un
+ * dato del cliente sin migrar nunca impide ver que el cobro se confirmó.
+ */
+export async function getOrderPaymentStatus(publicId: string): Promise<Pick<OrderSummary, "id" | "financialStatus"> | null> {
+  const [row] = await db
+    .select({ id: orders.id, financialStatus: orders.financialStatus })
+    .from(orders)
+    .where(eq(orders.publicId, publicId))
+    .limit(1);
+  return row ?? null;
 }
 
 /* ── Consultas del admin ──────────────────────────────────────────────────── */

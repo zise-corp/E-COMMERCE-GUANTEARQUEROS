@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import type { NavCategory } from "./Header";
 
@@ -17,13 +17,42 @@ const HOME_LINKS: ReadonlyArray<{ label: string; href: string }> = [
 
 export function NavLinks({ categories, dreiSlug, className }: { categories: NavCategory[]; dreiSlug: string | null; className?: string }) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const regularCategories = categories.filter((category) => !isProtected(category));
   const visibleCategories = regularCategories.slice(0, 5);
   const overflowCategories = regularCategories.slice(5);
 
+  // Los <details> ("Inicio", "Más categorías") no se cierran solos al tocar
+  // fuera ni con Escape: en pantallas táctiles anchas quedaban abiertos, y
+  // abiertos mantienen encendido el velo que desenfoca el catálogo.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const closeMenus = () => {
+      nav.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((menu) => { menu.open = false; });
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node) || !nav.contains(event.target)) closeMenus();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
+  // Cualquier navegación (atrás, logo, buscador) cierra los menús abiertos.
+  useEffect(() => {
+    navRef.current?.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((menu) => { menu.open = false; });
+  }, [pathname]);
+
   return (
-    <nav className={cn(className, "desktop-nav flex-nowrap items-center gap-x-2 min-[1440px]:gap-x-3 2xl:gap-x-5")} aria-label="Navegación principal">
+    <nav ref={navRef} className={cn(className, "desktop-nav flex-nowrap items-center gap-x-2 min-[1440px]:gap-x-3 2xl:gap-x-5")} aria-label="Navegación principal">
       <details
         ref={detailsRef}
         className="group relative"
@@ -203,15 +232,24 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
   const isOffers = category.slug === "ofertas";
   const isNew = category.slug === "nuevos";
 
+  // Al cambiar de página el menú se cierra aunque el foco o el mouse sigan encima.
+  useEffect(() => { setOpen(false); }, [pathname]);
+
   if (!isOffers && !isNew && category.children && category.children.length > 0) {
+    // data-open es lo que enciende el velo del catálogo (globals.css): sigue el
+    // estado del menú, no el foco, que se queda en el enlace después del clic.
     return (
       <div
         className="nav-category-group relative"
+        data-open={open ? "true" : "false"}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
         }}
       >
         <Link

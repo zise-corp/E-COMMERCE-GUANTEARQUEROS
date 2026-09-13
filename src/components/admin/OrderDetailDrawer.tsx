@@ -18,6 +18,20 @@ import { PaymentBadge } from "./PaymentBadge";
 
 const STATUSES: OrderSummary["status"][] = ["recibido", "en_proceso", "completado", "cancelado"];
 
+const DOCUMENT_LABELS: Record<OrderSummary["documentType"], string> = {
+  ci: "Cédula de identidad",
+  nit: "NIT",
+  passport: "Pasaporte",
+  foreign_id: "Documento extranjero",
+};
+
+function identityDocument(order: OrderSummary) {
+  if (!order.documentId) return "—";
+  return order.documentType === "ci" && order.documentComplement
+    ? `${order.documentId}-${order.documentComplement}`
+    : order.documentId;
+}
+
 /** Las fechas llegan como texto desde la API: se aceptan ambas formas. */
 function formatDateTime(value: Date | string) {
   return new Date(value).toLocaleString("es-BO", {
@@ -101,9 +115,8 @@ export function OrderDetailDrawer({
         : [
             { k: "Modalidad", v: "Envío por transporte" },
             { k: "Departamento", v: order.department ?? "—" },
+            // Documento y correo ya se muestran en la sección Cliente.
             { k: "Transporte", v: "A coordinar por el vendedor" },
-            { k: "CI", v: order.documentId ?? "—" },
-            { k: "Email", v: order.email ?? "—" },
           ];
 
   return (
@@ -138,6 +151,8 @@ export function OrderDetailDrawer({
               }
             />
             <Row k="Nota" v={order.note || "—"} />
+            <Row k={DOCUMENT_LABELS[order.documentType]} v={identityDocument(order)} />
+            <Row k="Correo" v={order.email || "—"} />
           </Section>
 
           <Section title="Pago">

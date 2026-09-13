@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/Toast";
 import { CartIcon } from "@/components/ui/Icons";
 import type { ProductCard as ProductCardData } from "@/db/queries/catalog";
+import { announceNavigationStart } from "@/lib/navigation-feedback";
 import { useCart } from "./CartProvider";
 
 /**
@@ -21,7 +21,6 @@ import { useCart } from "./CartProvider";
  */
 export function QuickAddButton({ product }: { product: ProductCardData }) {
   const cart = useCart();
-  const toast = useToast();
   const router = useRouter();
 
   const needsSize = product.sizes.length > 1;
@@ -37,6 +36,7 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
       title="Agregar al carrito"
       onClick={() => {
         if (needsSize) {
+          announceNavigationStart();
           router.push(`/p/${product.slug}`);
           return;
         }
@@ -51,8 +51,8 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
           stock: product.stock,
           personalization: null,
         });
+        // El carrito abierto con el producto ya es la confirmación: sin aviso aparte.
         cart.openCart("items");
-        toast.show("Agregado al carrito");
       }}
       className={[
         "absolute inset-x-0 bottom-0 z-20 flex h-11 items-center justify-center gap-2",

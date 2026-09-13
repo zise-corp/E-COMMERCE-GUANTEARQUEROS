@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import { sumLines } from "@/lib/money";
 import type { ShippingValues } from "./ShippingForm";
 
@@ -31,6 +32,10 @@ type CartState = {
   items: CartItem[];
   count: number;
   subtotal: number;
+  checkoutItems: CartItem[];
+  checkoutCount: number;
+  checkoutSubtotal: number;
+  directCheckout: boolean;
   open: boolean;
   step: CartStep;
   ready: boolean;
@@ -41,6 +46,9 @@ type CartState = {
   setQuantity: (productId: number, size: string | null, personalization: string | null, quantity: number) => void;
   remove: (productId: number, size: string | null, personalization: string | null) => void;
   clear: () => void;
+  startDirectCheckout: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
+  startCartCheckout: () => void;
+  finishCheckout: () => void;
   syncImages: (images: { productId: number; imagePublicId: string | null }[]) => void;
   openCart: (step?: CartStep) => void;
   closeCart: () => void;
@@ -53,6 +61,7 @@ const Ctx = createContext<CartState | null>(null);
 
 const STORAGE_KEY = "gq.cart.v1";
 const ORDER_KEY = "gq.orderId.v2";
+const DIRECT_CHECKOUT_KEY = "gq.direct-checkout.v1";
 
 function sameLine(a: CartItem, productId: number, size: string | null, personalization: string | null) {
   return a.productId === productId && (a.size ?? null) === (size ?? null) && (a.personalization ?? null) === (personalization ?? null);
@@ -80,15 +89,31 @@ function parseItems(raw: string | null): CartItem[] {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [directItems, setDirectItems] = useState<CartItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<CartStep>("items");
   const [ready, setReady] = useState(false);
   const [orderId, setOrderIdState] = useState<number | null>(null);
   const [shippingDraft, setShippingDraft] = useState<ShippingValues | null>(null);
+  const pathname = usePathname();
+
+  // Los datos de envío pertenecen a una compra: se conservan entre envío y
+  // pago (volver a editar tras abandonar el pago), y se vacían apenas el
+  // cliente sale del checkout. Así no quedan datos personales a la vista en un
+  // equipo compartido ni se reciclan datos viejos en un pedido nuevo.
+  useEffect(() => {
+    if (pathname !== "/checkout" && !pathname.startsWith("/checkout/")) setShippingDraft(null);
+  }, [pathname]);
+
+  // Si la página cambia con el panel abierto (atrás/adelante del navegador), el
+  // carrito se cierra: si no, quedaba tapando la página nueva con su fondo.
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   // Hidratación: el carrito vive en localStorage, el pedido en la sesión.
   useEffect(() => {
     setItems(parseItems(window.localStorage.getItem(STORAGE_KEY)));
+    const storedDirectItems = parseItems(window.sessionStorage.getItem(DIRECT_CHECKOUT_KEY));
+    if (storedDirectItems.length > 0) setDirectItems(storedDirectItems);
     const stored = window.sessionStorage.getItem(ORDER_KEY);
     if (stored) {
       const n = Number.parseInt(stored, 10);
@@ -101,6 +126,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (directItems?.length) window.sessionStorage.setItem(DIRECT_CHECKOUT_KEY, JSON.stringify(directItems));
+    else window.sessionStorage.removeItem(DIRECT_CHECKOUT_KEY);
+  }, [directItems, ready]);
 
   // Dos pestañas abiertas comparten el carrito.
   useEffect(() => {
@@ -154,13 +185,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clear = useCallback(() => setItems([]), []);
 
+  const startDirectCheckout = useCallback((item: Omit<CartItem, "quantity">, quantity = 1) => {
+    setDirectItems([{ ...item, quantity: Math.min(item.stock || 99, quantity) }]);
+    setOpen(false);
+  }, []);
+
+  const startCartCheckout = useCallback(() => setDirectItems(null), []);
+
+  const finishCheckout = useCallback(() => {
+    if (directItems) setDirectItems(null);
+    else setItems([]);
+  }, [directItems]);
+
   const syncImages = useCallback((images: { productId: number; imagePublicId: string | null }[]) => {
     const byProduct = new Map(images.map((item) => [item.productId, item.imagePublicId]));
-    setItems((current) => current.map((item) =>
+    const sync = (current: CartItem[]) => current.map((item) =>
       byProduct.has(item.productId)
         ? { ...item, imagePublicId: byProduct.get(item.productId) ?? null }
         : item,
-    ));
+    );
+    setItems(sync);
+    setDirectItems((current) => current ? sync(current) : null);
   }, []);
 
   const openCart = useCallback((next: CartStep = "items") => {
@@ -173,10 +218,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<CartState>(() => {
     const count = items.reduce((n, i) => n + i.quantity, 0);
     const subtotal = sumLines(items);
+    const checkoutItems = directItems ?? items;
+    const checkoutCount = checkoutItems.reduce((n, i) => n + i.quantity, 0);
+    const checkoutSubtotal = sumLines(checkoutItems);
     return {
       items,
       count,
       subtotal,
+      checkoutItems,
+      checkoutCount,
+      checkoutSubtotal,
+      directCheckout: directItems !== null,
       open,
       step,
       ready,
@@ -186,6 +238,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setQuantity,
       remove,
       clear,
+      startDirectCheckout,
+      startCartCheckout,
+      finishCheckout,
       syncImages,
       openCart,
       closeCart,
@@ -193,7 +248,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setOrderId,
       setShippingDraft,
     };
-  }, [items, open, step, ready, orderId, shippingDraft, add, setQuantity, remove, clear, syncImages, openCart, closeCart, setOrderId]);
+  }, [items, directItems, open, step, ready, orderId, shippingDraft, add, setQuantity, remove, clear, startDirectCheckout, startCartCheckout, finishCheckout, syncImages, openCart, closeCart, setOrderId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

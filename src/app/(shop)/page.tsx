@@ -42,16 +42,16 @@ export const metadata: Metadata = {
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ pagina?: string }> }) {
   const { pagina } = await searchParams;
   const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
-  const homeSettings = await getHomeSettings();
-  const [categories, productPage, brands, heroProduct, offerProducts, newProducts, categoryProductImages] = await Promise.all([
+  const [homeSettings, categories, productPage, brands, offerProducts, newProducts, categoryProductImages] = await Promise.all([
+    getHomeSettings(),
     getCategoryTree(),
     getProductsPage(requestedPage, 12),
     getBrands(),
-    getHomeHeroProduct(homeSettings.heroProductId),
     getHeroCarouselProducts("offers", 6),
     getHeroCarouselProducts("new", 6),
     getCategoryCarouselImages(6),
   ]);
+  const heroProduct = await getHomeHeroProduct(homeSettings.heroProductId);
 
   const heroProducts = homeSettings.heroSource === "new" ? newProducts : offerProducts;
 
