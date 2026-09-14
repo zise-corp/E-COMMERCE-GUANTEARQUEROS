@@ -122,6 +122,7 @@ export function ShippingForm({
     <div className="flex flex-col gap-3 px-6 pb-2 pt-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
+          name="name"
           label="Nombre(s)"
           required
           placeholder="Nombre"
@@ -132,6 +133,7 @@ export function ShippingForm({
         />
 
         <Input
+          name="lastName"
           label="Apellido(s)"
           required
           placeholder="Apellido"
@@ -142,6 +144,7 @@ export function ShippingForm({
         />
 
         <Input
+          name="phone"
           label="Teléfono / WhatsApp"
           required
           type="tel"
@@ -154,6 +157,7 @@ export function ShippingForm({
           fieldClassName="sm:col-span-2"
         />
         <Select
+          name="documentType"
           label="Tipo de documento"
           required
           value={value.documentType}
@@ -171,6 +175,7 @@ export function ShippingForm({
         </Select>
         <div className={cn("grid gap-3", value.documentType === "ci" && "grid-cols-[minmax(0,1fr)_92px]") }>
           <Input
+            name="documentId"
             label={value.documentType === "ci" ? "Número de CI" : DOCUMENT_TYPE_LABELS[value.documentType]}
             required
             inputMode={value.documentType === "ci" || value.documentType === "nit" ? "numeric" : "text"}
@@ -188,6 +193,7 @@ export function ShippingForm({
           />
           {value.documentType === "ci" ? (
             <Input
+              name="documentComplement"
               label="Complemento"
               hint="Opcional"
               maxLength={4}
@@ -199,6 +205,7 @@ export function ShippingForm({
           ) : null}
         </div>
         <Input
+          name="email"
           label="Correo electrónico"
           required
           type="email"
@@ -212,6 +219,7 @@ export function ShippingForm({
       </div>
 
       <Textarea
+        name="note"
         label="Nota (opcional)"
         rows={1}
         placeholder="Referencia, horario, color preferido..."
@@ -223,6 +231,7 @@ export function ShippingForm({
       <div className="mt-1 border border-line-strong bg-ink-950 p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <input
+            name="invoiceRequested"
             type="checkbox"
             checked={value.invoiceRequested}
             onChange={(event) =>
@@ -243,6 +252,7 @@ export function ShippingForm({
         {value.invoiceRequested ? (
           <div className="mt-4 grid gap-3 border-t border-ink-800 pt-4 sm:grid-cols-2 animate-rise">
             <Input
+              name="businessName"
               label="Razón Social"
               required
               placeholder="Nombre o empresa"
@@ -251,6 +261,7 @@ export function ShippingForm({
               onChange={(event) => set("businessName", event.target.value)}
             />
             <Input
+              name="taxId"
               label="NIT"
               required
               inputMode="numeric"
@@ -266,6 +277,7 @@ export function ShippingForm({
       </div>
 
       <Select
+        name="department"
         label="Departamento"
         required
         value={value.department ?? ""}
@@ -282,7 +294,7 @@ export function ShippingForm({
       </Select>
 
       {isLaPaz ? (
-        <fieldset className="animate-rise">
+        <fieldset data-shipping-field="mode" tabIndex={-1} className="animate-rise outline-none">
           <legend className="label-xs mb-[9px] text-content-dim">
             Modalidad en La Paz<span className="text-brand"> *</span>
           </legend>
@@ -320,6 +332,7 @@ export function ShippingForm({
           </p>
 
           <Input
+            name="address"
             label="Dirección"
             required
             placeholder="Calle, número, zona"
@@ -329,7 +342,7 @@ export function ShippingForm({
             onChange={(e) => set("address", e.target.value)}
           />
 
-          <div>
+          <div data-shipping-field="lat" tabIndex={-1} className="outline-none">
             <p className="label-xs mb-[7px] text-content-dim">
               Ubicación en el mapa<span className="text-brand"> *</span>
             </p>

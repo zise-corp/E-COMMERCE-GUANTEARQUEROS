@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/ui/Modal";
 import { formatBs, toNumber } from "@/lib/money";
 import { announceNavigationStart } from "@/lib/navigation-feedback";
 import { LOCAL_DEPARTMENT } from "@/lib/site";
@@ -15,8 +16,29 @@ import {
   describeDelivery,
   emptyShipping,
   validate,
+  type FieldErrors,
   type ShippingValues,
 } from "./ShippingForm";
+
+const SHIPPING_FIELD_LABELS: Record<keyof ShippingValues, string> = {
+  name: "Nombre(s)",
+  lastName: "Apellido(s)",
+  phone: "Teléfono / WhatsApp",
+  note: "Nota",
+  invoiceRequested: "Solicitud de factura",
+  businessName: "Razón Social",
+  taxId: "NIT de facturación",
+  mode: "Modalidad de entrega",
+  department: "Departamento",
+  address: "Dirección",
+  lat: "Ubicación en el mapa",
+  lng: "Ubicación en el mapa",
+  mapsUrl: "Enlace de ubicación",
+  documentType: "Tipo de documento",
+  documentId: "Número de documento",
+  documentComplement: "Complemento del documento",
+  email: "Correo electrónico",
+};
 
 export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { localDeliveryPrice: number; transportPrice: number }) {
   const cart = useCart();
@@ -26,6 +48,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
   const router = useRouter();
   const [shipping, setShipping] = useState<ShippingValues>(() => cart.shippingDraft ?? emptyShipping);
   const [showErrors, setShowErrors] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<FieldErrors | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [code, setCode] = useState("");
   const [discount, setDiscount] = useState<{ code: string; amount: number; subtotal: number } | null>(null);
@@ -84,7 +107,28 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
 
   function reviewOrder() {
     setShowErrors(true);
-    if (validate(shipping).ok) setConfirmOpen(true);
+    const result = validate(shipping);
+    if (result.ok) {
+      setValidationErrors(null);
+      setConfirmOpen(true);
+      return;
+    }
+    setValidationErrors(result.errors);
+  }
+
+  function closeValidationModal() {
+    const firstInvalidField = validationErrors
+      ? (Object.keys(validationErrors)[0] as keyof ShippingValues | undefined)
+      : undefined;
+    setValidationErrors(null);
+    if (!firstInvalidField) return;
+    requestAnimationFrame(() => {
+      const field = document.querySelector<HTMLElement>(
+        `[name="${firstInvalidField}"], [data-shipping-field="${firstInvalidField}"]`,
+      );
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
+      field?.focus({ preventScroll: true });
+    });
   }
 
   async function applyCode() {
@@ -258,6 +302,35 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         shipping={shipping}
         discountCode={activeDiscount?.code ?? ""}
       />
+
+      <Modal
+        open={validationErrors !== null}
+        onClose={closeValidationModal}
+        title="Revisa tus datos"
+        description="Falta completar o corregir la siguiente información antes de continuar al pago."
+        width={520}
+        accent
+      >
+        <ul className="space-y-2" role="alert">
+          {validationErrors
+            ? (Object.entries(validationErrors) as [keyof ShippingValues, string][]).map(([field, message]) => (
+                <li key={field} className="border-l-[3px] border-alert bg-alert/10 px-3.5 py-3">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-[0.13em] text-alert-soft">
+                    {SHIPPING_FIELD_LABELS[field]}
+                  </span>
+                  <span className="mt-1 block text-[13px] leading-relaxed text-content">{message}</span>
+                </li>
+              ))
+            : null}
+        </ul>
+        <button
+          type="button"
+          onClick={closeValidationModal}
+          className="mt-5 w-full bg-brand px-5 py-3.5 text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-ink-950 transition-colors hover:bg-brand-hot"
+        >
+          Corregir datos
+        </button>
+      </Modal>
     </section>
   );
 }
