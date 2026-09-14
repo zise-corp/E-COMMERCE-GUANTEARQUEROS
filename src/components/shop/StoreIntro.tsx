@@ -20,7 +20,11 @@ export function StoreIntro() {
   useEffect(() => {
     const previous = previousPathname.current;
     const isFirstLoad = previous === null;
-    const isLeavingDrei = previous === "/drei" && pathname !== "/drei";
+    // Abrir una ficha desde el catálogo DREI sigue siendo navegación dentro de
+    // esa experiencia. No debe interpretarse como un regreso a la tienda
+    // general ni mostrar la presentación de Guantearqueros encima del producto.
+    const isOpeningDreiProduct = previous === "/drei" && pathname.startsWith("/p/");
+    const isLeavingDrei = previous === "/drei" && pathname !== "/drei" && !isOpeningDreiProduct;
     const params = new URLSearchParams(window.location.search);
     const isLeavingAdmin = params.get("intro") === "admin" || window.sessionStorage.getItem("gq:store-intro") === "admin";
     if (isLeavingAdmin) window.sessionStorage.removeItem("gq:store-intro");
