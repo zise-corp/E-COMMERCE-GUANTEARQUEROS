@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/index";
 import { brands, categories, productImages, products } from "@/db/schema";
 import { getHeroCarouselProducts } from "@/db/queries/catalog";
+import { changeAdminPassword } from "@/db/queries/auth";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
 import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
@@ -16,6 +17,7 @@ import { SYSTEM_CATEGORY_SLUGS } from "@/lib/slug";
 import {
   campaignSchema,
   brandSchema,
+  changePasswordSchema,
   checkoutSettingsSchema,
   homeSettingsSchema,
   categorySchema,
@@ -46,6 +48,25 @@ export async function logoutToStoreAction() {
   await requireAdmin();
   await logoutAdmin();
   redirect("/?intro=admin");
+}
+
+export async function changePasswordAction(input: unknown): Promise<ActionResult> {
+  const session = await requireAdmin();
+  const parsed = changePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa las contraseñas." };
+  }
+
+  const result = await changeAdminPassword(
+    session.uid,
+    session.version,
+    parsed.data.currentPassword,
+    parsed.data.newPassword,
+  );
+  if (!result.ok) return result;
+
+  await logoutAdmin();
+  return { ok: true };
 }
 
 /* ── Categorías ───────────────────────────────────────────────────────────── */

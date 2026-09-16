@@ -2,7 +2,7 @@
 
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
-import { DEPARTMENTS, LOCAL_DEPARTMENT, type Department } from "@/lib/site";
+import { DEPARTMENTS, isLocalDepartment, localCenterFor, type Department } from "@/lib/site";
 import { shippingSchema, type DocumentType } from "@/lib/validators";
 import { LocationPicker } from "./LocationPicker";
 
@@ -78,9 +78,9 @@ export function validate(values: ShippingValues): { ok: boolean; errors: FieldEr
 
 export function describeDelivery(v: ShippingValues): string {
   if (!v.department) return "Elige el departamento";
-  if (v.department === LOCAL_DEPARTMENT) {
-    if (v.mode === "pickup") return "Retiro en el local · La Paz";
-    if (v.mode === "delivery") return "Envío a domicilio · La Paz";
+  if (isLocalDepartment(v.department)) {
+    if (v.mode === "pickup") return `Retiro en el local · ${v.department}`;
+    if (v.mode === "delivery") return `Envío a domicilio · ${v.department}`;
     return "Elige retiro en local o entrega";
   }
   return `Envío a ${v.department} por transporte`;
@@ -100,17 +100,17 @@ export function ShippingForm({
   const set = <K extends keyof ShippingValues>(key: K, next: ShippingValues[K]) =>
     onChange({ ...value, [key]: next });
 
-  const isLaPaz = value.department === LOCAL_DEPARTMENT;
-  const isLocalDelivery = isLaPaz && value.mode === "delivery";
-  const isOther = value.department !== null && !isLaPaz;
+  const hasLocalBranch = isLocalDepartment(value.department);
+  const isLocalDelivery = hasLocalBranch && value.mode === "delivery";
+  const isOther = value.department !== null && !hasLocalBranch;
 
   function selectDepartment(department: Department | null) {
     onChange({
       ...value,
       department,
-      // En La Paz el cliente debe escoger retiro o entrega. En los demás
+      // Donde hay sucursal el cliente escoge retiro o entrega. En los demás
       // departamentos el único flujo disponible es transporte.
-      mode: department === null || department === LOCAL_DEPARTMENT ? "" : "delivery",
+      mode: department === null || isLocalDepartment(department) ? "" : "delivery",
       lat: null,
       lng: null,
       mapsUrl: "",
@@ -288,21 +288,21 @@ export function ShippingForm({
         {DEPARTMENTS.map((department) => (
           <option key={department} value={department}>
             {department}
-            {department === LOCAL_DEPARTMENT ? " — retiro o envío a domicilio" : ""}
+            {isLocalDepartment(department) ? " — retiro o envío a domicilio" : ""}
           </option>
         ))}
       </Select>
 
-      {isLaPaz ? (
+      {hasLocalBranch ? (
         <fieldset data-shipping-field="mode" tabIndex={-1} className="animate-rise outline-none">
           <legend className="label-xs mb-[9px] text-content-dim">
-            Modalidad en La Paz<span className="text-brand"> *</span>
+            Modalidad en {value.department}<span className="text-brand"> *</span>
           </legend>
           <div className="grid grid-cols-2 gap-2">
             <ModeCard
               active={value.mode === "pickup"}
               title="Retiro en el local"
-              detail="Sucursal principal · sin costo"
+              detail={`Sucursal de ${value.department} · sin costo`}
               onClick={() =>
                 onChange({
                   ...value,
@@ -328,7 +328,7 @@ export function ShippingForm({
       {isLocalDelivery ? (
         <div className="flex flex-col gap-3 animate-rise">
           <p className="border-l-[3px] border-brand bg-brand/[0.07] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#E8C8BC]">
-            Envío a domicilio en La Paz. Necesitamos tu dirección y ubicación exacta.
+            Envío a domicilio en {value.department}. Necesitamos tu dirección y ubicación exacta.
           </p>
 
           <Input
@@ -347,6 +347,7 @@ export function ShippingForm({
               Ubicación en el mapa<span className="text-brand"> *</span>
             </p>
             <LocationPicker
+              center={localCenterFor(value.department)}
               value={value.lat !== null && value.lng !== null ? { lat: value.lat, lng: value.lng } : null}
               error={err("lat")}
               onChange={(next, mapsUrl) =>
@@ -365,7 +366,7 @@ export function ShippingForm({
       {isOther ? (
         <div className="flex flex-col gap-3 animate-rise">
           <p className="border-l-[3px] border-drei-line bg-drei-line/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-drei-ink">
-            Para envíos fuera de La Paz solo necesitamos los datos del destinatario. El vendedor
+            Para envíos a departamentos sin sucursal solo necesitamos los datos del destinatario. El vendedor
             coordinará la empresa y la sucursal de transporte.
           </p>
 

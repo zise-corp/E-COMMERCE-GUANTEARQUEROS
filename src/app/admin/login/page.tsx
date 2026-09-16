@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 export default async function AdminLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; passwordChanged?: string }>;
 }) {
   if (await getAdminSession()) redirect("/admin");
-  const { next } = await searchParams;
-  return <LoginForm next={next ?? "/admin"} />;
+  const { next, passwordChanged } = await searchParams;
+  return <LoginForm next={next ?? "/admin"} passwordChanged={passwordChanged === "1"} />;
 }

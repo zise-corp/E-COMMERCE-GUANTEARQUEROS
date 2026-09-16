@@ -73,7 +73,7 @@ La migración fue verificada en una base embebida de pruebas y aplicada a la bas
 | `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de imágenes |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, sin slash final |
-| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP` | Contacto |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP`, `NEXT_PUBLIC_SUPPORT_URL` | Contacto y sitio externo de soporte |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
 | `YOPAGO_COMPANY_CODE` | Código de empresa entregado por YoPago; solo servidor |
 | `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |

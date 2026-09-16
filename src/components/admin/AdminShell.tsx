@@ -17,6 +17,7 @@ const NAV = [
   { href: "/admin/productos", label: "Productos", badge: "products" },
   { href: "/admin/pedidos", label: "Pedidos", badge: "newOrders" },
   { href: "/admin/ajustes", label: "Envíos y descuentos", badge: null },
+  { href: "/admin/seguridad", label: "Seguridad", badge: null },
 ] as const;
 
 export type AdminCounts = { categories: number; products: number; newOrders: number };
@@ -40,10 +41,10 @@ export function AdminShell({
 
   return (
     <div className="admin-shell min-h-dvh bg-[#0F0F0E] text-[#E9E7E4] lg:grid lg:grid-cols-[258px_minmax(0,1fr)]">
-      <aside className="admin-sidebar flex flex-col border-b border-ink-700 bg-[#0B0B0A] lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
+      <aside className="admin-sidebar flex flex-col border-b border-ink-700 bg-[#0B0B0A] lg:sticky lg:top-0 lg:h-dvh lg:overflow-hidden lg:border-b-0 lg:border-r">
         {/* Misma composición oficial que utiliza el header de la tienda. */}
-        <div className="border-b border-ink-700 px-[18px] py-[18px]">
-          <Link href="/admin" className="group block" aria-label="Guantearqueros, panel">
+        <div className="flex shrink-0 items-center gap-3 border-b border-ink-700 px-[18px] py-[18px]">
+          <Link href="/admin" className="group min-w-0 flex-1" aria-label="Guantearqueros, panel">
             <span className="flex items-center gap-0">
               <Escudo
                 width={34}
@@ -57,9 +58,19 @@ export function AdminShell({
               <span className="h-px flex-1 bg-line" aria-hidden />
             </span>
           </Link>
+          <form action={logoutAction} className="shrink-0 lg:hidden">
+            <button
+              type="submit"
+              className="border border-line-strong px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-content-muted transition-colors hover:border-brand hover:text-brand"
+              aria-label="Cerrar sesión administrativa"
+            >
+              <span className="hidden sm:inline">Cerrar sesión</span>
+              <span className="sm:hidden">Salir</span>
+            </button>
+          </form>
         </div>
 
-        <nav className="flex flex-1 gap-1.5 overflow-x-auto p-2.5 lg:flex-col lg:gap-1 lg:overflow-visible lg:p-3">
+        <nav className="admin-sidebar-nav flex flex-1 gap-1.5 overflow-x-auto p-2.5 lg:min-h-0 lg:flex-col lg:gap-1 lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:p-3">
           {NAV.map((item, index) => {
             const active =
               item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
@@ -101,7 +112,7 @@ export function AdminShell({
           </button>
         </nav>
 
-        <div className="admin-profile hidden border-t border-ink-700 p-4 lg:block">
+        <div className="admin-profile hidden shrink-0 border-t border-ink-700 p-4 lg:block">
           <div className="flex items-center gap-2.5">
             <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center border border-line-strong bg-ink-700 text-xs font-extrabold text-brand">
               {initials}
@@ -116,7 +127,7 @@ export function AdminShell({
               type="submit"
               className="mt-3 w-full border border-line-strong py-2.5 text-[11px] uppercase tracking-[0.12em] text-[#8A8783] transition-colors duration-150 hover:border-brand hover:text-brand"
             >
-              Salir
+              Cerrar sesión
             </button>
           </form>
         </div>

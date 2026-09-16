@@ -34,10 +34,10 @@ export function CheckoutSettingsForm({ initial }: { initial: CheckoutSettings })
     <div className="space-y-5">
       <section className="admin-panel border border-ink-700 bg-ink-850 p-5">
         <h2 className="text-[14px] font-extrabold uppercase tracking-[0.08em]">Precios de envío</h2>
-        <p className="mt-1 text-[12px] text-content-dim">El retiro en la sucursal de La Paz siempre es gratuito.</p>
+        <p className="mt-1 text-[12px] text-content-dim">El retiro en las sucursales de La Paz, Santa Cruz y Cochabamba siempre es gratuito.</p>
         <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="label-xs mb-1.5 block text-content-dim">Domicilio en La Paz · Bs</span>
+          <span className="label-xs mb-1.5 block text-content-dim">Domicilio en ciudades con sucursal · Bs</span>
           <input
             type="number"
             min="0"

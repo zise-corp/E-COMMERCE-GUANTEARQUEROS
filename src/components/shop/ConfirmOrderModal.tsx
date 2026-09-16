@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatBs } from "@/lib/money";
 import { announceNavigationStart } from "@/lib/navigation-feedback";
-import { LOCAL_DEPARTMENT } from "@/lib/site";
+import { isLocalDepartment } from "@/lib/site";
 import { useCart } from "./CartProvider";
 import { DOCUMENT_TYPE_LABELS, formatIdentityDocument, type ShippingValues } from "./ShippingForm";
 import type { OrderPricing, PricedLine } from "@/db/queries/orders";
@@ -113,7 +113,7 @@ export function ConfirmOrderModal({
   const customerName = `${shipping.name} ${shipping.lastName}`.trim();
   const deliveryMethod = shipping.mode === "pickup"
     ? "Retiro en el local"
-    : shipping.department === LOCAL_DEPARTMENT
+    : isLocalDepartment(shipping.department)
       ? "Envío a domicilio"
       : "Envío por transporte";
 

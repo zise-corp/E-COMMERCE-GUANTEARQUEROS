@@ -10,7 +10,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 import { loginAction, type LoginState } from "@/app/admin/login/actions";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, passwordChanged = false }: { next: string; passwordChanged?: boolean }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
   const [showPassword, setShowPassword] = useState(false);
 
@@ -40,6 +40,11 @@ export function LoginForm({ next }: { next: string }) {
         <input type="hidden" name="next" value={next} />
 
         <div className="flex flex-col gap-3">
+          {passwordChanged ? (
+            <p role="status" className="border-l-[3px] border-state-ok bg-state-ok/[0.09] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#8FD9A6]">
+              Contraseña actualizada. Todas las sesiones fueron cerradas; inicia sesión con tu nueva contraseña.
+            </p>
+          ) : null}
           <Input
             name="username"
             label="Usuario"

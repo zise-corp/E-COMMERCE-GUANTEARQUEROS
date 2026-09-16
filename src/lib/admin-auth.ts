@@ -65,19 +65,24 @@ export async function loginAdmin(username: string, password: string): Promise<Lo
     .set({ lastLoginAt: new Date() })
     .where(eq(adminUsers.id, user.id));
 
-  const token = await signToken({
-    kind: "admin",
+  await setAdminSessionCookie({
     uid: user.id,
     username: user.username,
     role: user.role,
     version: user.sessionVersion,
-    exp: Date.now() + ADMIN_MAX_AGE_SECONDS * 1000,
   });
 
+  return { ok: true };
+}
+
+export async function setAdminSessionCookie(user: Pick<AdminSession, "uid" | "username" | "role" | "version">): Promise<void> {
+  const token = await signToken({
+    kind: "admin",
+    ...user,
+    exp: Date.now() + ADMIN_MAX_AGE_SECONDS * 1000,
+  });
   const store = await cookies();
   store.set(ADMIN_COOKIE, token, { ...cookieOptions, maxAge: ADMIN_MAX_AGE_SECONDS });
-
-  return { ok: true };
 }
 
 export async function logoutAdmin(): Promise<void> {

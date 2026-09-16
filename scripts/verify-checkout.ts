@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { hash, verify } from "@node-rs/argon2";
 import { drizzle } from "drizzle-orm/pglite";
 import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema";
@@ -11,7 +12,7 @@ import { quoteOrderSchema } from "../src/lib/validators";
 import { checkoutHash, issueQuote, readQuote, requestHash } from "../src/lib/checkout-quote";
 import { calculateOrderPricing, createOrder, findCheckoutOrder, getOrder, listOrders, priceLines, setOrderStatus, updateOrder } from "../src/db/queries/orders";
 import { abandonYoPagoPayment, processYoPagoCallback, startYoPagoPayment } from "../src/db/queries/payments";
-import { clearLoginAttempts, isAdminSessionCurrent, reserveLoginAttempt } from "../src/db/queries/auth";
+import { changeAdminPassword, clearLoginAttempts, isAdminSessionCurrent, reserveLoginAttempt } from "../src/db/queries/auth";
 import { getCheckoutSettings, setCheckoutSettings } from "../src/db/queries/settings";
 import { paymentState } from "../src/lib/order-status";
 import { buildYoPagoPayload, normalizeYoPagoCurrency, validateYoPagoCardUrl } from "../src/lib/yopago";
@@ -70,10 +71,23 @@ async function main() {
     assert.equal(await verifyToken(`${oldBody}.${oldSignature}`, "admin"), null);
     console.log("ok sesiones: propósito, payload, firma, expiración y rechazo de formato anterior");
 
-    await database.insert(schema.adminUsers).values({ username: "test", passwordHash: "test-only" });
+    const originalAdminPassword = "clave-actual-segura";
+    const originalAdminHash = await hash(originalAdminPassword, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
+    await database.insert(schema.adminUsers).values({ username: "test", passwordHash: originalAdminHash });
     assert.equal(await isAdminSessionCurrent(admin), true);
     await database.update(schema.adminUsers).set({ sessionVersion: 2 }).where(eq(schema.adminUsers.id, 1));
     assert.equal(await isAdminSessionCurrent(admin), false);
+    const wrongPassword = await changeAdminPassword(1, 2, "incorrecta", "clave-nueva-segura");
+    assert.deepEqual(wrongPassword, { ok: false, error: "La contraseña actual es incorrecta." });
+    const changedPassword = await changeAdminPassword(1, 2, originalAdminPassword, "clave-nueva-segura");
+    assert.equal(changedPassword.ok, true);
+    if (!changedPassword.ok) throw new Error("La contraseña no cambió en la prueba.");
+    assert.equal(changedPassword.sessionVersion, 3);
+    const [changedAdmin] = await database.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, 1));
+    assert.equal(await verify(changedAdmin!.passwordHash, originalAdminPassword), false);
+    assert.equal(await verify(changedAdmin!.passwordHash, "clave-nueva-segura"), true);
+    assert.equal(await isAdminSessionCurrent({ ...admin, version: 2 }), false);
+    assert.equal(await isAdminSessionCurrent({ ...admin, version: 3 }), true);
     const attempts = await Promise.all(Array.from({ length: 12 }, () => reserveLoginAttempt("TEST")));
     assert.equal(attempts.filter(Boolean).length, 8);
     await clearLoginAttempts("test");
@@ -81,7 +95,7 @@ async function main() {
     await database.update(schema.loginAttempts).set({ count: 8 });
     await database.update(schema.loginAttempts).set({ until: new Date(0) });
     assert.equal(await reserveLoginAttempt("test"), true);
-    console.log("ok login: revocación por versión y límite persistente de ocho intentos");
+    console.log("ok login: cambio de contraseña, revocación por versión y límite persistente de ocho intentos");
 
     const [category] = await database.insert(schema.categories).values({ name: "Test", slug: "test-checkout" }).returning();
     const [product] = await database.insert(schema.products).values({ name: "Guante Test", slug: "guante-test", categoryId: category!.id, price: "10.05", stock: 5, sizes: ["8", "9"], published: true }).returning();
@@ -101,6 +115,28 @@ async function main() {
     const lines = await priceLines(input.items);
     const pricing = await calculateOrderPricing(lines, input.discountCode, input.shipping);
     assert.deepEqual(pricing, { subtotal: "10.05", shipping: "0.00", discount: "5.03", total: "5.02", discountCode: "MITAD" });
+    const santaCruzPickup = quoteOrderSchema.parse({
+      ...input,
+      checkoutKey: randomUUID(),
+      discountCode: "",
+      shipping: { ...input.shipping, department: "Santa Cruz", mode: "pickup" },
+    });
+    assert.equal((await calculateOrderPricing(lines, "", santaCruzPickup.shipping)).shipping, "0.00");
+    const cochabambaDelivery = quoteOrderSchema.parse({
+      ...input,
+      checkoutKey: randomUUID(),
+      discountCode: "",
+      shipping: {
+        ...input.shipping,
+        department: "Cochabamba",
+        mode: "delivery",
+        address: "Av. prueba 123",
+        lat: -17.3935,
+        lng: -66.157,
+      },
+    });
+    assert.equal((await calculateOrderPricing(lines, "", cochabambaDelivery.shipping)).shipping, "30.00");
+    assert.equal(quoteOrderSchema.safeParse({ ...input, shipping: { ...input.shipping, department: "Oruro", mode: "pickup" } }).success, false);
     const quoteToken = await issueQuote(input, lines, pricing);
     assert.ok(await readQuote(input, quoteToken));
     assert.equal(await readQuote({ ...input, discountCode: "" }, quoteToken), null);
@@ -122,6 +158,16 @@ async function main() {
     assert.equal(saved.discountAmount, "5.03");
     assert.equal(saved.shippingAmount, "0.00");
     assert.equal(saved.total, "5.02");
+    const santaCruzPricing = await calculateOrderPricing(lines, "", santaCruzPickup.shipping);
+    const santaCruzOrder = await createOrder(
+      santaCruzPickup.shipping,
+      lines,
+      santaCruzPricing,
+      santaCruzPickup.checkoutKey,
+      requestHash(santaCruzPickup),
+    );
+    const savedSantaCruz = await getOrder(santaCruzOrder.id);
+    assert.deepEqual([savedSantaCruz?.department, savedSantaCruz?.mode, savedSantaCruz?.shippingAmount], ["Santa Cruz", "pickup", "0.00"]);
     console.log("ok pedido: reintento idempotente y desglose congelado ante cambios de ajustes");
 
     const [intent] = await database.insert(schema.paymentAttempts).values({ orderId: first.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "ORDER-TEST-1", transactionId: "REAL-1", amount: pricing.total, currency: "BOB", status: "created" }).returning();

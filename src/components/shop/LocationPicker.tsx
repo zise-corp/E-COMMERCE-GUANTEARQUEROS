@@ -14,10 +14,12 @@ export function LocationPicker({
   value,
   onChange,
   error,
+  center = LOCAL_CENTER,
 }: {
   value: LatLng | null;
   onChange: (next: LatLng | null, mapsUrl?: string) => void;
   error?: string;
+  center?: LatLng;
 }) {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [pasted, setPasted] = useState("");
@@ -135,7 +137,7 @@ export function LocationPicker({
         </div>
       ) : null}
 
-      <RealMap value={value} onChange={updateLocation} hasError={Boolean(error || geoError)} />
+      <RealMap value={value} onChange={updateLocation} hasError={Boolean(error || geoError)} center={center} />
 
       {geoError && !blocked ? (
         <p className="mt-1.5 text-xs text-alert-soft">{geoError} Puedes marcar el punto en el mapa.</p>
@@ -222,10 +224,12 @@ function RealMap({
   value,
   onChange,
   hasError,
+  center,
 }: {
   value: LatLng | null;
   onChange: (next: LatLng) => void;
   hasError: boolean;
+  center: LatLng;
 }) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -243,7 +247,7 @@ function RealMap({
 
     void import("leaflet").then((leaflet) => {
       if (disposed || !nodeRef.current) return;
-      const initial = value ?? LOCAL_CENTER;
+      const initial = value ?? center;
       const map = leaflet.map(nodeRef.current, { zoomControl: true }).setView(
         [initial.lat, initial.lng],
         value ? 17 : 15,
@@ -300,7 +304,7 @@ function RealMap({
     };
     // El mapa se crea una sola vez; los cambios de valor se sincronizan abajo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [center]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -308,7 +312,7 @@ function RealMap({
     if (!value) {
       markerRef.current?.remove();
       markerRef.current = null;
-      map.setView([LOCAL_CENTER.lat, LOCAL_CENTER.lng], 15);
+      map.setView([center.lat, center.lng], 15);
       return;
     }
     map.setView([value.lat, value.lng], Math.max(map.getZoom(), 16));
@@ -331,7 +335,7 @@ function RealMap({
       });
       markerRef.current = marker;
     });
-  }, [value]);
+  }, [center, value]);
 
   return (
     <div

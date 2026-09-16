@@ -13,7 +13,7 @@ export function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
   const arrival = { "--step-delay": current > 1 ? "380ms" : "0ms" } as React.CSSProperties;
 
   return (
-    <ol className="mb-[30px] flex flex-wrap items-center gap-x-4 gap-y-2" style={arrival}>
+    <ol className="mb-[30px] flex w-full max-w-[600px] items-center" style={arrival}>
       {STEPS.map((label, i) => {
         const n = i + 1;
         const completed = n < current;
@@ -21,36 +21,40 @@ export function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
         // Línea entre este paso y el siguiente.
         const line = n + 1 < current ? "filled" : n + 1 === current ? "filling" : "empty";
         return (
-          <li key={label} className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className={cn(
-                "flex h-[26px] w-[26px] items-center justify-center text-[12.5px] font-extrabold",
-                completed || isCurrent ? "bg-brand text-ink-950" : "bg-ink-800 text-content-dim",
-                isCurrent && "checkout-step-current",
-              )}
-            >
-              {completed ? (
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square">
-                  <polyline points="3,8.5 6.5,12 13,4.5" className={n === current - 1 ? "checkout-check-draw" : undefined} />
-                </svg>
-              ) : (
-                n
-              )}
-            </span>
-            <span
-              className={cn(
-                "text-xs font-extrabold uppercase tracking-[0.14em]",
-                completed || isCurrent ? "text-content" : "text-content-dim",
-                isCurrent && "checkout-step-label",
-              )}
-              aria-current={isCurrent ? "step" : undefined}
-            >
-              {label}
-              {completed ? <span className="sr-only"> (completado)</span> : null}
+          <li key={label} className={cn("flex min-w-0 items-center", i < STEPS.length - 1 && "flex-1")}>
+            <span className="flex flex-none items-center gap-2 sm:gap-2.5">
+              <span
+                aria-hidden
+                className={cn(
+                  "checkout-step-node flex h-7 w-7 items-center justify-center border text-[12px] font-black tabular transition-colors",
+                  completed && "border-brand/65 bg-brand/[0.1] text-brand",
+                  isCurrent && "checkout-step-current border-brand bg-brand text-ink-950",
+                  !completed && !isCurrent && "border-line-strong bg-ink-900 text-content-dim",
+                )}
+              >
+                {completed ? (
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square">
+                    <polyline points="3,8.5 6.5,12 13,4.5" className={n === current - 1 ? "checkout-check-draw" : undefined} />
+                  </svg>
+                ) : (
+                  n
+                )}
+              </span>
+              <span
+                className={cn(
+                  "whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.11em] sm:text-xs sm:tracking-[0.14em]",
+                  completed && "text-content-muted max-[380px]:sr-only",
+                  isCurrent && "checkout-step-label text-content",
+                  !completed && !isCurrent && "text-content-dim",
+                )}
+                aria-current={isCurrent ? "step" : undefined}
+              >
+                {label}
+                {completed ? <span className="sr-only"> (completado)</span> : null}
+              </span>
             </span>
             {i < STEPS.length - 1 ? (
-              <span className="relative ml-1.5 hidden h-[2px] w-[46px] overflow-hidden bg-line-strong sm:block" aria-hidden>
+              <span className="relative mx-2 h-px min-w-2 flex-1 overflow-hidden bg-line-strong sm:mx-3 sm:min-w-6" aria-hidden>
                 {line !== "empty" ? (
                   <span className={cn("absolute inset-0 origin-left bg-brand", line === "filling" && "checkout-step-fill")} />
                 ) : null}

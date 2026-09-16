@@ -11,7 +11,7 @@ import type { OrderSummary } from "@/db/queries/orders";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs, toNumber } from "@/lib/money";
 import { PAYMENT_METHOD_LABEL, paymentState } from "@/lib/order-status";
-import { LOCAL_DEPARTMENT, whatsappLink } from "@/lib/site";
+import { isLocalDepartment, whatsappLink } from "@/lib/site";
 import { STATUS_META } from "./OrdersManager";
 import { OrderLocationMap } from "./OrderLocationMap";
 import { PaymentBadge } from "./PaymentBadge";
@@ -90,7 +90,7 @@ export function OrderDetailDrawer({
     });
   }
 
-  const isLocal = order?.mode === "delivery" && order.department === LOCAL_DEPARTMENT;
+  const isLocal = order?.mode === "delivery" && isLocalDepartment(order.department);
   const payState = order ? paymentState(order) : "unpaid";
   const customerWhatsapp = order
     ? whatsappLink(
@@ -104,7 +104,7 @@ export function OrderDetailDrawer({
     : order.mode === "pickup"
       ? [
           { k: "Modalidad", v: "Retiro en el local" },
-          { k: "Sucursal", v: "Sucursal principal · La Paz" },
+          { k: "Sucursal", v: `Sucursal de ${order.department ?? "la ciudad seleccionada"}` },
         ]
       : isLocal
         ? [

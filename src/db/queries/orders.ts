@@ -3,7 +3,7 @@ import { db } from "../index";
 import { orderItems, orders, productImages, products } from "../schema";
 import type { ShippingOutput } from "@/lib/validators";
 import { toDbNumeric } from "@/lib/money";
-import { LOCAL_DEPARTMENT } from "@/lib/site";
+import { isLocalDepartment } from "@/lib/site";
 import { getCheckoutSettings } from "./settings";
 
 export type OrderLineInput = { productId: number; size: string | null; personalization: string | null; quantity: number };
@@ -117,7 +117,7 @@ export async function calculateOrderPricing(
   const subtotal = Math.round(Number(totalOf(lines)) * 100);
   const shipping = !shippingData || shippingData.mode === "pickup"
     ? 0
-    : shippingData.department === LOCAL_DEPARTMENT
+    : isLocalDepartment(shippingData.department)
       ? Math.round(settings.localDeliveryPrice * 100)
       : Math.round(settings.transportPrice * 100);
   const code = rawCode.trim().toUpperCase();
@@ -142,7 +142,7 @@ function deliveryColumns(shipping: ShippingOutput) {
   if (shipping.mode === "pickup") {
     return {
       mode: "pickup" as const,
-      department: LOCAL_DEPARTMENT,
+      department: shipping.department,
       address: null,
       lat: null,
       lng: null,
@@ -156,7 +156,7 @@ function deliveryColumns(shipping: ShippingOutput) {
       email: shipping.email,
     };
   }
-  const local = shipping.department === LOCAL_DEPARTMENT;
+  const local = isLocalDepartment(shipping.department);
   return {
     mode: "delivery" as const,
     department: shipping.department,

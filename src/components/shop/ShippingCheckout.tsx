@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { formatBs, toNumber } from "@/lib/money";
 import { announceNavigationStart } from "@/lib/navigation-feedback";
-import { LOCAL_DEPARTMENT } from "@/lib/site";
+import { isLocalDepartment } from "@/lib/site";
 import { CheckoutSteps } from "./CheckoutSteps";
 import { ConfirmOrderModal } from "./ConfirmOrderModal";
 import { useCart } from "./CartProvider";
@@ -162,7 +162,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
   const activeDiscount = discount?.subtotal === checkoutSubtotal ? discount : null;
   const effectiveShipping = !shipping.department || shipping.mode === "pickup"
     ? 0
-    : shipping.department === LOCAL_DEPARTMENT
+    : isLocalDepartment(shipping.department)
       ? localDeliveryPrice
       : transportPrice;
   const total = Math.max(0, checkoutSubtotal + effectiveShipping - (activeDiscount?.amount ?? 0));
@@ -259,7 +259,7 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
             ) : shipping.mode === "pickup" ? (
               <div className="flex justify-between"><span className="text-content-dim">Retiro en el local</span><span className="text-state-ok">Sin costo</span></div>
             ) : (
-              <div className="flex justify-between"><span className="text-content-dim">{shipping.department === LOCAL_DEPARTMENT ? "Envío a domicilio" : "Envío por transporte"}</span><span>{formatBs(effectiveShipping)}</span></div>
+              <div className="flex justify-between"><span className="text-content-dim">{isLocalDepartment(shipping.department) ? "Envío a domicilio" : "Envío por transporte"}</span><span>{formatBs(effectiveShipping)}</span></div>
             )}
             {activeDiscount ? (
               <div className="flex justify-between text-state-ok"><span>Descuento · {activeDiscount.code}</span><span>− {formatBs(activeDiscount.amount)}</span></div>

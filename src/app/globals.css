@@ -829,6 +829,28 @@
   position: relative;
 }
 
+.admin-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(250 42 0 / 55%) rgb(255 255 255 / 5%);
+}
+
+.admin-sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+  height: 4px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 4%);
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgb(250 42 0 / 48%);
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgb(250 42 0 / 72%);
+}
+
 .admin-profile {
   background: linear-gradient(180deg, transparent, rgb(250 42 0 / 3%));
 }
@@ -1088,6 +1110,10 @@
  */
 .checkout-step-fill {
   animation: checkout-line-fill .42s cubic-bezier(.65, 0, .35, 1) both;
+}
+
+.checkout-step-node {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
 }
 
 .checkout-check-draw {

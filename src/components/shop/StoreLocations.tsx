@@ -4,39 +4,11 @@ import { useState } from "react";
 import { Display } from "@/components/ui/Heading";
 import { ArrowRightIcon, PinIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
-
-const LOCATIONS = [
-  {
-    city: "La Paz",
-    short: "Obrajes",
-    address: "Zona Obrajes, Av. Hernando Siles esquina Calle 2, La Paz, Bolivia, 0000",
-    mapsUrl: "https://maps.app.goo.gl/Hu5t8XERXMiwThEH7",
-    lat: -16.52362570871352,
-    lng: -68.11237658813462,
-  },
-  {
-    city: "Santa Cruz",
-    short: "Centro",
-    address:
-      "Calle Charcas Nro. 47, entre Beni y 24 de Septiembre, a unos pasos de la iglesia San Andrés",
-    mapsUrl: "https://maps.app.goo.gl/VtHg9SzfLhiiHU1TA",
-    lat: -17.780480182374156,
-    lng: -63.181217623983784,
-  },
-  {
-    city: "Cochabamba",
-    short: "La Torre San Juan",
-    address:
-      "Calle Ladislao Cabrera, entre 25 de Mayo y San Martín, Edif. La Torre San Juan, local 106",
-    mapsUrl: "https://maps.app.goo.gl/9RiRFU5B8YNcfCVC9",
-    lat: -17.396951012145156,
-    lng: -66.1539796356822,
-  },
-] as const;
+import { STORE_LOCATIONS } from "@/lib/site";
 
 export function StoreLocations() {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const selected = LOCATIONS[selectedIndex]!;
+  const selected = STORE_LOCATIONS[selectedIndex]!;
   const coordinates = `${selected.lat},${selected.lng}`;
   const embedUrl = `https://www.google.com/maps?q=${coordinates}&z=17&output=embed`;
 
@@ -56,7 +28,7 @@ export function StoreLocations() {
 
       <div className="grid overflow-hidden border border-line bg-ink-900 lg:grid-cols-[0.78fr_1.22fr]">
         <div className="flex flex-col" role="tablist" aria-label="Sucursales">
-          {LOCATIONS.map((location, index) => {
+          {STORE_LOCATIONS.map((location, index) => {
             const active = index === selectedIndex;
             return (
               <button

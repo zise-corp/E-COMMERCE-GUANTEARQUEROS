@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEPARTMENTS, LOCAL_DEPARTMENT } from "./site";
+import { DEPARTMENTS, isLocalDepartment } from "./site";
 
 /**
  * Reglas compartidas por el formulario y por el route handler. El cliente valida
@@ -75,9 +75,9 @@ export const shippingSchema = z
       return;
     }
 
-    if (v.department === LOCAL_DEPARTMENT) {
+    if (isLocalDepartment(v.department)) {
       if (v.mode === "pickup") return;
-      // Cochabamba: logística propia, hace falta dirección y punto exacto.
+      // En las ciudades con sucursal hace falta dirección y punto exacto.
       if (v.address.trim().length < 5) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Escribe la dirección." });
       }
@@ -93,7 +93,7 @@ export const shippingSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["mode"],
-          message: "El retiro en local solo está disponible en La Paz.",
+          message: "El retiro en local solo está disponible donde tenemos una sucursal.",
         });
       }
       // En otro departamento el comprador solo deja sus datos. La empresa y la
@@ -163,6 +163,21 @@ export const adminLoginSchema = z.object({
   username: z.string().trim().min(1, "Falta el usuario.").max(60),
   password: z.string().min(1, "Falta la contraseña.").max(200),
 });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Escribe tu contraseña actual.").max(200),
+    newPassword: z.string().min(10, "La nueva contraseña necesita al menos 10 caracteres.").max(128, "La nueva contraseña es demasiado larga."),
+    confirmPassword: z.string().min(1, "Confirma la nueva contraseña.").max(128),
+  })
+  .superRefine((value, ctx) => {
+    if (value.newPassword !== value.confirmPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirmPassword"], message: "Las contraseñas nuevas no coinciden." });
+    }
+    if (value.newPassword === value.currentPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["newPassword"], message: "La nueva contraseña debe ser diferente de la actual." });
+    }
+  });
 
 const attributeSchema = z.object({
   name: z.string().trim().min(1).max(60),

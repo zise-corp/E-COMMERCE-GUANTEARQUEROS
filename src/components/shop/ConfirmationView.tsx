@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
-import { CheckIcon } from "@/components/ui/Icons";
+import { ArrowRightIcon, CheckIcon, PinIcon } from "@/components/ui/Icons";
 import { CheckoutSteps } from "./CheckoutSteps";
 import { useCart } from "./CartProvider";
 import { SupportModal } from "./SupportModal";
 
-export function ConfirmationView({ orderId, number, delivery }: { orderId: number; number: number; delivery: string }) {
+type DeliveryConfirmation = {
+  kind: "pickup" | "local_delivery" | "national_shipping";
+  label: string;
+  message: string;
+  detail: string;
+  mapsUrl?: string;
+  mapsLabel?: string;
+};
+
+export function ConfirmationView({ orderId, number, delivery }: { orderId: number; number: number; delivery: DeliveryConfirmation }) {
   const cart = useCart();
   const [supportOpen, setSupportOpen] = useState(false);
 
@@ -38,8 +47,33 @@ export function ConfirmationView({ orderId, number, delivery }: { orderId: numbe
         </p>
 
         <p className="mt-[22px] text-[15.5px] leading-relaxed text-content-muted">
-          Ya registramos tu pedido. {delivery}. Te vamos a contactar por WhatsApp para coordinar.
+          Ya registramos tu pedido correctamente.
         </p>
+
+        <div className="relative mt-6 overflow-hidden border border-brand/55 bg-brand/[0.055] p-5 text-left sm:p-6">
+          <span className="absolute inset-y-0 left-0 w-[3px] bg-brand" aria-hidden />
+          <div className="flex items-start gap-4">
+            <span className="flex size-10 flex-none items-center justify-center border border-brand/60 bg-brand/[0.1] text-brand">
+              <PinIcon size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand">{delivery.label}</p>
+              <p className="mt-2 text-[14px] font-semibold leading-relaxed text-content">{delivery.message}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-content-muted">{delivery.detail}</p>
+              {delivery.mapsUrl ? (
+                <a
+                  href={delivery.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand transition-colors hover:text-brand-hot"
+                >
+                  {delivery.mapsLabel ?? "Ver ubicación exacta"}
+                  <ArrowRightIcon size={14} />
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
         <div className="mt-[34px] flex flex-wrap items-center justify-between gap-4 border border-line bg-ink-900 p-[22px] text-left">
           <div>
