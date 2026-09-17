@@ -9,7 +9,7 @@ import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { changeAdminPassword } from "@/db/queries/auth";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
 import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
-import { logoutAdmin, requireAdmin } from "@/lib/admin-auth";
+import { logoutAdmin, requireAdmin, requireAnyAdmin } from "@/lib/admin-auth";
 import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
@@ -39,13 +39,13 @@ function invalidatePublicCatalog() {
  */
 
 export async function logoutAction() {
-  await requireAdmin();
+  await requireAnyAdmin();
   await logoutAdmin();
   redirect("/admin/login");
 }
 
 export async function logoutToStoreAction() {
-  await requireAdmin();
+  await requireAnyAdmin();
   await logoutAdmin();
   redirect("/?intro=admin");
 }

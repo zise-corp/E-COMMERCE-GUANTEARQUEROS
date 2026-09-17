@@ -121,7 +121,7 @@ export function ChangePasswordForm() {
         <p className="label-xs text-brand">Recuperación segura</p>
         <h2 className="mt-3 font-display text-2xl uppercase skew-fast-6">¿No recuerdas la actual?</h2>
         <p className="mt-3 text-[12.5px] leading-relaxed text-content-muted">
-          Por seguridad no se puede cambiar ni recuperar una contraseña desde el panel sin verificar la actual.
+          Si olvidaste la contraseña actual, contacta a ZISE para verificar la solicitud y restablecer el acceso de forma segura.
         </p>
         <a
           href={site.supportUrl}
@@ -129,7 +129,7 @@ export function ChangePasswordForm() {
           rel="noopener noreferrer"
           className="mt-5 inline-flex w-full items-center justify-center border border-brand px-5 py-3.5 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-brand transition-colors hover:bg-brand hover:text-ink-950"
         >
-          Contactar a soporte
+          Contactar a ZISE
         </a>
         <p className="mt-3 text-center text-[10.5px] uppercase tracking-[0.12em] text-content-faint">zise.lat</p>
       </aside>

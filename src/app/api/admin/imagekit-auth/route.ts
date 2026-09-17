@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 /** Credenciales de una sola subida. La clave privada nunca sale del servidor. */
 export async function GET() {
   const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
+  if (!session || session.role === "superadmin") {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: session ? 403 : 401 });
   }
 
   const publicKey = process.env["IMAGEKIT_PUBLIC_KEY"];

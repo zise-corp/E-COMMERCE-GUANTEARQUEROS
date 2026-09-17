@@ -49,6 +49,7 @@ Sobre la base de desarrollo elegida:
 npm run db:migrate
 npm run db:seed
 npm run admin:create -- --user TU_USUARIO --pass "UNA_CLAVE_LARGA"
+npm run admin:create -- --user superadmin --pass "UNA_CLAVE_PRIVADA_DE_ZISE" --role superadmin
 npm run dev
 ```
 
@@ -105,6 +106,8 @@ Las firmas incluyen un propósito independiente: `admin`, `order` o `quote`. Se 
 El middleware filtra las páginas del panel. Cada acción y endpoint administrativo verifica además usuario, rol y versión de sesión contra PostgreSQL. Actualizar la contraseña mediante `admin:create` incrementa esa versión e invalida las sesiones previas; borrar el usuario también las invalida. El middleware no redirige por sí solo desde el login basándose en una cookie potencialmente revocada.
 
 Los intentos de login se reservan mediante un upsert atómico: máximo ocho intentos por nombre de usuario normalizado en diez minutos, compartidos entre instancias. Un acceso correcto limpia el contador. No es un sistema global contra abuso por IP. Las filas de `login_attempts` pueden depurarse cuando `until` haya vencido.
+
+ZISE utiliza una cuenta con rol `superadmin` en el mismo login. Ese rol se redirige a una pantalla aislada que únicamente puede reemplazar la contraseña de la cuenta `admin`; no puede abrir el dashboard, catálogo, pedidos, ajustes ni ejecutar sus acciones. El cambio incrementa la versión de sesión de `admin` y cierra todas sus sesiones anteriores. La contraseña del superadministrador se almacena únicamente como hash Argon2id en `admin_users`, igual que las demás credenciales.
 
 ## Contrato del checkout
 

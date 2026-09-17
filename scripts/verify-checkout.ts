@@ -12,7 +12,7 @@ import { quoteOrderSchema } from "../src/lib/validators";
 import { checkoutHash, issueQuote, readQuote, requestHash } from "../src/lib/checkout-quote";
 import { calculateOrderPricing, createOrder, findCheckoutOrder, getOrder, listOrders, priceLines, setOrderStatus, updateOrder } from "../src/db/queries/orders";
 import { abandonYoPagoPayment, processYoPagoCallback, startYoPagoPayment } from "../src/db/queries/payments";
-import { changeAdminPassword, clearLoginAttempts, isAdminSessionCurrent, reserveLoginAttempt } from "../src/db/queries/auth";
+import { changeAdminPassword, clearLoginAttempts, isAdminSessionCurrent, resetAdminPasswordBySuperAdmin, reserveLoginAttempt } from "../src/db/queries/auth";
 import { getCheckoutSettings, setCheckoutSettings } from "../src/db/queries/settings";
 import { paymentState } from "../src/lib/order-status";
 import { buildYoPagoPayload, normalizeYoPagoCurrency, validateYoPagoCardUrl } from "../src/lib/yopago";
@@ -88,6 +88,20 @@ async function main() {
     assert.equal(await verify(changedAdmin!.passwordHash, "clave-nueva-segura"), true);
     assert.equal(await isAdminSessionCurrent({ ...admin, version: 2 }), false);
     assert.equal(await isAdminSessionCurrent({ ...admin, version: 3 }), true);
+
+    const superAdminHash = await hash("zise-superadmin-segura", { memoryCost: 19456, timeCost: 2, parallelism: 1 });
+    await database.insert(schema.adminUsers).values({ username: "superadmin", passwordHash: superAdminHash, role: "superadmin" });
+    const deniedReset = await resetAdminPasswordBySuperAdmin(1, "test", "otra-clave-segura");
+    assert.deepEqual(deniedReset, { ok: false, error: "Esta cuenta no tiene permiso para realizar el restablecimiento." });
+    const recoveredPassword = await resetAdminPasswordBySuperAdmin(2, "test", "clave-recuperada-segura");
+    assert.equal(recoveredPassword.ok, true);
+    const [recoveredAdmin] = await database.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, 1));
+    assert.equal(recoveredAdmin!.sessionVersion, 4);
+    assert.equal(await verify(recoveredAdmin!.passwordHash, "clave-nueva-segura"), false);
+    assert.equal(await verify(recoveredAdmin!.passwordHash, "clave-recuperada-segura"), true);
+    assert.equal(await isAdminSessionCurrent({ ...admin, version: 3 }), false);
+    assert.equal(await isAdminSessionCurrent({ ...admin, version: 4 }), true);
+
     const attempts = await Promise.all(Array.from({ length: 12 }, () => reserveLoginAttempt("TEST")));
     assert.equal(attempts.filter(Boolean).length, 8);
     await clearLoginAttempts("test");
@@ -95,7 +109,7 @@ async function main() {
     await database.update(schema.loginAttempts).set({ count: 8 });
     await database.update(schema.loginAttempts).set({ until: new Date(0) });
     assert.equal(await reserveLoginAttempt("test"), true);
-    console.log("ok login: cambio de contraseña, revocación por versión y límite persistente de ocho intentos");
+    console.log("ok login: cambio propio, restablecimiento limitado por superadmin, revocación de sesiones y límite de intentos");
 
     const [category] = await database.insert(schema.categories).values({ name: "Test", slug: "test-checkout" }).returning();
     const [product] = await database.insert(schema.products).values({ name: "Guante Test", slug: "guante-test", categoryId: category!.id, price: "10.05", stock: 5, sizes: ["8", "9"], published: true }).returning();

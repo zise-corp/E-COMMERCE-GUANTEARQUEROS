@@ -20,6 +20,14 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   if (!result.ok) return { error: result.error };
 
+  if (result.role === "superadmin") redirect("/admin/superadmin");
+
   const target = formData.get("next");
-  redirect(typeof target === "string" && (target === "/admin" || target.startsWith("/admin/")) ? target : "/admin");
+  redirect(
+    typeof target === "string" &&
+      (target === "/admin" || target.startsWith("/admin/")) &&
+      !target.startsWith("/admin/superadmin")
+      ? target
+      : "/admin",
+  );
 }

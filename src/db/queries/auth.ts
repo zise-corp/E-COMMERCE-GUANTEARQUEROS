@@ -79,3 +79,44 @@ export async function changeAdminPassword(
   await clearLoginAttempts(attemptKey);
   return { ok: true, ...updated };
 }
+
+export type SuperAdminPasswordResetResult =
+  | { ok: true; username: string; sessionVersion: number }
+  | { ok: false; error: string };
+
+/**
+ * El rol superadmin puede reemplazar únicamente la clave de una cuenta de
+ * tienda. No puede cambiar otra cuenta superadmin ni crear una sesión como ella.
+ */
+export async function resetAdminPasswordBySuperAdmin(
+  superAdminId: number,
+  targetUsername: string,
+  newPassword: string,
+): Promise<SuperAdminPasswordResetResult> {
+  const actor = await db.query.adminUsers.findFirst({ where: eq(adminUsers.id, superAdminId) });
+  if (!actor || actor.role !== "superadmin") {
+    return { ok: false, error: "Esta cuenta no tiene permiso para realizar el restablecimiento." };
+  }
+
+  const target = await db.query.adminUsers.findFirst({ where: eq(adminUsers.username, targetUsername) });
+  if (!target || target.role === "superadmin") {
+    return { ok: false, error: "No encontramos la cuenta administrativa de la tienda." };
+  }
+
+  const repeatsCurrent = await verify(target.passwordHash, newPassword).catch(() => false);
+  if (repeatsCurrent) return { ok: false, error: "La nueva contraseña debe ser diferente de la anterior." };
+
+  const passwordHash = await hash(newPassword, ARGON_OPTIONS);
+  const [updated] = await db
+    .update(adminUsers)
+    .set({
+      passwordHash,
+      sessionVersion: sql`${adminUsers.sessionVersion} + 1`,
+    })
+    .where(and(eq(adminUsers.id, target.id), eq(adminUsers.sessionVersion, target.sessionVersion)))
+    .returning({ username: adminUsers.username, sessionVersion: adminUsers.sessionVersion });
+
+  if (!updated) return { ok: false, error: "La cuenta cambió durante el proceso. Intenta nuevamente." };
+  await clearLoginAttempts(target.username);
+  return { ok: true, ...updated };
+}

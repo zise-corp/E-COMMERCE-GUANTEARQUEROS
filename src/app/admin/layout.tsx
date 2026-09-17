@@ -17,6 +17,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // El login se dibuja solo, sin sidebar. El middleware ya bloqueó el resto.
   if (!session) return <>{children}</>;
 
+  // El soporte ZISE tiene una única pantalla y nunca recibe el dashboard.
+  if (session.role === "superadmin") return <ToastProvider>{children}</ToastProvider>;
+
   const counts = await getAdminCounts();
 
   return (

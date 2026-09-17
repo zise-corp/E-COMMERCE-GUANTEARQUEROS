@@ -11,6 +11,7 @@ import { ADMIN_COOKIE, verifyToken } from "@/lib/session";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname === "/admin/login";
+  const isSuperAdminArea = pathname === "/admin/superadmin" || pathname.startsWith("/admin/superadmin/");
 
   const session = await verifyToken(request.cookies.get(ADMIN_COOKIE)?.value, "admin").catch(
     () => null,
@@ -21,6 +22,15 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/admin/login";
     url.search = pathname === "/admin" ? "" : `?next=${encodeURIComponent(pathname)}`;
     return NextResponse.redirect(url);
+  }
+
+  if (session && !isLogin) {
+    if (session.role === "superadmin" && !isSuperAdminArea) {
+      return NextResponse.redirect(new URL("/admin/superadmin", request.url));
+    }
+    if (session.role !== "superadmin" && isSuperAdminArea) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
   }
 
   const response = NextResponse.next();

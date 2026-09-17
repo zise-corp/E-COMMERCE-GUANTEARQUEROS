@@ -179,6 +179,17 @@ export const changePasswordSchema = z
     }
   });
 
+export const superAdminResetPasswordSchema = z
+  .object({
+    newPassword: z.string().min(10, "La nueva contraseña necesita al menos 10 caracteres.").max(128, "La nueva contraseña es demasiado larga."),
+    confirmPassword: z.string().min(1, "Confirma la nueva contraseña.").max(128),
+  })
+  .superRefine((value, ctx) => {
+    if (value.newPassword !== value.confirmPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirmPassword"], message: "Las contraseñas nuevas no coinciden." });
+    }
+  });
+
 const attributeSchema = z.object({
   name: z.string().trim().min(1).max(60),
   value: z.string().trim().min(1).max(200),

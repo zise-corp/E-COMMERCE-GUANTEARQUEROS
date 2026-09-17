@@ -9,8 +9,15 @@ import { Input } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 import { loginAction, type LoginState } from "@/app/admin/login/actions";
+import { site } from "@/lib/site";
 
-export function LoginForm({ next, passwordChanged = false }: { next: string; passwordChanged?: boolean }) {
+export function LoginForm({
+  next,
+  passwordChanged = false,
+}: {
+  next: string;
+  passwordChanged?: boolean;
+}) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
   const [showPassword, setShowPassword] = useState(false);
 
@@ -73,6 +80,18 @@ export function LoginForm({ next, passwordChanged = false }: { next: string; pas
               </button>
             }
           />
+
+          <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-[11.5px] font-bold">
+            <span className="text-content-dim">¿Olvidaste tu contraseña?</span>
+            <a
+              href={site.supportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-extrabold uppercase tracking-[0.08em] text-brand underline decoration-brand/60 underline-offset-4 transition-colors hover:text-brand-hot"
+            >
+              Contactar a ZISE
+            </a>
+          </div>
 
           {state.error ? (
             <p

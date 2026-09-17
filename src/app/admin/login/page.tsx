@@ -13,7 +13,13 @@ export default async function AdminLoginPage({
 }: {
   searchParams: Promise<{ next?: string; passwordChanged?: string }>;
 }) {
-  if (await getAdminSession()) redirect("/admin");
+  const session = await getAdminSession();
+  if (session) redirect(session.role === "superadmin" ? "/admin/superadmin" : "/admin");
   const { next, passwordChanged } = await searchParams;
-  return <LoginForm next={next ?? "/admin"} passwordChanged={passwordChanged === "1"} />;
+  return (
+    <LoginForm
+      next={next ?? "/admin"}
+      passwordChanged={passwordChanged === "1"}
+    />
+  );
 }

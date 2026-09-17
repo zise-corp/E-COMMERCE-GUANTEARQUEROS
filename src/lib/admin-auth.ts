@@ -32,11 +32,27 @@ export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
+  if (session.role === "superadmin") redirect("/admin/superadmin");
+  return session;
+}
+
+/** Sesión administrativa de cualquier rol; se usa para cerrar sesión. */
+export async function requireAnyAdmin(): Promise<AdminSession> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  return session;
+}
+
+/** Acceso exclusivo a la herramienta limitada de soporte de ZISE. */
+export async function requireSuperAdmin(): Promise<AdminSession> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  if (session.role !== "superadmin") redirect("/admin");
   return session;
 }
 
 export type LoginResult =
-  | { ok: true }
+  | { ok: true; role: string }
   | { ok: false; error: string };
 
 export async function loginAdmin(username: string, password: string): Promise<LoginResult> {
@@ -72,7 +88,7 @@ export async function loginAdmin(username: string, password: string): Promise<Lo
     version: user.sessionVersion,
   });
 
-  return { ok: true };
+  return { ok: true, role: user.role };
 }
 
 export async function setAdminSessionCookie(user: Pick<AdminSession, "uid" | "username" | "role" | "version">): Promise<void> {
