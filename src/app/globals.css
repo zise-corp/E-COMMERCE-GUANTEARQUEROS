@@ -71,7 +71,7 @@
     display: block;
     width: 34px;
     height: 34px;
-    background: #fa2a00;
+    background: #eb611c;
     border: 3px solid #fff;
     border-radius: 50% 50% 50% 0;
     transform: rotate(-45deg);
@@ -86,7 +86,7 @@
     transform: translate(-50%, -50%);
     border-radius: 999px;
     background: #fff;
-    box-shadow: inset 0 0 0 3px #b91f00;
+    box-shadow: inset 0 0 0 3px #a44212;
   }
   .gq-map-marker > b {
     position: absolute;
@@ -275,12 +275,12 @@
 
   .category-carousel-control:hover,
   .category-carousel-control:focus-visible {
-    background: linear-gradient(145deg, #ff5a2b, #fa2a00 58%, #8f1902);
+    background: linear-gradient(145deg, #ff7a3d, #eb611c 58%, #943b10);
   }
 
   .category-carousel-control:hover::before,
   .category-carousel-control:focus-visible::before {
-    background: #fa2a00;
+    background: #eb611c;
   }
 
   .drei-home-card {
@@ -602,7 +602,7 @@
   position: absolute;
   inset: -25%;
   opacity: .13;
-  background: repeating-linear-gradient(115deg, transparent 0 70px, #fa2a00 70px 72px, transparent 72px 142px);
+  background: repeating-linear-gradient(115deg, transparent 0 70px, #eb611c 70px 72px, transparent 72px 142px);
   transform: translateX(-8%);
   animation: store-intro-stripes 1.55s cubic-bezier(.16, 1, .3, 1) both;
 }
@@ -698,7 +698,7 @@
   height: 2px;
   margin-top: 16px;
   transform-origin: center;
-  background: linear-gradient(90deg, transparent, #fa2a00 18%, #fff 50%, #fa2a00 82%, transparent);
+  background: linear-gradient(90deg, transparent, #eb611c 18%, #fff 50%, #eb611c 82%, transparent);
   box-shadow: 0 0 18px rgb(250 42 0 / 72%);
   animation: store-intro-rule 1.2s .2s cubic-bezier(.16, 1, .3, 1) both;
 }
@@ -728,7 +728,7 @@
   width: 100%;
   height: 100%;
   transform-origin: left;
-  background: linear-gradient(90deg, #c81f00, #ff5a2b);
+  background: linear-gradient(90deg, #b94710, #ff7a3d);
   box-shadow: 0 0 12px rgb(250 42 0 / 72%);
   animation: store-intro-loading 1.15s .35s cubic-bezier(.65, 0, .35, 1) both;
 }
@@ -821,7 +821,7 @@
   width: 1px;
   height: 128px;
   content: "";
-  background: linear-gradient(#fa2a00, transparent);
+  background: linear-gradient(#eb611c, transparent);
   opacity: .65;
 }
 
@@ -889,7 +889,7 @@
   width: 42px;
   height: 1px;
   content: "";
-  background: #fa2a00;
+  background: #eb611c;
 }
 
 .admin-kpi {
@@ -921,7 +921,7 @@
 
 .admin-data-row:hover {
   background-color: rgb(255 255 255 / 2.5%);
-  box-shadow: inset 3px 0 #fa2a00;
+  box-shadow: inset 3px 0 #eb611c;
 }
 
 .admin-dashboard-scroll {
@@ -953,7 +953,7 @@
   width: 76px;
   height: 2px;
   content: "";
-  background: linear-gradient(90deg, #fa2a00, transparent);
+  background: linear-gradient(90deg, #eb611c, transparent);
 }
 
 .admin-shell [class~="bg-brand"],
@@ -987,7 +987,7 @@
   left: 0;
   height: 2px;
   content: "";
-  background: linear-gradient(90deg, transparent, #fa2a00 35%, #ff5a2b 50%, #fa2a00 65%, transparent);
+  background: linear-gradient(90deg, transparent, #eb611c 35%, #ff7a3d 50%, #eb611c 65%, transparent);
   box-shadow: 0 0 22px rgb(250 42 0 / 45%);
 }
 
@@ -1013,7 +1013,7 @@
 .admin-shell select:focus,
 .admin-shell textarea:focus {
   background-color: #111110;
-  border-color: #fa2a00;
+  border-color: #eb611c;
   box-shadow: 0 0 0 3px rgb(250 42 0 / 10%);
 }
 
@@ -1051,7 +1051,7 @@
   width: 50px;
   aspect-ratio: 1.154;
   position: relative;
-  background: conic-gradient(from 120deg at 50% 64%, transparent, #fa2a00 1deg 120deg, transparent 121deg);
+  background: conic-gradient(from 120deg at 50% 64%, transparent, #eb611c 1deg 120deg, transparent 121deg);
   animation: route-loader-turn 1.5s infinite cubic-bezier(.3, 1, 0, 1);
 }
 

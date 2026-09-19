@@ -176,7 +176,7 @@ export function AdminTopbar({
   return (
     <div className="admin-topbar sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-ink-700 bg-[#0F0F0E]/[0.94] px-5 py-3 backdrop-blur-[12px] sm:px-7">
       <div className="flex items-center gap-3">
-        <span className="h-8 w-[3px] bg-brand shadow-[0_0_12px_rgba(250,42,0,0.45)]" aria-hidden />
+        <span className="h-8 w-[3px] bg-brand shadow-[0_0_12px_rgba(235,97,28,0.45)]" aria-hidden />
         <div className="flex flex-wrap items-baseline gap-2.5">
         <h1 className="font-display text-[22px] uppercase tracking-[0.025em] skew-fast-6">{title}</h1>
         {subtitle ? <p className="text-[11.5px] text-content-dim">{subtitle}</p> : null}

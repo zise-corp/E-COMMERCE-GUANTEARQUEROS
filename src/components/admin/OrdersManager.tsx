@@ -225,7 +225,7 @@ function Segmented<K extends string>({ options, value, onChange }: { options: Se
               "flex items-center gap-2 whitespace-nowrap px-3.5 py-2 text-[12px] font-bold transition-colors duration-150",
               index > 0 && "border-l border-line-strong",
               active
-                ? "bg-brand/[0.12] text-brand shadow-[inset_0_-2px_0_#FA2A00]"
+                ? "bg-brand/[0.12] text-brand shadow-[inset_0_-2px_0_#EB611C]"
                 : "text-content-muted hover:bg-ink-800 hover:text-content",
               option.count === 0 && !active && "text-content-faint",
             )}

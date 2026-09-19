@@ -15,7 +15,7 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
         className="h-2"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(115deg, #FA2A00 0 18px, #0A0A0A 18px 36px)",
+            "repeating-linear-gradient(115deg, #EB611C 0 18px, #0A0A0A 18px 36px)",
         }}
         aria-hidden
       />
@@ -84,11 +84,23 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
       </div>
 
       <div className="border-t border-ink-800">
-        <div className="container-shop flex flex-wrap justify-between gap-2 py-[18px] text-xs text-[#4A4845]">
-          <span>
-            © {year} {site.name} · DREI Athletic
-          </span>
-          <span>Pagos vía YoPago · Bs</span>
+        <div className="container-shop flex flex-col items-center justify-center gap-2.5 py-5 text-center">
+          <p className="text-[11px] leading-relaxed text-content-faint">
+            © {year} {site.name}. Todos los derechos reservados.
+          </p>
+          <a
+            href={site.supportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Visitar el sitio de ZISE"
+            className="group inline-flex items-center gap-2.5 py-0.5 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span className="h-px w-8 bg-line-strong transition-colors group-hover:bg-brand/70" aria-hidden />
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-content-dim transition-colors group-hover:text-brand">
+              ZISE
+            </span>
+            <span className="h-px w-8 bg-line-strong transition-colors group-hover:bg-brand/70" aria-hidden />
+          </a>
         </div>
       </div>
     </footer>

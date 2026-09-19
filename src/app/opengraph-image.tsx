@@ -22,7 +22,7 @@ export default async function OpengraphImage() {
       style={{
         width: 26,
         height: 120,
-        background: i % 2 === 0 ? "#FA2A00" : "#0A0A0A",
+        background: i % 2 === 0 ? "#EB611C" : "#0A0A0A",
         transform: "skewX(-25deg)",
       }}
     />
@@ -47,8 +47,8 @@ export default async function OpengraphImage() {
             <svg width={100} height={118} viewBox="0 0 100 100">
               <defs>
                 <linearGradient id="og" x1="18%" y1="0%" x2="82%" y2="100%">
-                  <stop offset="0" stopColor="#FA2A00" />
-                  <stop offset="1" stopColor="#C81F00" />
+                  <stop offset="0" stopColor="#EB611C" />
+                  <stop offset="1" stopColor="#B94710" />
                 </linearGradient>
               </defs>
               <path d={ESCUDO_PATH} fillRule="evenodd" fill="url(#og)" />
@@ -56,7 +56,7 @@ export default async function OpengraphImage() {
 
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", fontSize: 66, lineHeight: 1, letterSpacing: "0.01em" }}>
-                <span style={{ color: "#FA2A00" }}>UANTE</span>
+                <span style={{ color: "#EB611C" }}>UANTE</span>
                 <span style={{ color: "#F5F3F0" }}>ARQUEROS</span>
               </div>
               <div

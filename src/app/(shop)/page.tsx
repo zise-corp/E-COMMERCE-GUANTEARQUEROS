@@ -163,7 +163,7 @@ function Hero({
           <span className="block text-content">indumentaria para</span>
           <span
             className="block text-brand"
-            style={{ textShadow: "0 0 44px rgba(250,42,0,0.45)" }}
+            style={{ textShadow: "0 0 44px rgba(235,97,28,0.45)" }}
           >
             arqueros en Bolivia
           </span>
@@ -195,7 +195,7 @@ function Hero({
         <div
           className="absolute inset-[8%_6%] blur-[40px]"
           style={{
-            background: "radial-gradient(circle, rgba(250,42,0,0.5), transparent 68%)",
+            background: "radial-gradient(circle, rgba(235,97,28,0.5), transparent 68%)",
           }}
           aria-hidden
         />

@@ -117,7 +117,7 @@ function BrandModal({ form, pending, error, onChange, onClose, onSave }: { form:
     <div className="flex flex-col gap-5 p-6">
       <div className="grid gap-3.5 md:grid-cols-2">
         <Input label="Nombre de la marca" value={form.name} className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, name: event.target.value })} />
-        <Input label="Color de acento" value={form.accentHex ?? ""} placeholder="#FA2A00" hint="Opcional, en formato hexadecimal." className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, accentHex: event.target.value || null })} />
+        <Input label="Color de acento" value={form.accentHex ?? ""} placeholder="#EB611C" hint="Opcional, en formato hexadecimal." className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, accentHex: event.target.value || null })} />
         <div className={cn("border border-ink-700 bg-[#0E0E0D] p-3.5", form.slug !== "drei" && "md:col-span-2")}><Toggle checked={form.active} label="Visible en la tienda" onChange={(active) => onChange({ ...form, active })} /></div>
         {form.slug === "drei" ? <div className="border border-drei-line/40 bg-drei/[0.08] p-3.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-drei-ink">Marca propia oficial</p><p className="mt-2 text-[11px] leading-relaxed text-content-dim">DREI pertenece a GuanteArqueros. Esta identidad es permanente y no necesita un selector.</p></div> : null}
       </div>

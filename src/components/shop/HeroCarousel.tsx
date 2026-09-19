@@ -17,7 +17,7 @@ function descuento(p: HomeHeroProduct): number | null {
 }
 
 /**
- * Carrusel del hero: rota entre los productos en oferta cada 5 s.
+ * Carrusel del hero: rota entre los productos de la colección elegida cada 5 s.
  *
  * Todas las diapositivas se montan a la vez y se cruzan con opacidad, en vez de
  * montar y desmontar: así el navegador ya tiene las imágenes descargadas y el
@@ -75,7 +75,7 @@ export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]
             <Link
               key={p.id}
               href={`/p/${p.slug}`}
-              aria-label={`Ver producto ${p.name}${off ? `, ${off}% de descuento` : ""}`}
+              aria-label={`Ver producto ${p.name}${source === "new" ? ", nuevo" : ""}${off ? `, ${off}% de descuento` : ""}`}
               aria-hidden={!visible}
               // Las diapositivas ocultas no deben ser enfocables con el teclado
               // ni clicables: quedan detrás pero seguirían recibiendo el foco.
@@ -106,9 +106,18 @@ export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]
               </span>
 
               <span className="absolute inset-x-0 bottom-0 p-5 pb-12">
-                {off ? (
-                  <span className="mb-2.5 inline-block bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
-                    {off}% OFF
+                {source === "new" || off ? (
+                  <span className="mb-2.5 flex flex-wrap items-center gap-2">
+                    {source === "new" ? (
+                      <span className="inline-block bg-[#39BDF8] px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.05em] text-ink-950 skew-fast-8">
+                        Nuevo
+                      </span>
+                    ) : null}
+                    {off ? (
+                      <span className="inline-block bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
+                        {off}% OFF
+                      </span>
+                    ) : null}
                   </span>
                 ) : null}
                 <span className="block truncate text-[15px] font-bold text-content">{p.name}</span>
@@ -125,7 +134,7 @@ export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]
               key={p.id}
               type="button"
               onClick={() => avanzar(i)}
-              aria-label={`Ver oferta ${i + 1} de ${total}: ${p.name}`}
+              aria-label={`Ver ${source === "offers" ? "oferta" : "producto nuevo"} ${i + 1} de ${total}: ${p.name}`}
               aria-current={i === actual}
               className={cn(
                 "h-1.5 transition-all duration-300",

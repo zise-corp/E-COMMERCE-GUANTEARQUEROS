@@ -16,12 +16,12 @@ export default {
         },
         line: { DEFAULT: "#262625", strong: "#2B2B29", soft: "#1E1E1D" },
         brand: {
-          DEFAULT: "#FA2A00",
-          hot: "#FF5A2B",
-          deep: "#C81F00",
+          DEFAULT: "#EB611C",
+          hot: "#D65317",
+          deep: "#B94710",
           soft: "#3A2A22",
         },
-        alert: { DEFAULT: "#E10600", soft: "#FF6E68" },
+        alert: { DEFAULT: "#C81F00", soft: "#F07A4A" },
         drei: { DEFAULT: "#1B3A5C", line: "#4E8FCB", ink: "#BFD8EE" },
         content: { DEFAULT: "#F5F3F0", muted: "#A8A5A0", dim: "#6E6B67", faint: "#57554F" },
         state: { ok: "#6FCF8E", warn: "#E2B93B" },
@@ -38,14 +38,14 @@ export default {
       },
       borderRadius: { none: "0px", sm: "2px" },
       boxShadow: {
-        "glow-brand": "0 12px 40px rgba(250,42,0,0.35)",
-        "glow-alert": "0 12px 40px rgba(225,6,0,0.30)",
+        "glow-brand": "0 12px 40px rgba(235,97,28,0.35)",
+        "glow-alert": "0 12px 40px rgba(200,31,0,0.30)",
         card: "0 16px 50px rgba(0,0,0,0.60)",
-        focus: "0 0 0 3px rgba(250,42,0,0.15)",
+        focus: "0 0 0 3px rgba(235,97,28,0.15)",
       },
       backgroundImage: {
         "stripe-danger":
-          "repeating-linear-gradient(115deg, #FA2A00 0 26px, #0A0A0A 26px 52px)",
+          "repeating-linear-gradient(115deg, #EB611C 0 26px, #0A0A0A 26px 52px)",
         "warm-fade":
           "radial-gradient(120% 80% at 50% -10%, #17120F 0%, #0A0A0A 55%)",
         "grid-map":

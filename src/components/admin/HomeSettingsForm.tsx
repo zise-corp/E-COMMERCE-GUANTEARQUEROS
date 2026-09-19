@@ -62,7 +62,7 @@ export function HomeSettingsForm({ initial, collections }: { initial: HomeSettin
                     "flex items-center justify-between border px-4 py-3.5 text-left transition-all",
                     active
                       ? isOffers
-                        ? "border-brand bg-brand/[0.1] text-content shadow-[inset_3px_0_#FA2A00]"
+                        ? "border-brand bg-brand/[0.1] text-content shadow-[inset_3px_0_#EB611C]"
                         : "border-[#39BDF8] bg-[#39BDF8]/10 text-content shadow-[inset_3px_0_#39BDF8]"
                       : "border-line-strong bg-ink-950/45 text-content-muted hover:border-content-dim hover:text-content",
                   )}

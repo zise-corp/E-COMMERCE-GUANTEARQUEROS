@@ -330,7 +330,7 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
             : active
               ? "border-b-2 border-brand bg-brand/[0.06] px-1 text-brand"
               : "border-b-2 border-transparent px-1 text-content-muted hover:border-brand hover:bg-white/[0.025] hover:text-content",
-        active && isOffers && "border-brand-hot bg-brand-hot shadow-[0_0_18px_rgba(250,42,0,0.22)]",
+        active && isOffers && "border-brand-hot bg-brand-hot shadow-[0_0_18px_rgba(235,97,28,0.22)]",
         active && isNew && "border-[#7DD3FC] bg-[#39BDF8]/25 text-white shadow-[0_0_18px_rgba(57,189,248,0.16)]",
       )}
     >

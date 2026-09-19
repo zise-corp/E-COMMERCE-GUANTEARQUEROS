@@ -37,8 +37,8 @@ export function Escudo({
       {tone === "brand" ? (
         <defs>
           <linearGradient id={id} x1="18%" y1="0%" x2="82%" y2="100%">
-            <stop offset="0" stopColor="#FA2A00" />
-            <stop offset="1" stopColor="#C81F00" />
+            <stop offset="0" stopColor="#EB611C" />
+            <stop offset="1" stopColor="#B94710" />
           </linearGradient>
         </defs>
       ) : null}

@@ -214,7 +214,7 @@ function TablaVentas({ data }: { data: { weekStart: string; total: number; order
 const PAYMENT_META: Record<string, { label: string; color: string }> = {
   pagado: { label: "Pagados", color: "#6FCF8E" },
   pendiente: { label: "Pendientes", color: "#E2B93B" },
-  fallido: { label: "Fallidos", color: "#E10600" },
+  fallido: { label: "Fallidos", color: "#C81F00" },
   reembolsado: { label: "Reembolsados", color: "#6E6B67" },
 };
 
@@ -496,7 +496,7 @@ function Sparkline({ values }: { values: number[] }) {
       <polyline
         points={puntos}
         fill="none"
-        stroke="#FA2A00"
+        stroke="#EB611C"
         strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"

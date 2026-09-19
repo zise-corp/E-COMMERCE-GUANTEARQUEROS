@@ -19,7 +19,7 @@ export const ORDER_STATUS_META: Record<
   OrderSummary["status"],
   { label: string; color: string; bg: string }
 > = {
-  recibido: { label: "Recibido", color: "#FA2A00", bg: "rgba(250,42,0,0.14)" },
+  recibido: { label: "Recibido", color: "#EB611C", bg: "rgba(235,97,28,0.14)" },
   en_proceso: { label: "En proceso", color: "#E2B93B", bg: "rgba(226,185,59,0.13)" },
   completado: { label: "Completado", color: "#45D48A", bg: "rgba(69,212,138,0.13)" },
   cancelado: { label: "Cancelado", color: "#8A8783", bg: "rgba(138,135,131,0.12)" },
@@ -42,11 +42,11 @@ export type PaymentStateKey = "paid" | "review" | "waiting" | "unpaid" | "abando
  */
 export const PAYMENT_STATE_META: Record<PaymentStateKey, { label: string; color: string; bg: string }> = {
   paid: { label: "Pagado", color: "#45D48A", bg: "rgba(69,212,138,0.13)" },
-  review: { label: "Pagado · revisar stock", color: "#FF6E68", bg: "rgba(225,6,0,0.14)" },
+  review: { label: "Pagado · revisar stock", color: "#F07A4A", bg: "rgba(200,31,0,0.14)" },
   waiting: { label: "Esperando pago", color: "#E2B93B", bg: "rgba(226,185,59,0.13)" },
   unpaid: { label: "Sin pagar", color: "#8A8783", bg: "rgba(138,135,131,0.12)" },
   abandoned: { label: "Abandonado", color: "#8A8783", bg: "rgba(138,135,131,0.12)" },
-  failed: { label: "Pago fallido", color: "#FF6E68", bg: "rgba(225,6,0,0.14)" },
+  failed: { label: "Pago fallido", color: "#F07A4A", bg: "rgba(200,31,0,0.14)" },
   refunded: { label: "Reembolsado", color: "#8A8783", bg: "rgba(138,135,131,0.12)" },
 };
 

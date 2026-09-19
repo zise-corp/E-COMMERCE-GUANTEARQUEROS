@@ -70,10 +70,10 @@ export function CategoryCarousel({ categories, categoryImages = {} }: { categori
             className={cn(
               "group relative block aspect-square snap-start overflow-hidden border transition-colors duration-150 clip-corner",
               isOffers
-                ? "border-brand bg-brand/[0.08] shadow-[0_0_28px_rgba(250,42,0,0.28)] [--clip-edge-color:#FA2A00] hover:border-brand-hot hover:[--clip-edge-color:#FF4B2B]"
+                ? "border-brand bg-brand/[0.08] shadow-[0_0_28px_rgba(235,97,28,0.28)] [--clip-edge-color:#EB611C] hover:border-brand-hot hover:[--clip-edge-color:#D65317]"
                 : isNew
                   ? "border-[#39BDF8] bg-[#39BDF8]/[0.08] shadow-[0_0_28px_rgba(57,189,248,0.2)] [--clip-edge-color:#39BDF8] hover:border-[#7DD3FC] hover:[--clip-edge-color:#7DD3FC]"
-                : "border-line hover:border-brand hover:[--clip-edge-color:#FA2A00]",
+                : "border-line hover:border-brand hover:[--clip-edge-color:#EB611C]",
             )}
           >
             <CategoryImages images={rotatingImages} fallback={category.imagePath} />
