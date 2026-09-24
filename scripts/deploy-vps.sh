@@ -17,14 +17,18 @@ test "$(git rev-parse origin/main)" = "$expected_sha" || {
 git merge --ff-only origin/main
 
 docker compose config --quiet
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 
 container_id=$(docker compose ps -q app)
 test -n "$container_id" || { echo 'App container was not created' >&2; exit 1; }
 for attempt in $(seq 1 24); do
   health=$(docker inspect --format '{{.State.Health.Status}}' "$container_id")
   if [ "$health" = healthy ]; then
+    # Only unused images and build cache are removed; Docker protects running containers.
+    docker image prune --all --force
+    docker builder prune --all --force
     docker compose ps
+    docker system df
     exit 0
   fi
   if [ "$health" = unhealthy ]; then
