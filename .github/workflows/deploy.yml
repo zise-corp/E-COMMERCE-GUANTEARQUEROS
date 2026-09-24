@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
+  predeploy_checks:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -31,10 +31,9 @@ jobs:
       - run: npm run build
 
   deploy:
-    needs: verify
+    needs: predeploy_checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
     env:
       VPS_HOST: ${{ vars.VPS_HOST }}
       VPS_USER: ${{ vars.VPS_USER }}
