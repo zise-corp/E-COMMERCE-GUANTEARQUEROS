@@ -1,4 +1,4 @@
-# Guantearqueros Bolivia
+# Guante Arqueros Bolivia
 
 Tienda pública y panel administrativo en una aplicación Next.js. Catálogo de guantes, accesorios e indumentaria DREI Athletic, en español y bolivianos (BOB).
 
@@ -80,7 +80,7 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `ADMIN_SESSION_SECRET` | Secreto de servidor para firmas separadas por propósito |
 | `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de la cuenta ImageKit usada para imágenes nuevas y rutas almacenadas |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
-| `NEXT_PUBLIC_SITE_URL` | URL pública canónica, sin slash final |
+| `NEXT_PUBLIC_SITE_URL` | URL pública canónica, `https://guantearqueros.com`, sin slash final |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP`, `NEXT_PUBLIC_SUPPORT_URL` | Contacto y sitio externo de soporte |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
 | `YOPAGO_COMPANY_CODE` | Reservada en la configuración local; el adaptador actual usa `YOPAGO_COMPANY_CODE` constante en `src/lib/yopago.ts`. Mantener ambos sincronizados hasta unificar la configuración |
@@ -171,7 +171,15 @@ La base configurada se encuentra detrás del pooler de Supabase en `us-west-2`. 
 
 `netlify.toml` configura build `npm run build`, publicación `.next`, Node 22 y protección de versiones. Configura variables en Netlify y aplica las migraciones sobre la base elegida como paso controlado antes del despliegue. Las variables `NEXT_PUBLIC_*` se incorporan durante el build.
 
-No subas `.env.local`, claves privadas ni contraseñas al repositorio. No incluyas migraciones ni seeds dentro del comando de build. Al cambiar el dominio, actualiza `NEXT_PUBLIC_SITE_URL` y reconstruye.
+No subas `.env.local`, claves privadas ni contraseñas al repositorio. No incluyas migraciones ni seeds dentro del comando de build. Para el dominio definitivo, configura `NEXT_PUBLIC_SITE_URL=https://guantearqueros.com` y `APP_BASE_URL=https://guantearqueros.com` en producción y reconstruye. Configura la redirección 301 del dominio anterior y de `www` al dominio canónico en el proveedor de hosting; esto no lo resuelve la aplicación por sí sola.
+
+## SEO e indexación
+
+La portada, las categorías activas, la página DREI cuando está visible y los productos publicados tienen URL canónica. Los filtros de categoría y la paginación de la portada llevan `noindex` para evitar versiones duplicadas. `robots.txt` permite la tienda y bloquea panel y API; el checkout queda rastreable para que los buscadores puedan leer su `noindex`. El sitemap incluye solo rutas públicas canónicas; cada producto usa su fecha real de actualización y su imagen principal si existe. Se regenera con la caché pública cada cinco minutos tras cambios del catálogo.
+
+La tienda publica metadatos Open Graph, tarjeta para redes y datos estructurados de organización, sucursales, navegación y ofertas de producto. No se anuncian reseñas, horarios ni políticas de envío en datos estructurados porque no hay datos verificables para ellos. Después del despliegue, verifica `https://guantearqueros.com/robots.txt` y `https://guantearqueros.com/sitemap.xml`, registra el dominio en Google Search Console y envía el sitemap. El dominio real debe estar configurado antes del build para que las URLs absolutas sean correctas.
+
+Las búsquedas objetivo se expresan en los títulos, descripciones y textos visibles de la portada, categorías, subcategorías y fichas, con términos específicos de indumentaria deportiva y fútbol en Bolivia. Las etiquetas `meta keywords` también se generan por página, pero Google Search no las usa para posicionar; el contenido debe corresponder a productos realmente publicados. No agregues palabras de deportes o artículos ajenos al catálogo solo para ampliar tráfico.
 
 ## Referencias y límites
 

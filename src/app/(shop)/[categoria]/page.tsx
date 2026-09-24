@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { CategoryView, type SearchParams } from "@/components/shop/CategoryView";
 import { getCategoryBySlug, getCategoryTree } from "@/db/queries/catalog";
+import { absoluteUrl, breadcrumbJsonLd, categorySearchContent, serializeJsonLd } from "@/lib/seo";
+import { site } from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -14,18 +16,30 @@ export async function generateStaticParams() {
   return tree.map((category) => ({ categoria: category.slug }));
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { categoria } = await params;
   const category = await getCategoryBySlug(categoria);
-  if (!category) return { title: "Categoría" };
+  if (!category || category.parentId !== null) return { title: "Categoría no encontrada", robots: { index: false, follow: false } };
+  const { description, keywords } = categorySearchContent(category.name, category.slug);
+  const filtered = Object.keys(await searchParams).length > 0;
   return {
-    title: category.name,
-    description: `${category.name} en Guantearqueros Bolivia. Envíos a todo el país, retiro en Cochabamba.`,
+    title: `${category.name} en Bolivia`,
+    description,
+    keywords,
     alternates: { canonical: `/${category.slug}` },
+    robots: { index: !filtered, follow: true },
+    openGraph: { type: "website", url: absoluteUrl(`/${category.slug}`), siteName: site.name, locale: "es_BO", title: `${category.name} en Bolivia | ${site.shortName}`, description },
   };
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
   const { categoria } = await params;
-  return <CategoryView categorySlug={categoria} searchParams={await searchParams} />;
+  const category = await getCategoryBySlug(categoria);
+  const breadcrumbs = category && category.parentId === null
+    ? breadcrumbJsonLd([{ name: "Inicio", path: "/" }, { name: category.name, path: `/${category.slug}` }])
+    : null;
+  return <>
+    {breadcrumbs ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbs) }} /> : null}
+    <CategoryView categorySlug={categoria} searchParams={await searchParams} />
+  </>;
 }

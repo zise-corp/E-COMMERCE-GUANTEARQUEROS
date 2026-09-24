@@ -35,9 +35,15 @@ const HERO_IMAGE =
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ pagina?: string }> }): Promise<Metadata> {
+  const { pagina } = await searchParams;
+  const requestedPage = Number.parseInt(pagina ?? "1", 10);
+  const isPaginated = Number.isFinite(requestedPage) && requestedPage > 1;
+  return {
+    alternates: { canonical: "/" },
+    ...(isPaginated ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ pagina?: string }> }) {
   const { pagina } = await searchParams;
@@ -170,8 +176,8 @@ function Hero({
         </h1>
 
         <p className="mt-[26px] max-w-[460px] text-[16.5px] leading-relaxed text-content-muted text-pretty">
-          Guantes de arquero originales, indumentaria DREI Athletic y accesorios. Envíos a todo el
-          país.
+          Indumentaria deportiva para fútbol en Bolivia: guantes de arquero, camisetas, uniformes,
+          botines, pelotas y accesorios. Envíos a todo el país.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">

@@ -2,7 +2,7 @@ import { Display } from "@/components/ui/Heading";
 import { ArrowRightIcon, WhatsappIcon } from "@/components/ui/Icons";
 import { displayWhatsapp, whatsappLink } from "@/lib/site";
 
-const CONTACT_MESSAGE = "Hola, necesito ayuda o información de Guantearqueros Bolivia.";
+const CONTACT_MESSAGE = "Hola, necesito ayuda o información de Guante Arqueros Bolivia.";
 
 export function ContactSection() {
   return (

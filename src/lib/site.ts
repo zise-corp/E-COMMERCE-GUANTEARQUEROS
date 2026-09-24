@@ -4,18 +4,18 @@
  */
 
 export const site = {
-  name: "Guantearqueros Bolivia",
-  shortName: "Guantearqueros",
-  tagline: "Guantes de arquero, indumentaria DREI Athletic y accesorios.",
+  name: "Guante Arqueros Bolivia",
+  shortName: "Guante Arqueros",
+  tagline: "Guantes de arquero, indumentaria DREI Athletic, botines, pelotas y accesorios. Envíos a toda Bolivia.",
   city: "Cochabamba",
   country: "Bolivia",
   currency: "BOB",
   locale: "es-BO",
-  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://guantearquerosbolivia.com.bo").replace(
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://guantearqueros.com").replace(
     /\/+$/,
     "",
   ),
-  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearquerosbolivia.com.bo",
+  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearqueros.com",
   supportUrl: process.env.NEXT_PUBLIC_SUPPORT_URL ?? "https://zise.lat",
   /** Solo dígitos, formato internacional: se usa en el link de wa.me. */
   supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "59161235265",

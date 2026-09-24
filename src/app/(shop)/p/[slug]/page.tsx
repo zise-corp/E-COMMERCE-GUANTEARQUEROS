@@ -9,6 +9,7 @@ import { Price } from "@/components/ui/Price";
 import { getAllProductSlugs, getProductBySlug } from "@/db/queries/catalog";
 import { imageKitUrl } from "@/lib/images";
 import { discountPercent } from "@/lib/money";
+import { absoluteUrl, breadcrumbJsonLd, seoDescription, serializeJsonLd } from "@/lib/seo";
 import { site } from "@/lib/site";
 
 export const revalidate = 300;
@@ -25,20 +26,35 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  if (!product) return { title: "Producto" };
+  if (!product) return { title: "Producto no encontrado", robots: { index: false, follow: false } };
 
   const image = product.imagePublicId ? imageKitUrl(product.imagePublicId, "og") : undefined;
+  const description = seoDescription(
+    product.description,
+    `${product.name}: ${product.categoryName.toLowerCase()} en ${site.name}. Compra online con envíos a toda Bolivia.`,
+  );
 
   return {
-    title: product.name,
-    description: product.description.slice(0, 160) || site.tagline,
+    title: `${product.name} en Bolivia`,
+    description,
+    keywords: [
+      product.name,
+      `${product.name} Bolivia`,
+      `${product.categoryName} Bolivia`,
+      ...(product.subcategoryName ? [`${product.subcategoryName} ${product.categoryName} Bolivia`] : []),
+      ...(product.brandName ? [`${product.brandName} ${product.categoryName} Bolivia`] : []),
+    ],
     alternates: { canonical: `/p/${product.slug}` },
     openGraph: {
       type: "website",
-      title: product.name,
-      description: product.description.slice(0, 200) || site.tagline,
-      ...(image ? { images: [{ url: image, width: 1200, height: 630 }] } : {}),
+      url: absoluteUrl(`/p/${product.slug}`),
+      siteName: site.name,
+      locale: "es_BO",
+      title: `${product.name} | ${site.shortName}`,
+      description,
+      ...(image ? { images: [{ url: absoluteUrl(image), alt: product.name }] } : {}),
     },
+    twitter: { card: "summary_large_image", title: product.name, description, ...(image ? { images: [absoluteUrl(image)] } : {}) },
   };
 }
 
@@ -57,33 +73,45 @@ export default async function ProductPage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${site.url}/p/${product.slug}#product`,
     name: product.name,
-    description: product.description,
+    description: product.description.trim() || `${product.name} en ${site.name}`,
     sku: sku(product.id),
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
-    ...(product.imagePublicId
-      ? { image: [imageKitUrl(product.imagePublicId, "detail")] }
+    ...(product.images.length
+      ? { image: product.images.map((item) => absoluteUrl(imageKitUrl(item.publicId, "detail"))) }
       : {}),
+    category: product.subcategoryName ?? product.categoryName,
     offers: {
       "@type": "Offer",
-      priceCurrency: "BOB",
+      priceCurrency: site.currency,
       price: product.price,
+      itemCondition: "https://schema.org/NewCondition",
       availability:
         product.stock > 0
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
       url: `${site.url}/p/${product.slug}`,
-      seller: { "@type": "Organization", name: site.name },
+      seller: { "@id": `${site.url}/#organization` },
     },
   };
+
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Inicio", path: "/" },
+    { name: product.categoryName, path: `/${product.categorySlug}` },
+    ...(product.subcategorySlug && product.subcategoryName
+      ? [{ name: product.subcategoryName, path: `/${product.categorySlug}/${product.subcategorySlug}` }]
+      : []),
+    { name: product.name, path: `/p/${product.slug}` },
+  ]);
 
   return (
     <section className="container-shop py-8 pb-20 sm:py-[34px]">
       <script
         type="application/ld+json"
-        // El contenido es nuestro y ya está serializado: no hay entrada del usuario sin escapar.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbs) }} />
 
       <div className="mb-4">
         <BackButton
@@ -131,7 +159,7 @@ export default async function ProductPage({ params }: Props) {
         <div>
           <div className="flex items-center gap-2.5">
             <span className="text-[11.5px] font-extrabold uppercase tracking-[0.18em] text-brand">
-              {product.brandName ?? "Guantearqueros"}
+              {product.brandName ?? site.shortName}
             </span>
             <span className="block h-1 w-1 bg-[#3A3A38]" aria-hidden />
             <span className="text-[11.5px] uppercase tracking-[0.14em] text-content-dim">

@@ -92,7 +92,7 @@ export function StoreLocations() {
           <iframe
             key={selected.city}
             src={embedUrl}
-            title={`Mapa de la tienda Guantearqueros en ${selected.city}`}
+            title={`Mapa de la tienda Guante Arqueros en ${selected.city}`}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
             allowFullScreen

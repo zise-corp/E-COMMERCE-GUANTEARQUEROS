@@ -27,7 +27,7 @@ export function Wordmark({
     return (
       <Image
         src={brandAssets.wordmarkSvg}
-        alt="Guantearqueros"
+        alt="Guante Arqueros"
         height={size}
         width={size * 7.2}
         priority

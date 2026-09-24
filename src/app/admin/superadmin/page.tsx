@@ -24,7 +24,7 @@ export default async function SuperAdminPage() {
             <p className="mt-6 text-[9px] font-extrabold uppercase tracking-[0.24em] text-brand">Acceso restringido · ZISE</p>
             <h1 className="mt-1 font-display text-[32px] uppercase tracking-[0.02em] skew-fast-6 sm:text-[38px]">Restablecer acceso</h1>
             <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-content-dim">
-              Herramienta exclusiva para cambiar la contraseña del administrador de Guantearqueros.
+              Herramienta exclusiva para cambiar la contraseña del administrador de Guante Arqueros.
             </p>
           </div>
           <div className="shrink-0 text-left sm:text-right">

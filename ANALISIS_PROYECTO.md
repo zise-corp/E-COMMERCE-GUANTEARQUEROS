@@ -1,4 +1,4 @@
-# Análisis del proyecto Guantearqueros Bolivia
+# Análisis del proyecto Guante Arqueros Bolivia
 
 Revisión del código: 23 de septiembre de 2026. Este documento describe el estado actual del repositorio; los prototipos de `referencias/handoff/` son antecedentes de diseño. No contiene credenciales, valores de configuración privados ni datos de clientes.
 

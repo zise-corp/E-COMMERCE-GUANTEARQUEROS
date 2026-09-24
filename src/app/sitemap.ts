@@ -1,46 +1,48 @@
 import type { MetadataRoute } from "next";
-import { getAllCategorySlugs, getAllProductSlugs, getCategoryTree } from "@/db/queries/catalog";
+import { getCategoryTree, getSitemapProducts, isDreiVisible } from "@/db/queries/catalog";
+import { imageKitUrl } from "@/lib/images";
 import { site } from "@/lib/site";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [tree, subs, productSlugs] = await Promise.all([
+  const [tree, products, dreiVisible] = await Promise.all([
     getCategoryTree(),
-    getAllCategorySlugs(),
-    getAllProductSlugs(),
+    getSitemapProducts(),
+    isDreiVisible(),
   ]);
-
-  const now = new Date();
 
   const categories = tree.map((c) => ({
     url: `${site.url}/${c.slug}`,
-    lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
 
-  const subcategories = subs
-    .filter((s) => s.parentSlug !== null)
-    .map((s) => ({
-      url: `${site.url}/${s.parentSlug}/${s.slug}`,
-      lastModified: now,
+  const subcategories = tree.flatMap((category) =>
+    category.children.map((subcategory) => ({
+      url: `${site.url}/${category.slug}/${subcategory.slug}`,
       changeFrequency: "weekly" as const,
       priority: 0.6,
-    }));
+    })),
+  );
 
-  const products = productSlugs.map((slug) => ({
-    url: `${site.url}/p/${slug}`,
-    lastModified: now,
+  const productUrls = products.map((product) => ({
+    url: `${site.url}/p/${product.slug}`,
+    lastModified: new Date(product.updatedAt),
     changeFrequency: "weekly" as const,
     priority: 0.7,
+    ...(product.imagePublicId
+      ? { images: [new URL(imageKitUrl(product.imagePublicId, "detail"), site.url).href] }
+      : {}),
   }));
 
   return [
-    { url: site.url, lastModified: now, changeFrequency: "daily", priority: 1 },
-    { url: `${site.url}/drei`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: site.url, changeFrequency: "daily", priority: 1 },
+    ...(dreiVisible && tree.some((category) => category.slug === "poleras")
+      ? [{ url: `${site.url}/drei`, changeFrequency: "weekly" as const, priority: 0.8 }]
+      : []),
     ...categories,
     ...subcategories,
-    ...products,
+    ...productUrls,
   ];
 }

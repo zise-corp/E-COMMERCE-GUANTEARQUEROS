@@ -84,7 +84,7 @@ export function ProductCard({
 
       <Link href={`/p/${product.slug}`} className="flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <p className="label-xs text-content-dim">{product.brandName ?? "Guantearqueros"}</p>
+          <p className="label-xs text-content-dim">{product.brandName ?? "Guante Arqueros"}</p>
           <h3 className="flex-1 text-[15px] font-bold leading-tight transition-colors duration-150 group-hover:text-brand">
             {product.name}
           </h3>

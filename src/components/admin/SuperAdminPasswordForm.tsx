@@ -56,7 +56,7 @@ export function SuperAdminPasswordForm() {
         </span>
         <div className="min-w-0">
           <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-brand">Cuenta objetivo</p>
-          <h2 className="mt-1 font-display text-[25px] uppercase tracking-[0.025em] skew-fast-6">Administrador Guantearqueros</h2>
+          <h2 className="mt-1 font-display text-[25px] uppercase tracking-[0.025em] skew-fast-6">Administrador Guante Arqueros</h2>
           <p className="mt-1 text-[12px] text-content-dim">Usuario: <strong className="text-content">admin</strong></p>
         </div>
       </div>

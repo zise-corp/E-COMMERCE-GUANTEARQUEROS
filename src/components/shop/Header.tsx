@@ -85,7 +85,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
           ref={brandRef}
           href="/"
           className="shop-header-brand flex flex-none items-center gap-0"
-          aria-label="Guantearqueros Bolivia, inicio"
+          aria-label="Guante Arqueros Bolivia, inicio"
         >
           <Escudo width={34} height={40} className="h-8 w-[27px] sm:h-10 sm:w-[34px]" />
           <Wordmark size={16} className="ml-[2px] sm:hidden" />

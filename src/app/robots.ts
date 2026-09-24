@@ -7,8 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        // El panel es invisible desde afuera: sin links, sin sitemap, sin indexar.
-        disallow: ["/admin", "/admin/", "/api/", "/checkout/"],
+        disallow: ["/admin", "/admin/", "/api/"],
       },
     ],
     sitemap: `${site.url}/sitemap.xml`,

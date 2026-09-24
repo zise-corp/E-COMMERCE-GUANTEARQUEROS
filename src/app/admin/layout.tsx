@@ -5,7 +5,7 @@ import { getAdminCounts } from "@/db/queries/admin";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
-  title: { default: "Panel", template: "%s · Panel Guantearqueros" },
+  title: { default: "Panel", template: "%s · Panel Guante Arqueros" },
   robots: { index: false, follow: false, nocache: true },
 };
 

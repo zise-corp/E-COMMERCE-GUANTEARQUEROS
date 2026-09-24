@@ -15,7 +15,7 @@ export function Escudo({
   height = 40,
   tone = "brand",
   className,
-  title = "Guantearqueros Bolivia",
+  title = "Guante Arqueros Bolivia",
 }: {
   width?: number;
   height?: number;

@@ -711,6 +711,47 @@ export async function getAllProductSlugs(): Promise<string[]> {
   return withFallback<string[]>([], getCachedAllProductSlugs);
 }
 
+/** URLs públicas del sitemap con fecha real de actualización e imagen principal. */
+async function querySitemapProducts() {
+  const rows = await db
+    .select({
+      slug: products.slug,
+      updatedAt: products.updatedAt,
+      imagePublicId: productImages.publicId,
+    })
+    .from(products)
+    .leftJoin(productImages, eq(productImages.productId, products.id))
+    .where(eq(products.published, true))
+    .orderBy(
+      asc(products.id),
+      desc(productImages.isPrimary),
+      asc(productImages.position),
+      asc(productImages.id),
+    );
+
+  const unique = new Map<string, { slug: string; updatedAt: string; imagePublicId: string | null }>();
+  for (const row of rows) {
+    if (!unique.has(row.slug)) {
+      unique.set(row.slug, {
+        slug: row.slug,
+        updatedAt: row.updatedAt.toISOString(),
+        imagePublicId: row.imagePublicId,
+      });
+    }
+  }
+  return [...unique.values()];
+}
+
+const getCachedSitemapProducts = unstable_cache(
+  querySitemapProducts,
+  ["public-sitemap-products-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getSitemapProducts() {
+  return withFallback<Awaited<ReturnType<typeof querySitemapProducts>>>([], getCachedSitemapProducts);
+}
+
 /** Categorías y subcategorías activas para la navegación global. */
 export async function getNavCategories() {
   const tree = await getCategoryTree();

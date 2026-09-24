@@ -8,6 +8,7 @@ import {
   getProductsByCategory,
   type CatalogFilters,
 } from "@/db/queries/catalog";
+import { categorySearchContent } from "@/lib/seo";
 import { CategoryFilters } from "./CategoryFilters";
 import { PaginatedProductGrid } from "./PaginatedProductGrid";
 
@@ -52,6 +53,9 @@ export async function CategoryView({
 
   const parent = subcategorySlug ? root : null;
   if (subcategorySlug && !parent) notFound();
+  const categoryIntro = fixedBrandName
+    ? "Camisetas, uniformes y calzas DREI Athletic para arqueros y equipos de fútbol en Bolivia."
+    : categorySearchContent(category.name, category.slug, parent?.name).intro;
 
   const resolvedCategory = {
     id: category.id,
@@ -100,6 +104,10 @@ export async function CategoryView({
           {products.length} {products.length === 1 ? "resultado" : "resultados"}
         </p>
       </div>
+
+      <p className="mb-6 max-w-[760px] text-sm leading-relaxed text-content-muted">
+        {categoryIntro}
+      </p>
 
       {subcategories.length > 0 && !subcategorySlug && !fixedBrandName ? (
         <div className="mb-6 flex flex-wrap gap-2">

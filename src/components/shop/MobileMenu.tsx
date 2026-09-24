@@ -72,7 +72,7 @@ function MobileMenuDrawer({
             <Escudo width={30} height={36} />
             <div className="min-w-0 flex-1">
               <p className="font-display text-lg uppercase skew-fast-6">Menú</p>
-              <p className="text-[10.5px] uppercase tracking-[0.14em] text-content-dim">Guantearqueros Bolivia</p>
+              <p className="text-[10.5px] uppercase tracking-[0.14em] text-content-dim">Guante Arqueros Bolivia</p>
             </div>
             <button type="button" onClick={onClose} aria-label="Cerrar menú" className="p-2 text-content-dim hover:text-brand">
               <CloseIcon size={20} />

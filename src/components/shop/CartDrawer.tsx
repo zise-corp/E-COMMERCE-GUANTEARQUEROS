@@ -109,7 +109,7 @@ function ItemsStep() {
             </Link>
 
             <div className="min-w-0 flex-1">
-              <p className="label-xs text-content-dim">{item.brandName ?? "Guantearqueros"}</p>
+              <p className="label-xs text-content-dim">{item.brandName ?? "Guante Arqueros"}</p>
               <Link
                 href={`/p/${item.slug}`}
                 onClick={cart.closeCart}

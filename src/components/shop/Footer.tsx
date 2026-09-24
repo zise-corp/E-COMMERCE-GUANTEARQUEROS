@@ -27,20 +27,20 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
             <Wordmark size={22} withBolivia className="ml-[2px]" />
           </div>
           <p className="mt-3.5 max-w-[300px] text-[13.5px] leading-relaxed text-content-dim">
-            Guantes de arquero, indumentaria DREI Athletic y accesorios. {site.city}, {site.country}.
+            Guantes de arquero, indumentaria DREI Athletic, botines, pelotas y accesorios. Envíos a toda Bolivia.
           </p>
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <SocialGroup title="Guantearqueros" label="Redes sociales de Guantearqueros">
-              <SocialLink href={site.social.facebook} label="Facebook de Guantearqueros Bolivia">
+            <SocialGroup title={site.shortName} label={`Redes sociales de ${site.name}`}>
+              <SocialLink href={site.social.facebook} label={`Facebook de ${site.name}`}>
                 <FacebookIcon size={18} />
               </SocialLink>
-              <SocialLink href={site.social.instagram} label="Instagram de Guantearqueros Bolivia">
+              <SocialLink href={site.social.instagram} label={`Instagram de ${site.name}`}>
                 <InstagramIcon size={18} />
               </SocialLink>
-              <SocialLink href={site.social.tiktok} label="TikTok de Guantearqueros Bolivia">
+              <SocialLink href={site.social.tiktok} label={`TikTok de ${site.name}`}>
                 <TiktokIcon size={18} />
               </SocialLink>
-              <SocialLink href={whatsappLink("Hola, quisiera información sobre sus productos.")} label="WhatsApp de Guantearqueros">
+              <SocialLink href={whatsappLink("Hola, quisiera información sobre sus productos.")} label={`WhatsApp de ${site.shortName}`}>
                 <WhatsappIcon size={18} />
               </SocialLink>
             </SocialGroup>

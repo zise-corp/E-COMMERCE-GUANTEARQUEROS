@@ -94,7 +94,7 @@ export function OrderDetailDrawer({
   const payState = order ? paymentState(order) : "unpaid";
   const customerWhatsapp = order
     ? whatsappLink(
-        `Hola ${order.customerName}, te contactamos de Guantearqueros Bolivia por tu pedido #${order.number}.`,
+        `Hola ${order.customerName}, te contactamos de Guante Arqueros Bolivia por tu pedido #${order.number}.`,
         normalizeBolivianPhone(order.customerPhone),
       )
     : "";

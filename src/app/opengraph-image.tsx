@@ -4,7 +4,7 @@ import { ImageResponse } from "next/og";
 import { ESCUDO_PATH } from "@/components/brand/escudo-path";
 
 export const runtime = "nodejs";
-export const alt = "Guantearqueros Bolivia · Guantes de arquero y DREI Athletic";
+export const alt = "Guante Arqueros Bolivia · Guantes de arquero, indumentaria y accesorios";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -67,7 +67,7 @@ export default async function OpengraphImage() {
                   color: "#6E6B67",
                 }}
               >
-                BOLIVIA · COCHABAMBA
+                BOLIVIA · GUANTE ARQUEROS
               </div>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default async function OpengraphImage() {
               textTransform: "uppercase",
             }}
           >
-            Guantes de arquero, DREI Athletic y accesorios
+            Guantes de arquero, indumentaria y accesorios
           </div>
 
           <div
@@ -95,7 +95,7 @@ export default async function OpengraphImage() {
               color: "#A8A5A0",
             }}
           >
-            ENVÍOS A TODO EL PAÍS · RETIRO EN COCHABAMBA EL MISMO DÍA
+            ENVÍOS A TODA BOLIVIA · RETIRO EN TIENDAS
           </div>
         </div>
 

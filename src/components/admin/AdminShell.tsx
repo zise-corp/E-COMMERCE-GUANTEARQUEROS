@@ -44,7 +44,7 @@ export function AdminShell({
       <aside className="admin-sidebar flex flex-col border-b border-ink-700 bg-[#0B0B0A] lg:sticky lg:top-0 lg:h-dvh lg:overflow-hidden lg:border-b-0 lg:border-r">
         {/* Misma composición oficial que utiliza el header de la tienda. */}
         <div className="flex shrink-0 items-center gap-3 border-b border-ink-700 px-[18px] py-[18px]">
-          <Link href="/admin" className="group min-w-0 flex-1" aria-label="Guantearqueros, panel">
+          <Link href="/admin" className="group min-w-0 flex-1" aria-label="Guante Arqueros, panel">
             <span className="flex items-center gap-0">
               <Escudo
                 width={34}

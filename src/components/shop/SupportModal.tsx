@@ -18,8 +18,8 @@ export function SupportModal({
 
   const reference = orderNumber ? `#${orderNumber}` : "";
   const message = orderNumber
-    ? `Hola, necesito ayuda con mi pedido ${reference} de Guantearqueros.`
-    : "Hola, necesito ayuda con una compra en Guantearqueros.";
+    ? `Hola, necesito ayuda con mi pedido ${reference} de Guante Arqueros.`
+    : "Hola, necesito ayuda con una compra en Guante Arqueros.";
 
   async function copyEmail() {
     try {
