@@ -1,143 +1,57 @@
 # Análisis del proyecto Guantearqueros Bolivia
 
-Fecha: 11 de septiembre de 2026. Revisión de arquitectura, código, configuración, documentación y verificaciones locales. No se ejecutaron migraciones, semillas ni escrituras sobre la base configurada durante el análisis de rendimiento.
+Revisión del código: 23 de septiembre de 2026. Este documento describe el estado actual del repositorio; los prototipos de `referencias/handoff/` son antecedentes de diseño. No contiene credenciales, valores de configuración privados ni datos de clientes.
 
-## Correcciones posteriores al análisis
+## Arquitectura
 
-Este informe conserva el diagnóstico inicial como referencia histórica. Los siguientes puntos ya fueron corregidos en el código; no deben interpretarse como fallos vigentes:
+Una aplicación Next.js 15 con App Router, React 19 y TypeScript sirve la tienda, el panel y los endpoints HTTP. PostgreSQL usa Drizzle ORM y un pool `postgres.js` por proceso. Tailwind CSS y componentes propios forman la interfaz. ImageKit almacena imágenes; Leaflet/OpenStreetMap muestran ubicaciones. Netlify ejecuta el build con Node 22.
 
-- Sesiones separadas por propósito y validación de payload, con rechazo de cookies anteriores. El administrador también se verifica contra el usuario y la versión de sesión en PostgreSQL.
-- Límite de login persistente y atómico en lugar de memoria por instancia. Cambiar la contraseña invalida sesiones anteriores.
-- Cotización firmada del servidor, confirmación explícita del importe y rechazo de cambios de precios/datos antes de guardar.
-- Creación idempotente mediante UUID y bloqueo transaccional; desglose de envío y descuento congelado. Los pedidos antiguos conservan total sin reconstruir el desglose desconocido.
-- Selección explícita de pedido en pago/confirmación; la confirmación exige pago aprobado.
-- Intentos del simulador identificados, edición bloqueada durante pago, invalidación al volver a envío y pago/stock atómicos con rollback completo ante falta de unidades.
-- Sin vuelta automática a sandbox cuando faltan credenciales. Simulación en producción requiere habilitación explícita. El webhook live permanece cerrado hasta la integración real.
-- Transiciones operativas protegidas y buscador de pedidos corregido para consultas por nombre.
-- README y handoffs actualizados para distinguir implementación vigente de referencias históricas.
-- Consultas públicas del catálogo agrupadas y almacenadas en la caché de Next durante cinco minutos, con invalidación inmediata desde el administrador y tras el descuento de stock de YoPago. La ficha de producto obtiene sus imágenes en la misma consulta.
-
-Migración nueva: `0013_checkout_security.sql`, aditiva, verificada en PGlite y aplicada a la base PostgreSQL de nube configurada el 9 de septiembre de 2026.
-
-Siguen pendientes la integración oficial de YoPago, reservas y conciliación de cobros externos, reembolsos, notificaciones y los puntos de rendimiento/diseño no incluidos en esta corrección. Ver [INTEGRACION_PAGOS.md](INTEGRACION_PAGOS.md).
-
-Verificaciones de esta corrección: TypeScript, ESLint, el build de producción con 88 rutas, 14 migraciones SQL y las regresiones de seguridad/checkout pasaron. La migración se aplicó a la base de nube; no se hicieron cobros ni pruebas de carga sobre ella.
-
----
-
-## Arquitectura y alcance actual
-
-Aplicación única con tienda pública y panel administrativo. Next.js 15.5.23 con App Router, React 19, TypeScript estricto y Tailwind CSS 3. PostgreSQL mediante Drizzle ORM y postgres.js. No hay backend separado ni cuentas de compradores: el checkout es de invitado.
-
-| Capa | Ubicación | Responsabilidad |
-|---|---|---|
-| Tienda | `src/app/(shop)` | Inicio, categorías, subcategorías, DREI, producto y checkout |
-| Panel | `src/app/admin` | Login, resumen, productos, categorías, marcas, pedidos, inicio y ajustes |
-| HTTP | `src/app/api` | Búsqueda, carrito, descuentos, pedidos, pagos y consultas administrativas |
-| Escrituras del panel | `src/app/admin/actions.ts` | Validación, autorización, persistencia y revalidación |
-| Componentes | `src/components/{shop,admin,ui,brand}` | Interacciones, formularios y sistema visual |
-| Datos | `src/db/schema.ts`, `src/db/queries` | Modelo y consultas de catálogo, pedidos, ajustes y dashboard |
-| Reglas compartidas | `src/lib` | Validaciones, dinero, sesiones, imágenes, negocio y adaptador de pagos |
-| Evolución de datos | `drizzle` | 13 migraciones SQL, desde 0000 hasta 0012 |
-| Referencias | `referencias/handoff` | Prototipos de tienda, panel y sistema de diseño; especificación inicial |
-
-La portada incluye carrusel de ofertas o novedades configurable, categorías con imágenes, catálogo paginado, bloque DREI, contacto y sucursales. Las categorías usan URLs `/{categoria}` y `/{categoria}/{sub}`; también existen rutas heredadas bajo `/c`. Las fichas están en `/p/{slug}`. Ofertas y Nuevos son categorías del sistema, calculadas a partir de los productos.
-
-El catálogo permite marcas, tallas, atributos libres, personalización, imágenes ordenadas, precio anterior, publicación, destacado y novedad. Los filtros de categoría usan parámetros de URL para marca, talla y precio. DREI tiene identidad propia dentro de la tienda y protección especial en la administración.
-
-El panel permite administrar catálogo, orden de categorías y marcas, imágenes con recorte, tarifas de envío, códigos de descuento y portada. Los pedidos cuentan con filtros, calendario, detalle, ubicación y estados operativos. El dashboard consulta ventas, inventario, distribución de pedidos y productos/categorías más vendidos.
-
-## Datos y flujo de compra
-
-Ocho tablas: `admin_users`, `brands`, `categories`, `products`, `product_images`, `orders`, `order_items` y `site_settings`. Categorías y subcategorías comparten tabla mediante `parent_id`. Tallas son un array de texto; atributos y ajustes usan JSONB. El inventario es por producto, no por talla.
-
-Los ítems del pedido conservan nombre, precio, talla, imagen y atributos. Borrar un producto deja `product_id` en NULL y conserva el historial. El número comercial proviene de `orders_number_seq`, creada por el seed. Los estados de pedido y pago son independientes.
-
-1. `CartProvider` conserva el carrito en localStorage y el identificador de pedido en sessionStorage; sincroniza el carrito entre pestañas.
-2. `/checkout/envio` recoge cliente, entrega y datos de factura. La Paz es la región local actual: retiro o domicilio con coordenadas; otros destinos requieren CI y correo.
-3. `ConfirmOrderModal` crea el pedido con POST o actualiza el existente con PATCH a `/api/orders`.
-4. El servidor valida con Zod, lee precios y stock reales, calcula envío/descuento y guarda pedido e ítems en una transacción.
-5. Una cookie firmada `gq_order` autoriza hasta diez pedidos de la sesión. Pago y confirmación seleccionan el último de esa lista.
-6. `/checkout/pago` genera un intento QR o tarjeta. El cliente consulta el estado cada cuatro segundos.
-7. El webhook actualiza el pago y descuenta stock. La interfaz avanza a confirmación y limpia el carrito.
-
-## Integraciones, diseño y operación
-
-- ImageKit: subida directa autenticada, firma desde endpoint administrativo y transformaciones por contexto. Quitar una imagen de la aplicación no implementa su borrado remoto.
-- YoPago: simulador funcional y adaptador live provisional. El propio archivo `src/lib/yopago.ts` indica que endpoints y campos aún deben contrastarse con el contrato del proveedor.
-- Mapas: Leaflet con tiles de OpenStreetMap para elegir/ver ubicación; Google Maps en enlaces e incrustaciones de sucursales. Los enlaces cortos de Maps no se resuelven: el parser necesita coordenadas en el texto.
-- Notificaciones: `src/lib/notify.ts` solo registra mensajes; no envía WhatsApp ni correo. Solicitar factura únicamente guarda los datos correspondientes.
-- Diseño: componentes propios, base oscura, naranja principal, acento azul DREI, tipografía Anton local y Manrope mediante `next/font/google`. Hay modales, drawers, control de foco, toasts y reglas responsive. No se verificó visualmente la fidelidad en navegador.
-- SEO: metadata, canonical, JSON-LD de producto con escape de `<`, sitemap, Open Graph y exclusión del panel/checkout. Algunas descripciones aún mencionan retiro en Cochabamba.
-- Renderizado: revalidación de 300 segundos en diversas rutas públicas, páginas dinámicas para checkout y panel. Las acciones del panel y el webhook que descuenta stock invalidan las rutas y datos del catálogo afectados.
-- Despliegue: configuración para Netlify y Node 22; artefactos separados `.next-dev` y `.next`. Pool PostgreSQL reutilizado por proceso, con límite menor durante build.
-
-## Hallazgos prioritarios de la revisión de código
-
-Estos hallazgos se derivan del código; no se realizaron ataques contra un despliegue ni cobros reales. Además, una comprobación local en memoria con una clave aleatoria confirmó que el verificador acepta un token de pedido sin `uid` ni `role`; no se usaron credenciales reales para esa comprobación.
-
-| Prioridad | Hallazgo y efecto | Código relevante |
-|---|---|---|
-| Crítica | Confusión entre tipos de sesión. Las cookies de pedido y administrador usan la misma clave y `verifyToken` solo comprueba firma y expiración. El genérico TypeScript no valida el payload en ejecución. Un token válido de pedido presentado como cookie administrativa puede superar las comprobaciones que solo requieren una sesión no nula. | `src/lib/session.ts`, `src/lib/admin-auth.ts`, `src/middleware.ts` |
-| Crítica si el simulador queda expuesto | `isSandbox()` vuelve a simulación incluso con modo live si falta API_URL. En sandbox el webhook acepta cualquier firma y puede modificar pedidos por número sin sesión de comprador. El endpoint de simulación también queda disponible, aunque exige la cookie del pedido. | `src/lib/yopago.ts`, `src/app/api/payments/yopago/webhook/route.ts`, `simulate/route.ts` |
-| Alta | La idempotencia del pago no es atómica: se lee estado, se marca pagado y luego se descuenta inventario en operaciones separadas. Dos callbacks concurrentes pueden descontar dos veces; un fallo intermedio puede dejar un pago confirmado sin descontar stock. | Webhook, simulador y `src/db/queries/orders.ts` |
-| Alta | No se comprueban importe, moneda ni correspondencia con el intento vigente en el webhook. Estados tardíos pueden sobrescribir pagado. El pedido se puede editar mientras existe un intento anterior, sin invalidarlo. | Rutas de pagos, `updateOrder`, `markPayment` |
-| Alta | No hay reserva de inventario ni descuento condicionado a stock suficiente al confirmar. Dos compras pueden pagar las últimas unidades; `GREATEST(0, stock - cantidad)` evita negativos pero oculta la sobreventa. | `priceLines`, `decrementStockFor` |
-| Alta | La página de confirmación solo verifica pertenencia/existencia del pedido; no exige pago confirmado. Se puede mostrar el paso final para un pedido pendiente y ejecutar la limpieza del carrito. | `src/app/(shop)/checkout/confirmacion/page.tsx`, `ConfirmationView.tsx` |
-| Media | Envío, descuento y código aplicado no se congelan en columnas del pedido. La pantalla de pago reconstruye el envío con los ajustes actuales e infiere el descuento; cambiar tarifas altera el desglose de pedidos existentes. | `src/db/schema.ts`, `createOrder`, `src/app/(shop)/checkout/pago/page.tsx` |
-| Media | La revisión previa al pago usa precios del carrito almacenado; el refresh solo actualiza imágenes. Si un precio cambia, el total que confirma el cliente puede diferir del total recalculado y cobrado por el servidor. | `ShippingCheckout.tsx`, `ConfirmOrderModal.tsx`, `CartProvider.tsx` |
-| Media | La creación no tiene clave de idempotencia en servidor. PATCH evita duplicar en el camino normal, pero reintentar POST tras perder una respuesta puede crear otro pedido. Varias pestañas también pueden desalinear el pedido local y el último pedido de la cookie. | `/api/orders`, `CartProvider.tsx`, páginas de pago/confirmación |
-| Media | Las transiciones operativas se aceptan sin reglas sobre estado previo o pago. Generar un intento tampoco rechaza explícitamente pedidos cancelados. No hay reposición automática de stock por cancelación/reembolso. | `setOrderStatus`, ruta de creación de pago |
-| Media | El límite de intentos de login vive en memoria y por usuario: no es compartido entre instancias. La sesión no consulta revocación ni estado del usuario en cada autorización. | `src/app/admin/login/actions.ts`, `src/lib/admin-auth.ts` |
-
-La primera corrección de seguridad debería separar y validar los tipos de token, no limitarse a cambiar sus nombres de cookie. El cierre de pagos necesita una operación transaccional con control de transiciones, identidad del intento y política explícita de inventario.
-
-## Diagnóstico de rendimiento del catálogo
-
-La base contiene 51 productos, 20 categorías y 51 imágenes. Un `EXPLAIN ANALYZE` de la consulta de productos de una categoría registró 1,266 ms de planificación y 0,508 ms de ejecución dentro de PostgreSQL. No hay un problema actual de volumen, bloqueo o plan de consulta que explique esperas de varios segundos.
-
-La demora observada proviene de la red y del entorno de ejecución. La base configurada usa el pooler de Supabase en AWS `us-west-2`; desde el equipo de desarrollo una conexión fría más `SELECT 1` tardó 1,99–2,13 s y una conexión caliente 184–188 ms. El código anterior sumaba cuatro consultas consecutivas para construir categorías, luego otra ronda para productos y facetas, y dos rondas para una ficha. Las mediciones anteriores a la corrección fueron 1,53 s para el árbol ya caliente, 2,01 s para productos/facetas y 0,77–0,89 s para una ficha.
-
-La implementación corregida ejecuta en paralelo las lecturas del árbol, combina los conteos reservados, trae ficha e imágenes juntas y almacena árbol, resolución de slugs, listados, facetas y fichas en la caché de Next. React también comparte dentro del mismo render las lecturas repetidas por layout, metadatos y página. Los fallbacks quedan fuera de la caché para que una caída temporal no conserve un catálogo vacío. Las escrituras administrativas y el webhook invalidan la etiqueta pública; por ello los cinco minutos son un límite de respaldo y no una espera obligatoria para ver cambios.
-
-En una compilación de producción se generaron 88 páginas, incluidas todas las categorías y 51 fichas. Sobre `next start`, una categoría respondió primero en 283 ms y luego en 51–78 ms; una ficha respondió en 39 ms y luego en 8–16 ms. En `next dev`, el primer acceso a una categoría tardó 9,8 s, de los cuales 5,4 s fueron compilación de Turbopack y el resto incluyó conexiones frías; accesos calientes siguieron alrededor de 0,8–1,0 s por la instrumentación y renderizado de desarrollo. La velocidad que debe evaluarse para el usuario final es la de producción.
-
-Para minimizar fallos de caché en el despliegue, la función de Netlify y PostgreSQL deben residir en la misma región o en regiones cercanas. Si el catálogo crece de decenas a miles de productos, entonces corresponde añadir paginación SQL en categorías y revisar índices con métricas reales; con 51 filas, esos cambios no reducirían la latencia actual de red.
-
-## Mantenimiento y crecimiento
-
-El buscador de pedidos tiene un fallo concreto: al buscar solo letras, el término convertido a dígitos queda vacío y `telefono.includes("")` resulta verdadero; por tanto puede devolver todos los pedidos en lugar de filtrar por cliente. Además, `/drei` fija la categoría `poleras` y el nombre de marca `DREI`: renombrar la marca desde el panel o ubicar productos DREI en otras categorías puede dejar fuera productos de esa sección.
-
-La paginación de portada ocurre en SQL, pero las categorías y varias tablas del panel cargan todos los resultados y paginan en cliente. El dashboard ejecuta numerosas consultas secuenciales. Faltan índices específicos para algunas relaciones consultadas frecuentemente, como `order_items.order_id` y `product_images.product_id`; su impacto debe medirse con volumen real.
-
-Las métricas mensuales/semanales dependen de la zona horaria del servidor/base, mientras el calendario diario fuerza `America/La_Paz`. Los rankings por ítem usan precio bruto y no distribuyen descuentos; por ello no deben interpretarse como desglose exacto del total neto cobrado.
-
-Desactivar una marca o categoría no aplica automáticamente una regla global de ocultación a sus productos: búsqueda, ficha y catálogo general filtran principalmente `published`. Es necesario definir si desactivar significa ocultar navegación o retirar productos de venta.
-
-`withFallback` mantiene la tienda visible ante errores de lectura, pero puede presentar un catálogo vacío. También se usa al consultar ajustes de checkout: una lectura fallida puede sustituir tarifas/descuentos por valores predeterminados durante el cálculo de una orden. Conviene separar la tolerancia de presentación de las lecturas necesarias para cobrar.
-
-La documentación contiene diferencias con la implementación: cupones ya existen; mapas usan servicios externos; la región local es La Paz; las cookies admiten varios pedidos; el PATCH está en `/api/orders`; los directorios de build/desarrollo ya están separados. Los prototipos describen el diseño inicial, no todo el comportamiento actual.
-
-## Verificación y límites
-
-- `npm run typecheck`: pasó.
-- `npm run lint`: pasó sin errores ni advertencias de código; el comando anunció la deprecación de `next lint`.
-- `npm run verify:sql`: pasó las 13 migraciones en PGlite, existencia de ocho tablas, secuencia, datos mínimos, snapshots, unicidad de número y conservación del historial al borrar producto.
-- El verificador SQL utiliza datos de prueba propios; no ejecuta el seed completo ni los endpoints reales. No constituye una prueba del checkout, concurrencia ni autorización.
-- `npm run build`: pasó y generó 86 páginas estáticas con acceso a PostgreSQL. La primera ejecución dentro del sandbox también compiló, pero recibió EACCES en lecturas de base y generó contenido de respaldo; se repitió fuera del sandbox y completó sin esos errores.
-- No se ejecutaron pruebas visuales/E2E, pagos live, subidas reales a ImageKit ni pruebas de carga. No se verificó el despliegue remoto ni la vigencia contractual de las integraciones.
-
-## Mapa para los próximos cambios
-
-| Cambio | Archivos o módulos que deben revisarse juntos |
+| Módulo | Responsabilidad |
 |---|---|
-| Portada/estilo | `src/app/(shop)/page.tsx`, componentes shop, `globals.css`, `tailwind.config.ts` |
-| Navegación/categorías | `CategoryView`, filtros, header/menú, consultas de catálogo, acciones administrativas y slugs |
-| Productos/variantes | `ProductForm`, validadores, esquema, acciones, `AddToCart`, carrito y snapshots de pedido |
-| Envíos/descuentos | `ShippingForm`, `ShippingCheckout`, ajustes, validadores, cálculo de pedidos y resumen de pago |
-| Pagos/inventario | Adaptador YoPago, rutas de pago/webhook, consultas de pedidos y `PaymentClient` |
-| Seguridad | Sesiones, autorización administrativa, middleware, login y todos los consumidores de cookies |
-| Pedidos/reportes | Consultas orders/admin, gestores, calendario y detalle de pedido |
-| Datos | Esquema, nueva migración, consultas, seed si corresponde y verificador SQL |
+| `src/app/(shop)` y `src/components/shop` | Portada, catálogo, ficha, carrito y checkout |
+| `src/app/admin`, `src/components/admin`, `src/app/admin/actions.ts` | Panel, formularios y escrituras autenticadas |
+| `src/app/api` | Cotización, pedidos, búsqueda, imágenes y pagos |
+| `src/db/schema.ts`, `src/db/queries` | Once tablas, consultas y transacciones |
+| `src/lib` | Sesiones, validación, precios, imágenes y adaptador YoPago |
+| `drizzle/` | Veinte migraciones SQL, de `0000` a `0019` |
 
-La estructura permite cambios por módulos. Antes de habilitar cobros reales, los puntos prioritarios son la separación de sesiones, el cierre transaccional de pagos e inventario y la validación del adaptador YoPago.
+Las once tablas son `admin_users`, `login_attempts`, `brands`, `categories`, `products`, `product_images`, `orders`, `order_items`, `payment_attempts`, `payment_events` y `site_settings`. Categorías y subcategorías comparten tabla. El stock es por producto y no por talla. Los ítems del pedido conservan nombre, precio, imagen y atributos aunque después cambie o se elimine el producto.
+
+## Flujos vigentes
+
+La tienda muestra portada configurable, categorías, filtros, búsqueda, fichas y sección DREI. El carrito usa `localStorage`; el pedido activo de cada pestaña usa `sessionStorage`. La cotización de `POST /api/orders/quote` valida cliente e ítems y calcula precios, envío y descuento en el servidor. `POST` o `PATCH /api/orders` vuelven a verificar datos y precio, y la creación usa una clave idempotente. La cookie de comprador firmada autoriza un conjunto limitado de pedidos. La confirmación exige pago aprobado.
+
+Las ciudades con sucursal son La Paz, Santa Cruz y Cochabamba. Permiten retiro o entrega local con ubicación. Para destinos sin sucursal se solicitan los datos de documento y contacto previstos en `src/lib/validators.ts`; la empresa de transporte se coordina posteriormente. Los ajustes de checkout se leen de la base y un fallo de lectura no se reemplaza con tarifas predeterminadas durante el cobro.
+
+El panel permite gestionar productos, marcas, categorías, imágenes, pedidos, portada y ajustes. Las cookies administrativas y de pedido tienen propósitos y firmas separados. Las acciones verifican la sesión contra PostgreSQL; cambiar la contraseña revoca sesiones anteriores. El rol `superadmin` tiene un área limitada para restablecer la contraseña administrativa.
+
+YoPago genera QR o URL de tarjeta en el servidor. `payment_attempts` conserva cada intento y `payment_events` conserva callbacks autenticados. El callback vincula el cobro mediante `transactionId` y `companyCode`, confirma dinero y actualiza inventario de forma transaccional e idempotente. Si el cobro llega sin stock suficiente, el pedido queda pagado en `paid_inventory_review` para revisión manual. El retorno del navegador no confirma pagos. No existe un simulador público. Consulta `INTEGRACION_PAGOS.md` antes de cambiar este flujo.
+
+## Límites y puntos de mantenimiento
+
+- El contrato completo, la firma adicional y la conciliación automática de YoPago requieren confirmación con el proveedor. El callback actual no recibe importe o moneda verificable en su cuerpo. Las pruebas de PGlite no sustituyen pruebas concurrentes con PostgreSQL real.
+- Abandonar un pago solo modifica el estado local; no cancela la transacción externa. No hay reserva de stock, reembolso automatizado ni reposición automática.
+- `src/lib/notify.ts` solo registra mensajes. No envía correo o WhatsApp ni emite facturas fiscales.
+- La página DREI depende del slug `poleras` y del nombre de marca `DREI`. Renombrarlos requiere cambiar las consultas y la navegación.
+- Las rutas de imagen guardadas en la base se resuelven contra `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`. Cambiar de cuenta ImageKit no mueve los archivos anteriores: hay que migrarlos o conservar URLs absolutas de origen. La clave privada solo pertenece a `.env.local` o al gestor de secretos del despliegue.
+- Las páginas públicas usan caché de cinco minutos e invalidación al editar catálogo o confirmar pago. Algunas listas siguen paginando en cliente. La latencia de la base y la ubicación regional del despliegue influyen en el rendimiento.
+- `scripts/verify-sql.ts` aplica las 20 migraciones, pero su comprobación explícita de tablas todavía no incluye las dos tablas de pagos.
+- `npm run build` puede consultar PostgreSQL para generar páginas. Si la base no está accesible, el fallback público puede producir páginas vacías o el build puede agotar el tiempo de espera.
+
+## Verificación local de esta revisión
+
+Pasaron `npm run typecheck`, `npm run lint`, `npm run verify:sql` y `npm run verify:checkout`. Tras restaurarse el acceso a PostgreSQL, `npm run build` completó la generación de 36 páginas con datos de la base. El seed normal dejó listas categorías, marcas y la secuencia de pedidos sin cargar productos de demostración; se crearon las cuentas `admin` y `superadmin` con hash Argon2id y roles separados. No se ejecutaron migraciones, cobros ni cambios en pedidos. No se probaron subidas reales a ImageKit, callbacks reales de YoPago ni el despliegue remoto.
+
+Esta base contiene las once tablas esperadas, pero no se encontró una tabla de historial de migraciones de Drizzle. Antes de ejecutar `db:migrate` sobre ella, hay que conciliar su esquema con el historial local para evitar reintentar migraciones ya aplicadas por otro método.
+
+## Mapa para modificaciones
+
+| Cambio | Revisar juntos |
+|---|---|
+| Portada o diseño | `src/app/(shop)/page.tsx`, componentes de tienda, `globals.css`, Tailwind |
+| Categorías o DREI | `CategoryView`, navegación, `src/db/queries/catalog.ts`, acciones y slugs |
+| Productos o imágenes | Formulario, validadores, esquema, acciones, carrito, `src/lib/images.ts` |
+| Envío o descuento | Formulario, ajustes, validadores, cálculo de pedidos y resumen de pago |
+| Pago o inventario | Adaptador YoPago, rutas de pago, `src/db/queries/payments.ts`, esquema y migraciones |
+| Autenticación | `src/lib/session.ts`, `admin-auth.ts`, middleware y consumidores de cookies |
+| Esquema de datos | Nueva migración, consultas, seed y verificadores |

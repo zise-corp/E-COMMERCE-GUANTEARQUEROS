@@ -424,6 +424,8 @@ export function ProductForm({
                 slug={folderSlug}
                 value={form.images}
                 onChange={(next) => set("images", next)}
+                squareCrop
+                cropEyebrow="Imagen de producto"
               />
 
               {dreiBrand ? (

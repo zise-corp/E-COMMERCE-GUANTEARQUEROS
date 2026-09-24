@@ -31,6 +31,7 @@ export function ImageKitDropzone({
   assetTag = "producto",
   squareCrop = false,
   wideCrop = false,
+  cropEyebrow = "Imagen de categoría",
 }: {
   slug: string;
   value: ProductImageValue[];
@@ -43,6 +44,7 @@ export function ImageKitDropzone({
   squareCrop?: boolean;
   /** Editor horizontal 16:9 para banners de la portada. */
   wideCrop?: boolean;
+  cropEyebrow?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +57,7 @@ export function ImageKitDropzone({
     const list = Array.from(files);
     if (list.length === 0) return;
     if (!slug) {
-      setError("Pon primero el nombre del producto: la carpeta sale del slug.");
+      setError("Pon primero el nombre: la carpeta sale de la URL generada.");
       return;
     }
 
@@ -122,6 +124,10 @@ export function ImageKitDropzone({
       void upload(list);
       return;
     }
+    if (list.length > 1) {
+      setError("Elige una imagen a la vez para ajustar su encuadre.");
+      return;
+    }
     const file = list[0];
     if (!file) return;
     if (!ACCEPTED.includes(file.type)) {
@@ -133,7 +139,7 @@ export function ImageKitDropzone({
       return;
     }
     if (!slug) {
-      setError("Pon primero el nombre de la categoría para continuar.");
+      setError("Pon primero el nombre para continuar.");
       return;
     }
     if (value.length >= maxImages) {
@@ -184,6 +190,11 @@ export function ImageKitDropzone({
             <p className="mt-1.5 text-[11px] text-content-faint">
               Se sube a <span className="text-content-muted">{folder}/{slug || "…"}</span>
             </p>
+            {squareCrop ? (
+              <p className="mt-1.5 text-[11px] text-content-faint">
+                Ajusta el encuadre cuadrado antes de subir{maxImages > 1 ? " cada imagen, una por vez" : " la imagen"}.
+              </p>
+            ) : null}
           </>
         )}
         <input
@@ -239,7 +250,7 @@ export function ImageKitDropzone({
           aspect={wideCrop ? 16 / 9 : 1}
           outputWidth={wideCrop ? 1600 : 1200}
           outputHeight={wideCrop ? 900 : 1200}
-          eyebrow={wideCrop ? "Imagen del bloque DREI" : "Imagen de categoría"}
+          eyebrow={wideCrop ? "Imagen del bloque DREI" : cropEyebrow}
           title={wideCrop ? "Ajustar imagen horizontal" : "Ajustar encuadre"}
           onCancel={closeCropper}
           onConfirm={async (file) => {

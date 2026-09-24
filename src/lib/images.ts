@@ -1,6 +1,6 @@
 /** URLs y transformaciones de ImageKit. Este módulo solo usa el endpoint público. */
 const IMAGEKIT_ENDPOINT = (
-  process.env["NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT"] ?? "https://ik.imagekit.io/zisebyte"
+  process.env["NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT"] ?? "https://ik.imagekit.io/guantearqueros"
 ).replace(/\/$/, "");
 
 export const IMAGEKIT_FOLDER = "/guantearqueros/productos";

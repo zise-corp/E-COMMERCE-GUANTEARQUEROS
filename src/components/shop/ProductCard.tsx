@@ -45,11 +45,9 @@ export function ProductCard({
             className="transition-transform duration-500 ease-out group-focus-within:scale-[1.06] [@media(hover:hover)]:group-hover:scale-[1.06]"
           />
 
-          {/* Badges y barra de stock en una sola columna: con "Nuevo" + descuento
-              la pila mide ~65px y la barra, fija a 40px, tapaba el descuento. El
-              mínimo de 40px mantiene la barra donde estaba en los demás casos y
-              evita que suba sobre la etiqueta DREI de la esquina derecha. */}
-          <div className="absolute inset-x-0 top-0 flex flex-col">
+          {/* En pantallas amplias las etiquetas siguen sobre la foto. En móvil
+              se muestran debajo para que no cubran una imagen pequeña. */}
+          <div className="absolute inset-x-0 top-0 hidden flex-col sm:flex">
             <div className="flex min-h-10 flex-col items-start gap-1 pb-1">
               {product.isNew ? <span className="bg-[#39BDF8] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-ink-950">Nuevo</span> : null}
               {off !== null ? <DiscountBadge percent={off} /> : null}
@@ -72,6 +70,18 @@ export function ProductCard({
         <QuickAddButton product={product} />
       </div>
 
+      {product.isNew || off !== null || low ? (
+        <div className="flex flex-col gap-1 border-t border-line bg-ink-900 p-2 sm:hidden">
+          {product.isNew || off !== null ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {product.isNew ? <span className="bg-[#39BDF8] px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-ink-950">Nuevo</span> : null}
+              {off !== null ? <DiscountBadge percent={off} size="sm" /> : null}
+            </div>
+          ) : null}
+          {low ? <LowStockBar stock={product.stock} compact className="max-sm:px-1 max-sm:py-1 max-sm:text-[9px] max-sm:tracking-[0.06em]" /> : null}
+        </div>
+      ) : null}
+
       <Link href={`/p/${product.slug}`} className="flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-2 p-4">
           <p className="label-xs text-content-dim">{product.brandName ?? "Guantearqueros"}</p>
@@ -81,6 +91,7 @@ export function ProductCard({
           <Price value={product.price} compareAt={product.compareAtPrice} size="md" />
         </div>
       </Link>
+      <QuickAddButton product={product} mobileInline />
     </div>
   );
 }

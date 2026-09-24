@@ -30,7 +30,7 @@ export function DiscountBadge({
   );
 }
 
-export function LowStockBar({ stock, className }: { stock: number; className?: string }) {
+export function LowStockBar({ stock, className, compact = false }: { stock: number; className?: string; compact?: boolean }) {
   return (
     <div
       className={cn(
@@ -38,7 +38,7 @@ export function LowStockBar({ stock, className }: { stock: number; className?: s
         className,
       )}
     >
-      Últimas {stock} unidades
+      Últimas {stock}{compact ? "" : " unidades"}
     </div>
   );
 }

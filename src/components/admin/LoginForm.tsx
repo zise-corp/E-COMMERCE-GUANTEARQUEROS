@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Escudo } from "@/components/brand/Escudo";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Input } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 import { loginAction, type LoginState } from "@/app/admin/login/actions";
@@ -20,6 +21,7 @@ export function LoginForm({
 }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
   const [showPassword, setShowPassword] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   return (
     <div
@@ -81,16 +83,14 @@ export function LoginForm({
             }
           />
 
-          <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-[11.5px] font-bold">
-            <span className="text-content-dim">¿Olvidaste tu contraseña?</span>
-            <a
-              href={site.supportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-extrabold uppercase tracking-[0.08em] text-brand underline decoration-brand/60 underline-offset-4 transition-colors hover:text-brand-hot"
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowRecoveryModal(true)}
+              className="text-[11.5px] font-bold text-content-dim transition-colors duration-150 hover:text-brand focus-visible:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              Contactar a ZISE
-            </a>
+              ¿Olvidaste tu contraseña?
+            </button>
           </div>
 
           {state.error ? (
@@ -113,6 +113,30 @@ export function LoginForm({
           </Link>
         </div>
       </form>
+      <Modal
+        open={showRecoveryModal}
+        onClose={() => setShowRecoveryModal(false)}
+        title="Recuperar contraseña"
+        description="Serás redirigido a la página de ZISE para solicitar ayuda con el acceso al panel."
+        width={420}
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={() => setShowRecoveryModal(false)}
+            className="border border-line-strong px-4 py-3 text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-muted transition-colors hover:border-brand hover:text-brand"
+          >
+            Cancelar
+          </button>
+          <a
+            href={site.supportUrl}
+            onClick={() => setShowRecoveryModal(false)}
+            className="bg-brand px-4 py-3 text-center text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-colors hover:bg-brand-hot"
+          >
+            Ir a ZISE
+          </a>
+        </div>
+      </Modal>
     </div>
   );
 }

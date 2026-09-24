@@ -1,7 +1,8 @@
 /**
  * Crea o actualiza un usuario del panel.
  *
- *   npm run admin:create -- --user dani --pass "unaClaveLarga"
+ *   .\node_modules\.bin\tsx.cmd scripts/create-admin.ts --user admin --pass-stdin
+ *   .\node_modules\.bin\tsx.cmd scripts/create-admin.ts --user superadmin --role superadmin --pass-stdin
  *
  * La contraseña se guarda con Argon2id. Nunca se imprime ni se registra.
  */
@@ -25,11 +26,25 @@ export const ARGON_OPTIONS = {
 
 async function main() {
   const username = arg("user");
-  const password = arg("pass");
-  const role = arg("role") ?? "owner";
+  const stdinPassword = process.argv.includes("--pass-stdin");
+  if (stdinPassword && arg("pass")) {
+    console.error("Usa --pass o --pass-stdin, no ambos.");
+    process.exit(1);
+  }
+  let password = arg("pass");
+  if (stdinPassword) {
+    let input = "";
+    for await (const chunk of process.stdin) input += chunk.toString();
+    password = input.replace(/[\r\n]+$/, "");
+  }
+  const requestedRole = arg("role");
 
   if (!username || !password) {
-    console.error('Uso: npm run admin:create -- --user <usuario> --pass "<contraseña>"');
+    console.error('Uso: tsx scripts/create-admin.ts --user <usuario> --pass-stdin [--role owner|superadmin]');
+    process.exit(1);
+  }
+  if (requestedRole && requestedRole !== "owner" && requestedRole !== "superadmin") {
+    console.error("El rol debe ser owner o superadmin.");
     process.exit(1);
   }
   if (password.length < 10) {
@@ -41,6 +56,7 @@ async function main() {
   const existing = await db.query.adminUsers.findFirst({
     where: eq(adminUsers.username, username),
   });
+  const role = requestedRole ?? existing?.role ?? "owner";
 
   if (existing) {
     await db.update(adminUsers).set({ passwordHash, role, sessionVersion: sql`${adminUsers.sessionVersion} + 1` }).where(eq(adminUsers.id, existing.id));

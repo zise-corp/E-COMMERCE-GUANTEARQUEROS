@@ -4,15 +4,15 @@ La tienda integra QR Simple y tarjeta mediante endpoints exclusivamente de servi
 
 ## Variables y activación
 
-Copiar `.env.example` a `.env.local` y configurar `YOPAGO_MODE=live`, `APP_BASE_URL` público HTTPS, el company code y las credenciales de callback entregadas por YoPago. No existe un simulador expuesto en la aplicación. Registrar como callback:
+Copiar `.env.example` a `.env.local` y configurar `YOPAGO_MODE=live`, `APP_BASE_URL` público HTTPS y las credenciales de callback entregadas por YoPago. El código de comercio utilizado está fijado en `src/lib/yopago.ts`; la variable `YOPAGO_COMPANY_CODE` del entorno no lo sustituye actualmente. No existe un simulador expuesto en la aplicación. Registrar como callback:
 
 `https://dominio-real.com/api/checkout/callback`
 
-YoPago debe confirmar antes del go-live la política de reintentos y códigos HTTP, si existe una firma adicional, los campos completos del evento, duración del QR, sandbox/tarjetas de prueba, dominios de tarjeta, iframe y endpoint de reconciliación.
+YoPago debe confirmar la política de reintentos y códigos HTTP, si existe una firma adicional, los campos completos del evento, duración del QR, entorno de pruebas, dominios de tarjeta y endpoint de reconciliación. No publiques credenciales ni ejemplos con valores reales.
 
 ## Flujo implementado
 
-La orden se calcula en servidor. Cada solicitud de QR o tarjeta crea o reutiliza un registro en `payment_attempts`. La respuesta externa se valida y se persiste antes de llegar al navegador. El callback autentica `Username`/`Password`, encuentra el intento por `transaction_id + company_code`, registra un `payment_event` idempotente, confirma el pago y descuenta stock una sola vez. Si el dinero fue confirmado pero no queda stock, la orden queda en `paid_inventory_review` para conciliación manual.
+La orden se calcula en servidor. Cada solicitud de QR o tarjeta crea o reutiliza un registro en `payment_attempts`. La respuesta externa se valida y se persiste antes de llegar al navegador. El callback autentica las cabeceras `Username`/`Password`, encuentra el intento por `transactionId + companyCode`, registra un `payment_event` idempotente, confirma el pago y descuenta stock una sola vez. Si el dinero fue confirmado pero no queda stock, la orden queda en `paid_inventory_review` para conciliación manual. El callback actual recibe esos identificadores y datos informativos; no recibe un importe o moneda verificable en el cuerpo.
 
 La ruta de retorno `/checkout/result` es solo informativa y nunca confirma dinero. El polling consulta exclusivamente el estado financiero mínimo mediante un UUID público y la sesión firmada.
 
@@ -25,15 +25,15 @@ La ruta de retorno `/checkout/result` es solo informativa y nunca confirma diner
 
 Los endpoints heredados `/api/payments/yopago` y `/api/payments/yopago/webhook` se conservan por compatibilidad.
 
-Aplicar migraciones con `npm run db:migrate`. Probar primero en el sandbox oficial, reenviar el mismo callback para verificar idempotencia y simular dos callbacks concurrentes y últimas unidades. Los fallos de notificación no revierten el pago; el transporte de correo sigue siendo un adaptador pendiente de configurar.
+Aplicar migraciones con `npm run db:migrate` en un despliegue controlado. Probar en el entorno oficial de YoPago, reenviar el mismo callback para verificar idempotencia y simular callbacks concurrentes y últimas unidades. Las notificaciones siguen siendo solo mensajes de log; no hay transporte de correo configurado.
 
 ## Contrato que debe confirmarse con YoPago
 
 Confirmar en documentación oficial las URLs, credenciales, firma de webhook sobre cuerpo crudo, referencias, importes, monedas, estados, consulta de transacciones, idempotencia, vencimiento, cancelación, QR y formulario de tarjeta. No asumir que los campos coinciden con otro proveedor.
 
-Registrar intentos y eventos en tablas propias. Cada intento debe guardar su identidad interna, clave idempotente, proveedor, transacción externa, pedido/versión, importe, moneda, estado y vencimiento. Conservar intentos anteriores para conciliación; no sobrescribir una ?nica referencia como hace el simulador.
+`payment_attempts` y `payment_events` ya conservan intentos y callbacks. Los intentos guardan pedido, proveedor, transacción externa, importe, moneda y estado; algunos campos previstos para vencimiento y fallos no implementan todavía una política completa de expiración o conciliación. Al ampliar el contrato, conservar intentos anteriores y definir identidad e idempotencia para cada evento del proveedor.
 
-El adaptador debe autenticar el evento, validar su esquema y comprobar referencia, importe y moneda contra el intento guardado. Los eventos repetidos y fuera de orden deben tratarse según reglas explícitas. Nunca marcar un pago por un parámetro de redirección del navegador.
+El callback actual autentica credenciales y valida la referencia disponible (`transactionId` y `companyCode`) contra el intento guardado. Hay que confirmar con YoPago si puede entregar importe, moneda, firma o consulta de transacción para verificaciones adicionales. Los eventos repetidos y fuera de orden requieren reglas explícitas. Nunca marcar un pago por un parámetro de redirección del navegador.
 
 ## Inventario y cobros tardíos
 
@@ -43,7 +43,7 @@ Si un proveedor confirma dinero después de vencer una reserva o después de can
 
 ## Edición, cancelaciones y reembolsos
 
-Bloquear edición mientras el proveedor todavía pueda cobrar el importe anterior. Volver a envío requiere cancelar/expirar el intento y confirmar esa cancelación con la pasarela. Una respuesta de red perdida no equivale a una cancelación.
+La edición se bloquea cuando existe un intento externo que todavía puede cobrar. Abandonar la pantalla marca el pedido localmente, pero no cancela el cobro en YoPago. Para permitir una nueva compra o edición tras ese punto hay que implementar y confirmar cancelación o expiración con la pasarela. Una respuesta de red perdida no equivale a una cancelación.
 
 La cancelación de un pedido y el reembolso son operaciones distintas. Conservar referencias y resultados; definir reembolsos parciales/totales y si corresponde reponer inventario. Evitar que un webhook tardío revierta un pago ya confirmado.
 
@@ -53,4 +53,4 @@ Probar con el sandbox oficial: ?xito QR/tarjeta, rechazo, expiración, reintento
 
 Validar concurrencia con conexiones reales de PostgreSQL. Añadir procesamiento duradero de eventos, observabilidad y reintentos; una notificación fallida no debe revertir un pago. El polling y el catálogo deben reflejar el resultado confirmado.
 
-La aplicación solo habilita la generación real cuando `YOPAGO_MODE=live` y todas las credenciales obligatorias están configuradas.
+La aplicación solo habilita la generación real cuando `YOPAGO_MODE=live`, las credenciales de callback y la URL base obligatorias están configuradas. El código de comercio sigue fijado en el adaptador y debe mantenerse alineado con la cuenta autorizada.

@@ -2,7 +2,7 @@
 
 Tienda pública y panel administrativo en una aplicación Next.js. Catálogo de guantes, accesorios e indumentaria DREI Athletic, en español y bolivianos (BOB).
 
-Estado actualizado: 9 de septiembre de 2026. La tienda y el checkout están implementados. **YoPago live y su webhook permanecen deshabilitados hasta la integración final.** El simulador sirve para probar el flujo sin cobrar dinero.
+Estado revisado: 23 de septiembre de 2026. La tienda, el checkout y la integración de QR/tarjeta con YoPago están implementados. La generación de cobros reales requiere `YOPAGO_MODE=live`; no hay simulador público. La validación del contrato operativo con YoPago y las pruebas de concurrencia en PostgreSQL siguen pendientes.
 
 ## Stack y estructura
 
@@ -21,9 +21,9 @@ Estado actualizado: 9 de septiembre de 2026. La tienda y el checkout están impl
 src/app/(shop)/          inicio, categorías, DREI, productos y checkout
 src/app/admin/           login, resumen, catálogo, pedidos, inicio y ajustes
 src/app/admin/actions.ts escrituras administrativas autenticadas
-src/app/api/             búsqueda, carrito, descuentos, pedidos y simulador
+src/app/api/             búsqueda, carrito, descuentos, pedidos y pagos
 src/components/         shop, admin, ui y brand
-src/db/schema.ts        nueve tablas
+src/db/schema.ts        once tablas
 src/db/queries/         catálogo, pedidos, pagos, ajustes y autenticación
 src/lib/                validadores, sesiones, cotizaciones y configuración
 drizzle/                migraciones SQL y snapshots versionados
@@ -37,7 +37,7 @@ referencias/handoff/    prototipos y especificación histórica
 npm install
 ```
 
-Crea `.env.local` con las variables enumeradas más abajo. Configura PostgreSQL y un secreto de sesión aleatorio de al menos 24 caracteres. Puedes generar uno con:
+Copia `.env.example` a `.env.local` y completa sus valores localmente. Configura PostgreSQL y un secreto de sesión aleatorio de al menos 24 caracteres. Puedes generar uno con:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
@@ -48,22 +48,29 @@ Sobre la base de desarrollo elegida:
 ```bash
 npm run db:migrate
 npm run db:seed
-npm run admin:create -- --user TU_USUARIO --pass "UNA_CLAVE_LARGA"
-npm run admin:create -- --user superadmin --pass "UNA_CLAVE_PRIVADA_DE_ZISE" --role superadmin
 npm run dev
 ```
 
 Tienda: http://localhost:3000. Panel: http://localhost:3000/admin. El seed opcional `npm run db:seed -- --demo` carga productos de muestra. No ejecutes seeds ni migraciones como parte del build.
 
+### Crear o actualizar las cuentas del panel
+
+El panel necesita una cuenta `admin` con rol `owner` y, si se utilizará el restablecimiento de contraseña, otra cuenta `superadmin` con rol `superadmin`. Ambas ingresan en `/admin/login`. `admin` administra la tienda; `superadmin` solo puede reemplazar la contraseña de `admin` desde `/admin/superadmin`. No se crea ninguna cuenta al ejecutar el seed.
+
+Con PostgreSQL accesible y las migraciones aplicadas, ejecuta en PowerShell:
+
+```powershell
+Read-Host 'Nueva clave de admin' -AsSecureString | ConvertFrom-SecureString -AsPlainText | .\node_modules\.bin\tsx.cmd scripts/create-admin.ts --user admin --role owner --pass-stdin
+Read-Host 'Nueva clave de superadmin' -AsSecureString | ConvertFrom-SecureString -AsPlainText | .\node_modules\.bin\tsx.cmd scripts/create-admin.ts --user superadmin --role superadmin --pass-stdin
+```
+
+Cada clave debe tener al menos diez caracteres. La entrada por stdin evita colocarla en el historial de comandos; el script solo guarda su hash Argon2id. Si la cuenta ya existe, cambia la clave e invalida sus sesiones anteriores. Cuando no se indica `--role` al actualizar una cuenta, se conserva el rol existente. Nunca reutilices la misma clave para ambas cuentas ni publiques las claves en tickets, documentación o Git.
+
 ### Actualización de una instalación existente
 
-La migración **0013_checkout_security** agrega `login_attempts`, la versión de sesión del administrador, una clave única de checkout y el desglose de importes en pedidos. Es aditiva: no borra pedidos ni productos.
+El directorio `drizzle/` contiene 20 migraciones, de `0000` a `0019`. Incluyen sesiones, cotizaciones, ajustes, intentos/eventos de pago y datos de documento del pedido. Aplica `npm run db:migrate` sobre la base elegida antes de servir una versión nueva del código. Haz una copia de seguridad y revisa las migraciones pendientes; `db:push` no reemplaza ese proceso de despliegue.
 
-Aplica `npm run db:migrate` sobre la base correcta antes de servir el código actualizado. Las cookies anteriores dejan de ser válidas: los administradores deberán iniciar sesión nuevamente y los checkouts anteriores deberán iniciar una nueva sesión. El carrito de productos conserva su almacenamiento anterior.
-
-Los pedidos históricos mantienen el total original. Sus columnas nuevas de subtotal/envío/descuento quedan en NULL, porque no se pueden reconstruir con certeza. La página de pago muestra ese total sin inventar un desglose con las tarifas actuales.
-
-La migración fue verificada en una base embebida de pruebas y aplicada a la base PostgreSQL de nube configurada el 9 de septiembre de 2026.
+Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `NULL`: no se reconstruyen con tarifas actuales. Las sesiones anteriores al cambio de formato de cookies deben iniciarse de nuevo.
 
 ## Variables de entorno
 
@@ -71,18 +78,20 @@ La migración fue verificada en una base embebida de pruebas y aplicada a la bas
 |---|---|
 | `DATABASE_URL` | PostgreSQL; para conexiones externas usar SSL según el proveedor |
 | `ADMIN_SESSION_SECRET` | Secreto de servidor para firmas separadas por propósito |
-| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de imágenes |
+| `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de la cuenta ImageKit usada para imágenes nuevas y rutas almacenadas |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, sin slash final |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP`, `NEXT_PUBLIC_SUPPORT_URL` | Contacto y sitio externo de soporte |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
-| `YOPAGO_COMPANY_CODE` | Código de empresa entregado por YoPago; solo servidor |
+| `YOPAGO_COMPANY_CODE` | Reservada en la configuración local; el adaptador actual usa `YOPAGO_COMPANY_CODE` constante en `src/lib/yopago.ts`. Mantener ambos sincronizados hasta unificar la configuración |
 | `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |
 | `YOPAGO_QR_URL`, `YOPAGO_CARD_URL` | Endpoints de QR Simple y tarjeta |
 | `YOPAGO_ALLOWED_CARD_HOSTS` | Hosts HTTPS permitidos para la redirección de tarjeta |
 | `APP_BASE_URL` | Origen público HTTPS usado en las URLs de retorno; reutiliza `NEXT_PUBLIC_SITE_URL` si se omite |
 
-La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, el código de empresa, las credenciales del callback y una URL pública válida. Si falta cualquier dato, el intento se rechaza antes de contactar a YoPago.
+La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, credenciales de callback y una URL pública válida. El código de comercio está fijado actualmente en el adaptador. Si falta una configuración obligatoria, el intento se rechaza antes de contactar a YoPago.
+
+Al cambiar de cuenta ImageKit, actualiza juntas las claves y el endpoint en el entorno de despliegue y reconstruye la aplicación: `NEXT_PUBLIC_*` se incorpora al bundle durante el build. Las imágenes guardadas como rutas de la cuenta anterior no se transfieren automáticamente; hay que migrarlas o conservar URLs absolutas de origen antes de apuntarlas a la cuenta nueva. Nunca incluyas las claves privadas en documentación o código versionado.
 
 Sin base configurada, el catálogo público puede renderizar contenido vacío/de respaldo. El checkout falla si no puede leer sus ajustes; nunca sustituye un error de base por tarifas predeterminadas para cobrar. Cuando la tabla es accesible pero aún no existe la fila de ajustes, se usan los valores iniciales documentados en `CHECKOUT_DEFAULT`.
 
@@ -93,7 +102,7 @@ Sin base configurada, el catálogo público puede renderizar contenido vacío/de
 - Productos con tallas, atributos libres, personalización opcional, precio anterior y flags de publicación, destacado y novedad.
 - Panel con catálogo, marcas, imágenes, pedidos, calendario de ventas, métricas, ajustes de inicio, envíos y descuentos.
 - Checkout de invitado: nombre, apellido, teléfono, nota y datos opcionales para solicitar factura. La solicitud no emite factura fiscal.
-- La Paz es la región local para retiro o entrega con dirección/coordenadas. Otros destinos requieren CI y correo para el despacho por transporte.
+- La Paz, Santa Cruz y Cochabamba tienen sucursal y permiten retiro o entrega local con ubicación. Para otros destinos se solicitan datos de documento y contacto según las validaciones del formulario; la empresa de transporte se coordina después.
 - Códigos de descuento porcentuales o fijos sobre productos; el envío no se descuenta.
 - Notificaciones automáticas pendientes: `notify.ts` registra mensajes, pero no envía WhatsApp ni correo.
 
@@ -122,19 +131,15 @@ ZISE utiliza una cuenta con rol `superadmin` en el mismo login. Ese rol se redir
 
 La revisión final del servidor es la fuente del importe aceptado. El resumen inicial del carrito puede reflejar el precio visto anteriormente. La cotización no reserva inventario.
 
-## Simulador y preparación de YoPago
+## Pagos YoPago e inventario
 
-`POST /api/payments/yopago` genera intentos reales. Repetir el mismo método devuelve el intento vigente y conserva el historial de intentos anteriores.
+`POST /api/checkout/qr` y `/api/checkout/card` generan o reutilizan intentos reales del pedido autorizado; `/api/payments/yopago` mantiene la ruta común. Cada intento se guarda en `payment_attempts` antes de llamar a YoPago. La llamada externa ocurre fuera de la transacción de base de datos. La respuesta se persiste antes de entregar el QR o la URL de tarjeta al navegador.
 
-`POST /api/payments/yopago/simulate` exige cookie del pedido e identificador vigente de transacción. El servicio interno comprueba importe/moneda/referencia y actualiza pago e inventario en una sola transacción. Bloquea el pedido y descuenta por producto en orden estable, con condición de stock suficiente. Si cualquier producto falla, se revierte todo. Un pago confirmado no se revierte por un resultado tardío ni descuenta dos veces.
+`POST /api/checkout/callback` y la ruta heredada `/api/payments/yopago/webhook` autentican las cabeceras de callback, buscan el intento por ID de transacción y código de comercio, y registran el evento en `payment_events`. El procesamiento evita repetir el descuento de stock. Si YoPago confirma dinero y falta inventario, el pedido queda pagado en `paid_inventory_review` para revisión manual. La página `/checkout/result` solo informa; no confirma un cobro.
 
-Un intento externo no se cancela localmente: la edición queda bloqueada mientras exista la posibilidad de cobro y debe resolverse conforme al contrato de cancelación de YoPago.
+Abandonar el flujo marca localmente el intento y el pedido, pero no cancela la transacción en YoPago. Un callback tardío todavía puede confirmar el dinero. No hay reservas de stock, reembolsos automatizados ni reposición automática. El estado operativo avanza `recibido -> en_proceso -> completado` con pago confirmado.
 
-El estado operativo avanza `recibido -> en_proceso -> completado`, con pago confirmado. Un pedido recibido puede cancelarse si no tiene un cobro confirmado ni un intento pendiente. Cancelar no reembolsa. No hay reposición automática por reembolso.
-
-**El webhook devuelve 503 y no escribe datos.** No se conservan endpoints o firmas supuestos para una API real.
-
-Para la integración final, ver [INTEGRACION_PAGOS.md](INTEGRACION_PAGOS.md). Faltan el adaptador oficial, firma y validación de eventos, registro duradero de intentos/eventos, reservas con vencimiento, conciliación de cobros tardíos y reembolsos. El comportamiento de stock del simulador impide una confirmación local sin unidades, pero no resuelve por sí solo un cobro externo ya efectuado.
+Antes de operar o modificar cobros, consulta [INTEGRACION_PAGOS.md](INTEGRACION_PAGOS.md): faltan confirmación formal del contrato del proveedor, pruebas con su entorno oficial, conciliación automática de cobros tardíos y pruebas concurrentes con PostgreSQL real.
 
 ## Verificación
 
@@ -142,13 +147,13 @@ Para la integración final, ver [INTEGRACION_PAGOS.md](INTEGRACION_PAGOS.md). Fa
 |---|---|
 | `npm run typecheck` | TypeScript |
 | `npm run lint` | ESLint; Next.js informa la deprecación de su wrapper |
-| `npm run verify:sql` | 14 migraciones, nueve tablas, secuencia e historial en PGlite |
-| `npm run verify:checkout` | Sesiones, revocación, límite de login, cotizaciones, idempotencia, importes, stock y rollback en PGlite |
+| `npm run verify:sql` | 20 migraciones, tablas principales, secuencia e historial en PGlite; su lista explícita aún no comprueba las dos tablas de pagos |
+| `npm run verify:checkout` | Sesiones, revocación, cotizaciones, idempotencia, callback, stock y revisión de inventario en PGlite |
 | `npm run build` | Compilación de producción |
 | `npm run db:generate -- --name nombre` | Generar una nueva migración |
 | `npm run db:migrate` | Aplicar migraciones a DATABASE_URL |
 
-Los verificadores usan una base embebida sin cargar `.env.local`. PGlite serializa las transacciones: estas pruebas no sustituyen pruebas de concurrencia con conexiones PostgreSQL independientes ni pruebas de la pasarela.
+Los verificadores usan una base embebida sin cargar `.env.local`. PGlite serializa las transacciones: estas pruebas no sustituyen pruebas de concurrencia con conexiones PostgreSQL independientes ni pruebas de la pasarela. El build puede consultar PostgreSQL durante la generación estática; si no está accesible, las páginas públicas pueden generarse con contenido de respaldo o agotar el tiempo de espera.
 
 El desarrollo usa `.next-dev` y producción `.next`. `npm run clean` elimina ambos directorios de artefactos si se necesita una compilación limpia.
 
@@ -170,6 +175,6 @@ No subas `.env.local`, claves privadas ni contraseñas al repositorio. No incluy
 
 ## Referencias y límites
 
-Los handoffs HTML/Markdown son referencias históricas de diseño. Para arquitectura, seguridad y comportamiento actual rigen este README y el código.
+Los handoffs HTML/Markdown son referencias históricas de diseño. [ANALISIS_PROYECTO.md](ANALISIS_PROYECTO.md) resume la revisión vigente; para comportamiento exacto rige el código.
 
-El stock es por producto, no por talla. No hay cuentas de clientes, multimoneda, emisión fiscal ni notificaciones automáticas. Algunas páginas y tablas todavía paginan en cliente; el rendimiento con grandes catálogos y las métricas por zona horaria requieren evaluación independiente. El informe [ANALISIS_PROYECTO.md](ANALISIS_PROYECTO.md) distingue los hallazgos iniciales de las correcciones realizadas.
+El stock es por producto, no por talla. No hay cuentas de clientes, emisión fiscal ni notificaciones automáticas. Algunas páginas y tablas todavía paginan en cliente; el rendimiento con grandes catálogos y las métricas por zona horaria requieren evaluación independiente.

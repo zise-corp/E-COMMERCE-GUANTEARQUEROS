@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { CheckboxRow, SizeChip } from "@/components/ui/Chip";
+import { ChevronRightIcon } from "@/components/ui/Icons";
 import { formatBs } from "@/lib/money";
 
 /**
@@ -22,6 +23,8 @@ export function CategoryFilters({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const panelId = useId();
 
   const selectedBrands = params.getAll("marca");
   const selectedSizes = params.getAll("talla");
@@ -68,68 +71,82 @@ export function CategoryFilters({
   );
 
   const hasFilters = selectedBrands.length > 0 || selectedSizes.length > 0 || activePrice < maxPrice;
+  const activeCount = selectedBrands.length + selectedSizes.length + (activePrice < maxPrice ? 1 : 0);
 
   return (
     <aside className="border border-line bg-ink-900 lg:sticky lg:top-[132px]">
       <div className="flex items-center justify-between border-b border-line px-[18px] py-4">
-        <h2 className="font-display text-[17px] uppercase tracking-[0.06em]">Filtros</h2>
+        <button
+          type="button"
+          aria-expanded={mobileOpen}
+          aria-controls={panelId}
+          onClick={() => setMobileOpen((open) => !open)}
+          className="flex min-h-10 flex-1 items-center gap-2 text-left font-display text-[17px] uppercase tracking-[0.06em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden"
+        >
+          Filtros
+          {activeCount > 0 ? <span className="font-sans text-[11px] font-bold text-brand">({activeCount})</span> : null}
+          <ChevronRightIcon size={16} className={`ml-auto transition-transform ${mobileOpen ? "rotate-90" : ""}`} />
+        </button>
+        <h2 className="hidden font-display text-[17px] uppercase tracking-[0.06em] lg:block">Filtros</h2>
         {hasFilters ? (
           <button
             type="button"
             onClick={() => push(new URLSearchParams())}
-            className="text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:text-brand"
+            className="ml-4 text-[11px] uppercase tracking-[0.1em] text-content-dim transition-colors duration-150 hover:text-brand"
           >
             Limpiar
           </button>
         ) : null}
       </div>
 
-      {brandNames.length > 0 ? (
-        <div className="border-b border-line p-[18px]">
-          <h3 className="label-xs mb-3 text-content-dim">Marca</h3>
-          <div className="flex flex-col gap-[9px]">
-            {brandNames.map((b) => (
-              <CheckboxRow
-                key={b}
-                label={b}
-                checked={selectedBrands.includes(b)}
-                onToggle={() => toggle("marca", b)}
-              />
-            ))}
+      <div id={panelId} className={mobileOpen ? "block" : "hidden lg:block"}>
+        {brandNames.length > 0 ? (
+          <div className="border-b border-line p-[18px]">
+            <h3 className="label-xs mb-3 text-content-dim">Marca</h3>
+            <div className="flex flex-col gap-[9px]">
+              {brandNames.map((b) => (
+                <CheckboxRow
+                  key={b}
+                  label={b}
+                  checked={selectedBrands.includes(b)}
+                  onToggle={() => toggle("marca", b)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {sizes.length > 0 ? (
-        <div className="border-b border-line p-[18px]">
-          <h3 className="label-xs mb-3 text-content-dim">Talla</h3>
-          <div className="flex flex-wrap gap-[7px]">
-            {sizes.map((s) => (
-              <SizeChip key={s} active={selectedSizes.includes(s)} onClick={() => toggle("talla", s)}>
-                {s}
-              </SizeChip>
-            ))}
+        {sizes.length > 0 ? (
+          <div className="border-b border-line p-[18px]">
+            <h3 className="label-xs mb-3 text-content-dim">Talla</h3>
+            <div className="flex flex-wrap gap-[7px]">
+              {sizes.map((s) => (
+                <SizeChip key={s} active={selectedSizes.includes(s)} onClick={() => toggle("talla", s)}>
+                  {s}
+                </SizeChip>
+              ))}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="p-[18px]">
-        <h3 className="label-xs mb-3 text-content-dim">Precio máximo</h3>
-        <input
-          type="range"
-          min={0}
-          max={maxPrice}
-          step={10}
-          value={priceDraft}
-          onChange={(e) => setPriceDraft(Number(e.target.value))}
-          onPointerUp={(event) => setPrice(Number(event.currentTarget.value))}
-          onKeyUp={(event) => setPrice(Number(event.currentTarget.value))}
-          className="w-full accent-brand"
-          aria-label="Precio máximo"
-        />
-        <div className="mt-2 flex justify-between text-xs text-content-muted">
-          <span>{formatBs(0)}</span>
-          <span className="font-bold text-brand tabular">{formatBs(priceDraft)}</span>
+        <div className="p-[18px]">
+          <h3 className="label-xs mb-3 text-content-dim">Precio máximo</h3>
+          <input
+            type="range"
+            min={0}
+            max={maxPrice}
+            step={10}
+            value={priceDraft}
+            onChange={(e) => setPriceDraft(Number(e.target.value))}
+            onPointerUp={(event) => setPrice(Number(event.currentTarget.value))}
+            onKeyUp={(event) => setPrice(Number(event.currentTarget.value))}
+            className="w-full accent-brand"
+            aria-label="Precio máximo"
+          />
+          <div className="mt-2 flex justify-between text-xs text-content-muted">
+            <span>{formatBs(0)}</span>
+            <span className="font-bold text-brand tabular">{formatBs(priceDraft)}</span>
+          </div>
         </div>
       </div>
     </aside>

@@ -19,7 +19,7 @@ import { useCart } from "./CartProvider";
  * Con una sola talla (o ninguna) no hay nada que elegir: se agrega directo. Mandar
  * a la ficha para "elegir" entre una única opción sería un paso al vidrio.
  */
-export function QuickAddButton({ product }: { product: ProductCardData }) {
+export function QuickAddButton({ product, mobileInline = false }: { product: ProductCardData; mobileInline?: boolean }) {
   const cart = useCart();
   const router = useRouter();
 
@@ -55,20 +55,22 @@ export function QuickAddButton({ product }: { product: ProductCardData }) {
         cart.openCart("items");
       }}
       className={[
-        "absolute inset-x-0 bottom-0 z-20 flex h-11 items-center justify-center gap-2",
+        mobileInline
+          ? "relative z-20 flex min-h-10 items-center justify-center gap-2 sm:hidden"
+          : "absolute inset-x-0 bottom-0 z-20 hidden h-11 items-center justify-center gap-2 sm:flex",
         // Corte diagonal invertido: sigue el lenguaje angular del resto de la marca.
         "bg-brand text-ink-950",
         "transition-[opacity,transform,background-color] duration-150",
         "hover:bg-brand-hot hover:shadow-glow-brand active:scale-95",
         // En escritorio aparece al pasar el mouse; en táctil siempre visible,
         // porque ahí no existe el hover.
-        "translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100",
-        "max-lg:translate-y-0 max-lg:opacity-100",
+        mobileInline ? "" : "translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100",
+        mobileInline ? "" : "max-lg:translate-y-0 max-lg:opacity-100",
       ].join(" ")}
     >
       <CartIcon size={18} />
       <span className="text-[11px] font-extrabold uppercase tracking-[0.11em]">
-        Agregar al carrito
+        {mobileInline ? "Agregar" : "Agregar al carrito"}
       </span>
     </button>
   );
