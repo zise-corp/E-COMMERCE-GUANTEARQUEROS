@@ -4,9 +4,9 @@ La tienda integra QR Simple y tarjeta mediante endpoints exclusivamente de servi
 
 ## Variables y activación
 
-Copiar `.env.example` a `.env.local` y configurar `YOPAGO_MODE=live`, `APP_BASE_URL` público HTTPS y las credenciales de callback entregadas por YoPago. El código de comercio utilizado está fijado en `src/lib/yopago.ts`; la variable `YOPAGO_COMPANY_CODE` del entorno no lo sustituye actualmente. No existe un simulador expuesto en la aplicación. Registrar como callback:
+Para desarrollo local, copiar `.env.example` a `.env.local`; para el VPS con Docker Compose, usar `.env` en la raíz del proyecto. Configurar `YOPAGO_MODE=live`, `YOPAGO_COMPANY_CODE`, `APP_BASE_URL` público HTTPS y las credenciales de callback entregadas por YoPago. El adaptador lee el código de comercio desde el entorno. `YOPAGO_QR_URL` y `YOPAGO_CARD_URL` permiten sustituir los endpoints predeterminados cuando el proveedor entrega URLs distintas; `YOPAGO_ALLOWED_CARD_HOSTS` limita los dominios HTTPS aceptados para la redirección. No existe un simulador expuesto en la aplicación. Registrar como callback:
 
-`https://dominio-real.com/api/checkout/callback`
+`https://guantearqueros.com/api/checkout/callback`
 
 YoPago debe confirmar la política de reintentos y códigos HTTP, si existe una firma adicional, los campos completos del evento, duración del QR, entorno de pruebas, dominios de tarjeta y endpoint de reconciliación. No publiques credenciales ni ejemplos con valores reales.
 
@@ -25,7 +25,7 @@ La ruta de retorno `/checkout/result` es solo informativa y nunca confirma diner
 
 Los endpoints heredados `/api/payments/yopago` y `/api/payments/yopago/webhook` se conservan por compatibilidad.
 
-Aplicar migraciones con `npm run db:migrate` en un despliegue controlado. Probar en el entorno oficial de YoPago, reenviar el mismo callback para verificar idempotencia y simular callbacks concurrentes y últimas unidades. Las notificaciones siguen siendo solo mensajes de log; no hay transporte de correo configurado.
+En una base nueva, aplicar migraciones con `npm run db:migrate` en un despliegue controlado. En la base existente, primero conciliar el historial de Drizzle con el esquema real y hacer copia de seguridad; no ejecutar las migraciones a ciegas. Probar en el entorno oficial de YoPago, reenviar el mismo callback para verificar idempotencia y simular callbacks concurrentes y últimas unidades. Las notificaciones siguen siendo solo mensajes de log; no hay transporte de correo configurado.
 
 ## Contrato que debe confirmarse con YoPago
 
@@ -53,4 +53,4 @@ Probar con el sandbox oficial: ?xito QR/tarjeta, rechazo, expiración, reintento
 
 Validar concurrencia con conexiones reales de PostgreSQL. Añadir procesamiento duradero de eventos, observabilidad y reintentos; una notificación fallida no debe revertir un pago. El polling y el catálogo deben reflejar el resultado confirmado.
 
-La aplicación solo habilita la generación real cuando `YOPAGO_MODE=live`, las credenciales de callback y la URL base obligatorias están configuradas. El código de comercio sigue fijado en el adaptador y debe mantenerse alineado con la cuenta autorizada.
+La aplicación solo habilita la generación real cuando `YOPAGO_MODE=live`, `YOPAGO_COMPANY_CODE`, las credenciales de callback y la URL base obligatorias están configuradas. El código de comercio del entorno debe coincidir con la cuenta autorizada.
