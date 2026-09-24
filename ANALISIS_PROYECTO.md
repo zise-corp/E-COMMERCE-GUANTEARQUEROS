@@ -4,7 +4,7 @@ Revisión del código: 23 de septiembre de 2026. Este documento describe el esta
 
 ## Arquitectura
 
-Una aplicación Next.js 15 con App Router, React 19 y TypeScript sirve la tienda, el panel y los endpoints HTTP. PostgreSQL usa Drizzle ORM y un pool `postgres.js` por proceso. Tailwind CSS y componentes propios forman la interfaz. ImageKit almacena imágenes; Leaflet/OpenStreetMap muestran ubicaciones. Netlify ejecuta el build con Node 22.
+Una aplicación Next.js 15 con App Router, React 19 y TypeScript sirve la tienda, el panel y los endpoints HTTP. PostgreSQL usa Drizzle ORM y un pool `postgres.js` por proceso. Tailwind CSS y componentes propios forman la interfaz. ImageKit almacena imágenes; Leaflet/OpenStreetMap muestran ubicaciones. El despliegue previsto usa Docker Compose con Node 22 en ALPHA VPS y Traefik para HTTPS.
 
 | Módulo | Responsabilidad |
 |---|---|
@@ -27,22 +27,26 @@ El panel permite gestionar productos, marcas, categorías, imágenes, pedidos, p
 
 YoPago genera QR o URL de tarjeta en el servidor. `payment_attempts` conserva cada intento y `payment_events` conserva callbacks autenticados. El callback vincula el cobro mediante `transactionId` y `companyCode`, confirma dinero y actualiza inventario de forma transaccional e idempotente. Si el cobro llega sin stock suficiente, el pedido queda pagado en `paid_inventory_review` para revisión manual. El retorno del navegador no confirma pagos. No existe un simulador público. Consulta `INTEGRACION_PAGOS.md` antes de cambiar este flujo.
 
+El código de comercio de YoPago se lee de `YOPAGO_COMPANY_CODE` en runtime. La imagen Docker no recibe esa variable en el build. El `healthcheck` de Compose comprueba sesión y acceso a la tabla de categorías, y Traefik publica el dominio canónico con HTTPS.
+
 ## Límites y puntos de mantenimiento
 
 - El contrato completo, la firma adicional y la conciliación automática de YoPago requieren confirmación con el proveedor. El callback actual no recibe importe o moneda verificable en su cuerpo. Las pruebas de PGlite no sustituyen pruebas concurrentes con PostgreSQL real.
 - Abandonar un pago solo modifica el estado local; no cancela la transacción externa. No hay reserva de stock, reembolso automatizado ni reposición automática.
 - `src/lib/notify.ts` solo registra mensajes. No envía correo o WhatsApp ni emite facturas fiscales.
 - La página DREI depende del slug `poleras` y del nombre de marca `DREI`. Renombrarlos requiere cambiar las consultas y la navegación.
-- Las rutas de imagen guardadas en la base se resuelven contra `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`. Cambiar de cuenta ImageKit no mueve los archivos anteriores: hay que migrarlos o conservar URLs absolutas de origen. La clave privada solo pertenece a `.env.local` o al gestor de secretos del despliegue.
+- Las rutas de imagen guardadas en la base se resuelven contra `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`. Cambiar de cuenta ImageKit no mueve los archivos anteriores: hay que migrarlos o conservar URLs absolutas de origen. La clave privada solo pertenece a archivos de entorno ignorados por Git o al gestor de secretos del despliegue.
 - Las páginas públicas usan caché de cinco minutos e invalidación al editar catálogo o confirmar pago. Algunas listas siguen paginando en cliente. La latencia de la base y la ubicación regional del despliegue influyen en el rendimiento.
 - `scripts/verify-sql.ts` aplica las 20 migraciones, pero su comprobación explícita de tablas todavía no incluye las dos tablas de pagos.
-- `npm run build` puede consultar PostgreSQL para generar páginas. Si la base no está accesible, el fallback público puede producir páginas vacías o el build puede agotar el tiempo de espera.
+- El build Docker no incluye `DATABASE_URL`; las rutas públicas se generan según demanda con la base configurada en runtime. `sitemap.xml` se genera en runtime para no fijar un catálogo vacío en la imagen. Una caída de la base hace fallar `/api/health`.
 
 ## Verificación local de esta revisión
 
 Pasaron `npm run typecheck`, `npm run lint`, `npm run verify:sql` y `npm run verify:checkout`. Tras restaurarse el acceso a PostgreSQL, `npm run build` completó la generación de 36 páginas con datos de la base. El seed normal dejó listas categorías, marcas y la secuencia de pedidos sin cargar productos de demostración; se crearon las cuentas `admin` y `superadmin` con hash Argon2id y roles separados. No se ejecutaron migraciones, cobros ni cambios en pedidos. No se probaron subidas reales a ImageKit, callbacks reales de YoPago ni el despliegue remoto.
 
 Esta base contiene las once tablas esperadas, pero no se encontró una tabla de historial de migraciones de Drizzle. Antes de ejecutar `db:migrate` sobre ella, hay que conciliar su esquema con el historial local para evitar reintentar migraciones ya aplicadas por otro método.
+
+Preparación de Docker (24 de septiembre de 2026): `npm run build` en modo standalone terminó sin `DATABASE_URL`, las regresiones de checkout y SQL pasaron, y el servidor standalone respondió 200 en `/api/health` con PostgreSQL accesible. La configuración Compose pasó validación de sintaxis. No se construyó ni ejecutó la imagen Docker porque el daemon local no estaba activo; el despliegue remoto y el certificado siguen pendientes.
 
 ## Mapa para modificaciones
 

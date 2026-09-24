@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../index";
 import { orderItems, orders, paymentAttempts, paymentEvents, products } from "../schema";
 import { OrderError } from "./orders";
-import { YOPAGO_COMPANY_CODE, generateYoPagoCard, generateYoPagoQr, normalizeYoPagoCurrency } from "@/lib/yopago";
+import { yoPagoCompanyCode, generateYoPagoCard, generateYoPagoQr, normalizeYoPagoCurrency } from "@/lib/yopago";
 
 export type PaymentMethod = "qr" | "card";
 export type LivePaymentIntent = { transactionId: string; method: PaymentMethod; amount: string; qrImage: string | null; checkoutUrl: string | null };
@@ -87,7 +87,7 @@ export async function startYoPagoPayment(orderId: number, method: PaymentMethod)
     // arriba serializa los intentos de un mismo pedido.
     const codeTransaction = `${order.number}-${Date.now()}`;
     const currency = normalizeYoPagoCurrency(order.currency);
-    const [attempt] = await tx.insert(paymentAttempts).values({ orderId: order.id, method, companyCode: YOPAGO_COMPANY_CODE, transactionCode: codeTransaction, amount: order.total, currency }).returning({ id: paymentAttempts.id });
+    const [attempt] = await tx.insert(paymentAttempts).values({ orderId: order.id, method, companyCode: yoPagoCompanyCode(), transactionCode: codeTransaction, amount: order.total, currency }).returning({ id: paymentAttempts.id });
     if (!attempt) throw new OrderError("No pudimos registrar el intento de pago.");
     return { kind: "pending" as const, order, attemptId: attempt.id, codeTransaction, currency };
   });
@@ -128,7 +128,7 @@ export async function startYoPagoPayment(orderId: number, method: PaymentMethod)
     }).where(eq(paymentAttempts.id, attemptId));
     if (!stillPending || !current || !acceptsNewPayment(current)) return false;
     // Queda en el pedido apenas se genera, se pague o no (como en Tienda-Virtual).
-    await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode: YOPAGO_COMPANY_CODE, codeTransaction, updatedAt: new Date() }).where(eq(orders.id, order.id));
+    await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode: yoPagoCompanyCode(), codeTransaction, updatedAt: new Date() }).where(eq(orders.id, order.id));
     return true;
   });
   if (!saved) throw new OrderError("Este pedido ya no admite un nuevo pago.");

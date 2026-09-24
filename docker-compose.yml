@@ -1,0 +1,60 @@
+name: guantearqueros
+
+services:
+  app:
+    image: guantearqueros:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://guantearqueros.com}
+        NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT: ${NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT:-https://ik.imagekit.io/guantearqueros}
+        NEXT_PUBLIC_SUPPORT_EMAIL: ${NEXT_PUBLIC_SUPPORT_EMAIL:-ventas@guantearqueros.com}
+        NEXT_PUBLIC_SUPPORT_WHATSAPP: ${NEXT_PUBLIC_SUPPORT_WHATSAPP:-59161235265}
+        NEXT_PUBLIC_DREI_WHATSAPP: ${NEXT_PUBLIC_DREI_WHATSAPP:-59162507981}
+        NEXT_PUBLIC_SUPPORT_URL: ${NEXT_PUBLIC_SUPPORT_URL:-https://zise.lat}
+    env_file:
+      - .env
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.services.guantearqueros.loadbalancer.server.port=3000"
+
+      - "traefik.http.routers.guantearqueros.rule=Host(`guantearqueros.com`)"
+      - "traefik.http.routers.guantearqueros.entrypoints=websecure"
+      - "traefik.http.routers.guantearqueros.tls=true"
+      - "traefik.http.routers.guantearqueros.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.guantearqueros.service=guantearqueros"
+
+      - "traefik.http.routers.guantearqueros-www.rule=Host(`www.guantearqueros.com`)"
+      - "traefik.http.routers.guantearqueros-www.entrypoints=websecure"
+      - "traefik.http.routers.guantearqueros-www.tls=true"
+      - "traefik.http.routers.guantearqueros-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.guantearqueros-www.middlewares=guantearqueros-www-redirect"
+      - "traefik.http.routers.guantearqueros-www.service=guantearqueros"
+      - 'traefik.http.middlewares.guantearqueros-www-redirect.redirectregex.regex=^https://www\.guantearqueros\.com/(.*)'
+      - "traefik.http.middlewares.guantearqueros-www-redirect.redirectregex.replacement=https://guantearqueros.com/$${1}"
+      - "traefik.http.middlewares.guantearqueros-www-redirect.redirectregex.permanent=true"
+
+      - "traefik.http.routers.guantearqueros-http.rule=Host(`guantearqueros.com`) || Host(`www.guantearqueros.com`)"
+      - "traefik.http.routers.guantearqueros-http.entrypoints=web"
+      - "traefik.http.routers.guantearqueros-http.middlewares=guantearqueros-https-redirect"
+      - "traefik.http.routers.guantearqueros-http.service=guantearqueros"
+      - "traefik.http.middlewares.guantearqueros-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.guantearqueros-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  web:
+    external: true

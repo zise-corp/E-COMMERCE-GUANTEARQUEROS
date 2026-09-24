@@ -10,8 +10,14 @@ export type YoPagoCurrency = "BOB" | "USD";
  */
 export type YoPagoPaymentInput = { orderId: number; codeTransaction: string; amount: string; currency: YoPagoCurrency; concept: string };
 
-/** Código de comercio que YoPago habilitó específicamente para GuanteArqueros. */
-export const YOPAGO_COMPANY_CODE = "AA45-QE59-56ER-RO99";
+/** Se configura al arrancar el contenedor, sin incluirlo en la imagen. */
+export function yoPagoCompanyCode(): string {
+  const code = process.env.YOPAGO_COMPANY_CODE?.trim();
+  if (!code || code.startsWith("REEMPLAZAR_")) {
+    throw new YoPagoError("Missing YOPAGO_COMPANY_CODE", "configuration_error");
+  }
+  return code;
+}
 
 const responseSchema = z.object({
   status: z.coerce.number(), message: z.string().optional(),
@@ -26,6 +32,7 @@ export class YoPagoError extends Error {
 
 export function assertYoPagoReady(): void {
   if (process.env.YOPAGO_MODE !== "live") throw new YoPagoError("YOPAGO_MODE must be live", "configuration_error");
+  yoPagoCompanyCode();
   requiredEnv("YOPAGO_CALLBACK_USERNAME");
   requiredEnv("YOPAGO_CALLBACK_PASSWORD");
   appBaseUrl();
@@ -65,7 +72,7 @@ export function buildYoPagoPayload(input: YoPagoPaymentInput) {
   // cobro lo confirma el callback.
   const returnUrl = `${appBaseUrl()}/checkout/result?pedido=${input.orderId}`;
   return {
-    companyCode: YOPAGO_COMPANY_CODE, codeTransaction: input.codeTransaction,
+    companyCode: yoPagoCompanyCode(), codeTransaction: input.codeTransaction,
     urlSuccess: returnUrl, urlFailed: returnUrl,
     // Datos de facturación fijos, como los valores por defecto de Tienda-Virtual.
     // El email es el de la tienda: si YoPago manda un comprobante, le llega al

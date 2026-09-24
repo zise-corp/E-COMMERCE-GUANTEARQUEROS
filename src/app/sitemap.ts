@@ -3,7 +3,9 @@ import { getCategoryTree, getSitemapProducts, isDreiVisible } from "@/db/queries
 import { imageKitUrl } from "@/lib/images";
 import { site } from "@/lib/site";
 
-export const revalidate = 300;
+// En Docker no se pasan credenciales de base durante el build. Generar el mapa
+// en runtime evita publicar una versión vacía creada sin DATABASE_URL.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [tree, products, dreiVisible] = await Promise.all([

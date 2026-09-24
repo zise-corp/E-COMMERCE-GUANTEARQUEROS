@@ -15,7 +15,7 @@ Estado revisado: 23 de septiembre de 2026. La tienda, el checkout y la integraci
 | Mapas | Leaflet + OpenStreetMap; enlaces e incrustaciones de Google Maps |
 | Seguridad | Cookies httpOnly firmadas por propósito, Argon2id, validación de payload y sesiones contra la base |
 | Checkout | Cotización del servidor, importes congelados y creación idempotente |
-| Despliegue | Netlify, Node 22, renderizado de Next.js mediante su adaptador |
+| Despliegue | Docker Compose en ALPHA VPS, Node 22 y Traefik con HTTPS |
 
 ```text
 src/app/(shop)/          inicio, categorías, DREI, productos y checkout
@@ -68,7 +68,7 @@ Cada clave debe tener al menos diez caracteres. La entrada por stdin evita coloc
 
 ### Actualización de una instalación existente
 
-El directorio `drizzle/` contiene 20 migraciones, de `0000` a `0019`. Incluyen sesiones, cotizaciones, ajustes, intentos/eventos de pago y datos de documento del pedido. Aplica `npm run db:migrate` sobre la base elegida antes de servir una versión nueva del código. Haz una copia de seguridad y revisa las migraciones pendientes; `db:push` no reemplaza ese proceso de despliegue.
+El directorio `drizzle/` contiene 20 migraciones, de `0000` a `0019`. Incluyen sesiones, cotizaciones, ajustes, intentos/eventos de pago y datos de documento del pedido. En una base nueva, aplica `npm run db:migrate` antes de servir el código. En la base existente, primero concilia el historial local con el esquema real y haz una copia de seguridad: el historial de Drizzle no se encontró en la revisión previa. `db:push` no reemplaza ese proceso de despliegue.
 
 Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `NULL`: no se reconstruyen con tarifas actuales. Las sesiones anteriores al cambio de formato de cookies deben iniciarse de nuevo.
 
@@ -83,13 +83,13 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, `https://guantearqueros.com`, sin slash final |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP`, `NEXT_PUBLIC_SUPPORT_URL` | Contacto y sitio externo de soporte |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
-| `YOPAGO_COMPANY_CODE` | Reservada en la configuración local; el adaptador actual usa `YOPAGO_COMPANY_CODE` constante en `src/lib/yopago.ts`. Mantener ambos sincronizados hasta unificar la configuración |
+| `YOPAGO_COMPANY_CODE` | Código de comercio que el adaptador lee en runtime; nunca se incorpora a la imagen Docker |
 | `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |
 | `YOPAGO_QR_URL`, `YOPAGO_CARD_URL` | Endpoints de QR Simple y tarjeta |
 | `YOPAGO_ALLOWED_CARD_HOSTS` | Hosts HTTPS permitidos para la redirección de tarjeta |
 | `APP_BASE_URL` | Origen público HTTPS usado en las URLs de retorno; reutiliza `NEXT_PUBLIC_SITE_URL` si se omite |
 
-La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, credenciales de callback y una URL pública válida. El código de comercio está fijado actualmente en el adaptador. Si falta una configuración obligatoria, el intento se rechaza antes de contactar a YoPago.
+La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, código de comercio, credenciales de callback y una URL pública válida. Si falta una configuración obligatoria, el intento se rechaza antes de contactar a YoPago.
 
 Al cambiar de cuenta ImageKit, actualiza juntas las claves y el endpoint en el entorno de despliegue y reconstruye la aplicación: `NEXT_PUBLIC_*` se incorpora al bundle durante el build. Las imágenes guardadas como rutas de la cuenta anterior no se transfieren automáticamente; hay que migrarlas o conservar URLs absolutas de origen antes de apuntarlas a la cuenta nueva. Nunca incluyas las claves privadas en documentación o código versionado.
 
@@ -146,7 +146,7 @@ Antes de operar o modificar cobros, consulta [INTEGRACION_PAGOS.md](INTEGRACION_
 | Comando | Alcance |
 |---|---|
 | `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint; Next.js informa la deprecación de su wrapper |
+| `npm run lint` | ESLint sobre aplicación, scripts y configuración de Next.js |
 | `npm run verify:sql` | 20 migraciones, tablas principales, secuencia e historial en PGlite; su lista explícita aún no comprueba las dos tablas de pagos |
 | `npm run verify:checkout` | Sesiones, revocación, cotizaciones, idempotencia, callback, stock y revisión de inventario en PGlite |
 | `npm run build` | Compilación de producción |
@@ -163,15 +163,38 @@ Las páginas públicas de categorías y productos se regeneran cada cinco minuto
 
 El árbol ejecuta en paralelo sus lecturas independientes y calcula Ofertas/Nuevos en una sola agregación. La ficha trae producto e imágenes en una consulta. El pool de desarrollo mantiene sus conexiones durante cinco minutos para evitar repetir el handshake TLS tras una pausa corta.
 
-La base configurada se encuentra detrás del pooler de Supabase en `us-west-2`. En la medición del 11 de septiembre de 2026, con 51 productos, PostgreSQL planificó la consulta de categoría en 1,266 ms y la ejecutó en 0,508 ms; desde el equipo local, sin embargo, una conexión nueva más `SELECT 1` tardó 1,99 s y una consulta caliente 187,5 ms. La distancia y apertura de conexión dominan el tiempo, no el volumen ni el plan SQL. Para producción conviene ubicar la función de Netlify y PostgreSQL en la misma región o en regiones cercanas.
+La base configurada se encuentra detrás del pooler de Supabase en `us-west-2`. En la medición del 11 de septiembre de 2026, con 51 productos, PostgreSQL planificó la consulta de categoría en 1,266 ms y la ejecutó en 0,508 ms; desde el equipo local, sin embargo, una conexión nueva más `SELECT 1` tardó 1,99 s y una consulta caliente 187,5 ms. La distancia y apertura de conexión dominan el tiempo, no el volumen ni el plan SQL. Para producción conviene ubicar el VPS y PostgreSQL en regiones cercanas si es posible.
 
 `next dev` compila una ruta la primera vez que se visita y no representa la velocidad del despliegue. Para evaluar navegación se debe usar `npm run build` seguido de `npm start`; el prefetch de enlaces y las páginas estáticas operan plenamente en ese modo.
 
 ## Despliegue
 
-`netlify.toml` configura build `npm run build`, publicación `.next`, Node 22 y protección de versiones. Configura variables en Netlify y aplica las migraciones sobre la base elegida como paso controlado antes del despliegue. Las variables `NEXT_PUBLIC_*` se incorporan durante el build.
+El despliegue principal es **ALPHA VPS con Docker Compose y Traefik**. `Dockerfile` compila Next.js en modo `standalone` con Node 22 y ejecuta como usuario sin privilegios. `docker-compose.yml` conecta el servicio a la red externa `web` sin abrir el puerto 3000 al host. Traefik sirve `guantearqueros.com` por HTTPS, redirige HTTP a HTTPS y `www.guantearqueros.com` al dominio canónico. Se esperan entrypoints `web` y `websecure`, un resolver TLS llamado `letsencrypt` y Traefik conectado a `web`. `netlify.toml` queda como configuración histórica y no interviene en este despliegue.
 
-No subas `.env.local`, claves privadas ni contraseñas al repositorio. No incluyas migraciones ni seeds dentro del comando de build. Para el dominio definitivo, configura `NEXT_PUBLIC_SITE_URL=https://guantearqueros.com` y `APP_BASE_URL=https://guantearqueros.com` en producción y reconstruye. Configura la redirección 301 del dominio anterior y de `www` al dominio canónico en el proveedor de hosting; esto no lo resuelve la aplicación por sí sola.
+1. Apunta los registros DNS de `guantearqueros.com` y `www.guantearqueros.com` al VPS. Comprueba que Traefik tenga puertos 80/443, acceso al proveedor Docker, red `web` y resolver `letsencrypt` activos.
+2. En la copia del proyecto del VPS, ejecuta `cp .env.example .env`, edita `.env` con los valores reales y protege el archivo con `chmod 600 .env`. Configura PostgreSQL, `ADMIN_SESSION_SECRET`, ImageKit y contactos; deja `YOPAGO_MODE=disabled` hasta validar la pasarela. Usa `NEXT_PUBLIC_SITE_URL=https://guantearqueros.com` y `APP_BASE_URL=https://guantearqueros.com`.
+3. Revisa la base y las migraciones **antes** de arrancar la versión nueva. La base previamente inspeccionada no tenía historial de migraciones Drizzle; no ejecutes `npm run db:migrate` a ciegas ni lo incluyas en el build o arranque. Reconcilia primero el historial y haz copia de seguridad.
+4. Ejecuta `docker compose config --quiet` para validar la configuración sin imprimir secretos, luego `docker compose up -d --build` y `docker compose ps`. Si el estado no es `healthy`, revisa `docker compose logs --tail=100 app`.
+5. Comprueba `https://guantearqueros.com/api/health`, `https://guantearqueros.com/robots.txt` y `https://guantearqueros.com/sitemap.xml`. Verifica también que `http://` redirija a HTTPS y que `https://www.guantearqueros.com` redirija permanentemente al dominio sin `www`.
+
+El `healthcheck` responde 200 solo cuando la configuración de sesión está presente y PostgreSQL puede consultar la tabla de categorías. Las claves privadas entran al contenedor mediante `.env` en runtime; `.dockerignore` impide copiarlas al contexto del build. Las variables `NEXT_PUBLIC_*` son públicas y se pasan como argumentos de compilación; si cambian, reconstruye con `docker compose up -d --build`. No publiques `.env`, claves privadas, contraseñas ni la salida completa de `docker compose config`.
+
+### GitHub Actions: integración y despliegue
+
+`.github/workflows/ci.yml` ejecuta en cada push y pull request `npm ci`, TypeScript, ESLint, las verificaciones SQL/checkout y el build con Node 22. Usa PGlite; no requiere acceso a la base de producción ni secretos. Revisa el resultado en la pestaña **Actions** del repositorio. Integra primero los cambios en `main`: la rama local actual `Amadeo` no se despliega directamente.
+
+`.github/workflows/deploy.yml` se ejecuta únicamente desde **Actions → Deploy ALPHA VPS → Run workflow**, eligiendo `main`. Vuelve a ejecutar las verificaciones antes de conectar por SSH. En el VPS hace avance rápido de `main`, construye con Docker Compose y espera a que la aplicación esté `healthy`. Rechaza una copia del servidor modificada o un commit distinto al verificado. No ejecuta migraciones ni crea usuarios. El despliegue inicial también puede hacerse manualmente con los pasos anteriores.
+
+Preparación una sola vez:
+
+1. Publica estos archivos en GitHub mediante pull request hacia `main` y confirma que CI termina correctamente. Configura protección de la rama `main` para exigir el job `verify` antes de fusionar, si tu plan de GitHub lo permite.
+2. Prepara la copia del repositorio en el VPS, en la rama `main`, con un usuario que pueda ejecutar `docker compose` y con el archivo `.env` privado. Si el repositorio es privado, configura en **ese VPS** una llave de despliegue de GitHub con permiso de lectura para que `git fetch origin main` funcione. La llave del VPS para leer GitHub es distinta de la llave que GitHub Actions usa para entrar por SSH al VPS.
+3. Crea una llave SSH dedicada para GitHub Actions y agrega **solo su clave pública** a `~/.ssh/authorized_keys` del usuario del VPS. Guarda la clave privada en GitHub como secreto `VPS_SSH_PRIVATE_KEY`; no la pongas en `.env`, el repositorio ni este chat.
+4. En **Settings → Secrets and variables → Actions → Variables**, crea `VPS_HOST=217.217.234.194`, `VPS_USER` (usuario SSH), `VPS_PROJECT_PATH` (ruta absoluta de la copia del proyecto) y, si el SSH no usa 22, `VPS_SSH_PORT`. En **Secrets**, agrega `VPS_SSH_PRIVATE_KEY` y `VPS_KNOWN_HOSTS`. Para `VPS_KNOWN_HOSTS`, obtén la línea pública con `ssh-keyscan -t ed25519 217.217.234.194`; compara su huella (`ssh-keygen -lf` sobre el resultado) con `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` ejecutado dentro del VPS antes de guardarla. Si usas otro puerto, añade `-p PUERTO` a `ssh-keyscan`.
+5. Crea opcionalmente el environment `production` en **Settings → Environments** y limita sus ramas a `main`; si tu plan permite revisores obligatorios, actívalos. Los secretos y variables anteriores pueden quedar a nivel del repositorio; el job declara `environment: production` para asociar el despliegue. No añadas la contraseña de PostgreSQL, `ADMIN_SESSION_SECRET`, ImageKit ni YoPago a GitHub Actions: permanecen en `.env` del VPS.
+6. Comprueba en el VPS que `git fetch origin main`, `docker compose config --quiet` y `docker network inspect web` funcionan. Después inicia el flujo manual. Si falla, consulta los logs del job en Actions y `docker compose logs --tail=100 app` en el VPS.
+
+Este flujo comprueba el código y automatiza la publicación del commit elegido; no garantiza por sí solo DNS, configuración de Traefik/certificados, conexión a PostgreSQL ni el contrato de YoPago. Valida esos servicios durante el primer despliegue con las URL del paso 5 anterior.
 
 ## SEO e indexación
 

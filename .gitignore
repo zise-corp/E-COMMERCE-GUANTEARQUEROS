@@ -13,9 +13,8 @@ next-env.d.ts
 /build
 
 # entorno — nunca commitear credenciales
-.env
-.env*.local
-.env.production
+.env*
+!.env.example
 
 # debug
 npm-debug.log*

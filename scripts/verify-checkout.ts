@@ -24,6 +24,7 @@ async function main() {
   process.env["YOPAGO_ALLOWED_CARD_HOSTS"] = "yopago.com.bo";
   process.env["YOPAGO_CALLBACK_USERNAME"] = "cb-user";
   process.env["YOPAGO_CALLBACK_PASSWORD"] = "cb-pass";
+  process.env["YOPAGO_COMPANY_CODE"] = "AA45-QE59-56ER-RO99";
   // .invalid nunca resuelve: aunque el fetch interceptado fallara, nada sale a YoPago.
   process.env["YOPAGO_QR_URL"] = "https://yopago.invalid/pay/qr/generateQr";
   const client = new PGlite();
