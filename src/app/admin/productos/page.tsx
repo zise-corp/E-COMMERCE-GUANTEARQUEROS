@@ -1,7 +1,3 @@
-import { Suspense } from "react";
-import { AdminSearch } from "@/components/admin/AdminSearch";
-import { AdminTopbar } from "@/components/admin/AdminShell";
-import { NewProductButton } from "@/components/admin/NewProductButton";
 import { ProductsManager } from "@/components/admin/ProductsManager";
 import { getAdminProducts, getBrandOptions, getCategoryOptions } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -35,27 +31,12 @@ export default async function AdminProductsPage({
   const categories = [...options.roots, ...options.subs];
 
   return (
-    <>
-      <AdminTopbar
-        title="Productos"
-        subtitle={`${allRows.length} ${allRows.length === 1 ? "producto" : "productos"} en catálogo`}
-        action={
-          <>
-            <Suspense fallback={null}>
-              <AdminSearch placeholder="Buscar producto o SKU…" />
-            </Suspense>
-            <NewProductButton />
-          </>
-        }
-      />
-      <div className="px-5 py-[26px] pb-16 sm:px-7">
-        <ProductsManager
-          rows={rows}
-          categories={categories}
-          brands={brands}
-          openNew={nuevo === "1"}
-        />
-      </div>
-    </>
+    <ProductsManager
+      rows={rows}
+      totalCount={allRows.length}
+      categories={categories}
+      brands={brands}
+      openNew={nuevo === "1"}
+    />
   );
 }

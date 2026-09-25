@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { deleteProductAction } from "@/app/admin/actions";
+import { AdminSearch } from "@/components/admin/AdminSearch";
+import { AdminTopbar } from "@/components/admin/AdminShell";
 import { Chip } from "@/components/ui/Chip";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/Toast";
@@ -14,17 +16,20 @@ import { cn } from "@/lib/cn";
 import { imageKitUrl } from "@/lib/images";
 import { formatBs } from "@/lib/money";
 import { ProductForm, type BrandOption, type CategoryOption } from "./ProductForm";
+import { NewProductButton } from "./NewProductButton";
 import { AdminPagination, ADMIN_PAGE_SIZE } from "./AdminPagination";
 
 const LOW_STOCK = 5;
 
 export function ProductsManager({
   rows,
+  totalCount,
   categories,
   brands,
   openNew,
 }: {
   rows: AdminProductRow[];
+  totalCount: number;
   categories: CategoryOption[];
   brands: BrandOption[];
   openNew?: boolean;
@@ -51,6 +56,21 @@ export function ProductsManager({
   const pageCount = Math.max(1, Math.ceil(visible.length / ADMIN_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const paged = visible.slice((safePage - 1) * ADMIN_PAGE_SIZE, safePage * ADMIN_PAGE_SIZE);
+
+  function openCreate() {
+    setEditing(null);
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditing(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("nuevo")) {
+      url.searchParams.delete("nuevo");
+      router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    }
+  }
 
   async function edit(id: number) {
     setLoadingId(id);
@@ -85,6 +105,19 @@ export function ProductsManager({
 
   return (
     <>
+      <AdminTopbar
+        title="Productos"
+        subtitle={`${totalCount} ${totalCount === 1 ? "producto" : "productos"} en catálogo`}
+        action={
+          <>
+            <Suspense fallback={null}>
+              <AdminSearch placeholder="Buscar producto o SKU…" />
+            </Suspense>
+            <NewProductButton onClick={openCreate} />
+          </>
+        }
+      />
+      <div className="px-5 py-[26px] pb-16 sm:px-7">
       <div className="admin-data-card border border-ink-700 bg-ink-850">
         <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 px-5 py-3">
           {["Todos", ...roots.map((c) => c.name)].map((label) => (
@@ -193,13 +226,11 @@ export function ProductsManager({
         ))}
         <AdminPagination page={safePage} total={visible.length} onChange={setPage} />
       </div>
+      </div>
 
       <ProductForm
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
+        onClose={closeForm}
         onSaved={() => router.refresh()}
         product={editing}
         categories={categories}
