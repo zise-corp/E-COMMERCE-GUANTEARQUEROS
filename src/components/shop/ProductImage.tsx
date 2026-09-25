@@ -13,12 +13,14 @@ export function ProductImage({
   alt,
   preset = "grid",
   priority = false,
+  fit = "cover",
   className,
 }: {
   publicId: string | null;
   alt: string;
   preset?: ImagePreset;
   priority?: boolean;
+  fit?: "cover" | "contain";
   className?: string;
 }) {
   if (!publicId) {
@@ -45,7 +47,7 @@ export function ProductImage({
       fill
       sizes={sizes}
       priority={priority}
-      className={cn("object-cover", className)}
+      className={cn(fit === "contain" ? "object-contain" : "object-cover", className)}
     />
   );
 }

@@ -42,6 +42,7 @@ export function ProductCard({
             alt={product.name}
             preset={aspect === "1/1" ? "square" : "grid"}
             priority={priority}
+            fit="contain"
             className="transition-transform duration-500 ease-out group-focus-within:scale-[1.06] [@media(hover:hover)]:group-hover:scale-[1.06]"
           />
 
