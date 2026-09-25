@@ -24,6 +24,7 @@ test -n "$container_id" || { echo 'App container was not created' >&2; exit 1; }
 for attempt in $(seq 1 24); do
   health=$(docker inspect --format '{{.State.Health.Status}}' "$container_id")
   if [ "$health" = healthy ]; then
+    docker compose exec -T app node --input-type=module - < scripts/smoke-vps.mjs
     # Only unused images and build cache are removed; Docker protects running containers.
     docker image prune --all --force
     docker builder prune --all --force

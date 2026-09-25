@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
 import { CategoryView, type SearchParams } from "@/components/shop/CategoryView";
-import { getCategoryBySlug, getCategoryTree } from "@/db/queries/catalog";
+import { getCategoryBySlug } from "@/db/queries/catalog";
 import { absoluteUrl, breadcrumbJsonLd, categorySearchContent, serializeJsonLd } from "@/lib/seo";
 import { site } from "@/lib/site";
 
-export const revalidate = 300;
+// Los filtros dependen de searchParams; estas páginas se renderizan por solicitud.
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ categoria: string }>;
   searchParams: Promise<SearchParams>;
 };
-
-export async function generateStaticParams() {
-  const tree = await getCategoryTree();
-  return tree.map((category) => ({ categoria: category.slug }));
-}
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { categoria } = await params;
