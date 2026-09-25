@@ -4,7 +4,8 @@ async function check(path) {
   const response = await fetch(new URL(path, origin), {
     signal: AbortSignal.timeout(20_000),
   });
-  await response.body?.cancel();
+  // Consumir la respuesta completa evita abortar el stream de Next.js.
+  await response.arrayBuffer();
   if (response.status !== 200) {
     throw new Error(`${path}: HTTP ${response.status}`);
   }
