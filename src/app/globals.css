@@ -372,17 +372,11 @@
   /* El velo sigue el estado real de cada menú, no :hover ni :focus-within: tras
      hacer clic en una categoría el enlace conserva el foco y la página nueva
      quedaba desenfocada con el menú ya cerrado. */
-  body:has(.desktop-nav details[open]) .shop-frame::after,
-  body:has(.desktop-nav .nav-category-group[data-open="true"]) .shop-frame::after {
+  body:has(.shop-header-inner[data-compact="false"] .desktop-nav details[open]) .shop-frame::after,
+  body:has(.shop-header-inner[data-compact="false"] .desktop-nav .nav-category-group[data-open="true"]) .shop-frame::after {
     visibility: visible;
     opacity: 1;
     transition-delay: 0s;
-  }
-}
-
-@media (min-width: 1340px) {
-  .shop-frame:has(.shop-header-inner[data-stacked="true"])::after {
-    inset-block-start: 118px;
   }
 }
 
@@ -400,13 +394,11 @@
 .shop-header-nav-slot {
   display: none;
   min-width: 0;
-  width: 100%;
 }
 
 .shop-header-nav {
   display: flex;
   min-width: 0;
-  width: 100%;
   align-items: center;
   justify-content: center;
 }
@@ -427,61 +419,26 @@
 }
 
 @media (min-width: 1340px) {
-  .shop-header-inner {
-    display: grid;
-    column-gap: 16px;
-    row-gap: 0;
-  }
-
-  .shop-header-brand {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
   .shop-header-nav-slot {
     display: block;
-  }
-
-  .shop-header-actions {
-    margin-left: 0;
-  }
-
-  .shop-header-inner[data-stacked="false"] {
-    display: flex;
-    height: 74px;
-  }
-
-  .shop-header-inner[data-stacked="false"] .shop-header-brand {
-    flex: 0 0 auto;
-  }
-
-  .shop-header-inner[data-stacked="false"] .shop-header-nav-slot {
     flex: 1 1 auto;
   }
 
-  .shop-header-inner[data-stacked="false"] .shop-header-actions {
-    flex: 0 0 auto;
+  .shop-header-inner[data-compact="false"] .shop-header-menu {
+    display: none;
   }
 
-  .shop-header-inner[data-stacked="true"] {
-    height: 118px;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 74px 44px;
+  .shop-header-inner[data-compact="true"] .shop-header-nav-slot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: max-content;
+    visibility: hidden;
+    pointer-events: none;
   }
 
-  .shop-header-inner[data-stacked="true"] .shop-header-brand {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .shop-header-inner[data-stacked="true"] .shop-header-nav-slot {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .shop-header-inner[data-stacked="true"] .shop-header-actions {
-    grid-column: 2;
-    grid-row: 1;
+  .shop-header-inner[data-compact="true"] .shop-header-nav {
+    width: max-content;
   }
 }
 

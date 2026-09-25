@@ -13,15 +13,18 @@ import type { NavCategory } from "./Header";
 export function MobileMenu({
   categories,
   dreiSlug,
+  compact,
 }: {
   categories: NavCategory[];
   dreiSlug: string | null;
+  compact: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => close(), [pathname, close]);
+  useEffect(() => { if (!compact) close(); }, [compact, close]);
 
   return (
     <>
@@ -30,7 +33,7 @@ export function MobileMenu({
         onClick={() => setOpen(true)}
         aria-label="Abrir menú de categorías"
         aria-expanded={open}
-        className="flex h-10 w-10 flex-none flex-col items-center justify-center gap-[5px] border border-line bg-ink-850 text-content transition-colors hover:border-brand hover:text-brand min-[1340px]:hidden"
+        className="shop-header-menu flex h-10 w-10 flex-none flex-col items-center justify-center gap-[5px] border border-line bg-ink-850 text-content transition-colors hover:border-brand hover:text-brand"
       >
         <span className="block h-[2px] w-[18px] bg-current" />
         <span className="block h-[2px] w-[18px] bg-current" />
@@ -59,7 +62,7 @@ function MobileMenuDrawer({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[90] flex min-[1340px]:hidden">
+      <div className="fixed inset-0 z-[90] flex">
         <div
           ref={ref}
           role="dialog"

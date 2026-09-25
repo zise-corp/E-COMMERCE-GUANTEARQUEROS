@@ -17,15 +17,15 @@ export type NavCategory = {
 };
 
 /**
- * Header global sticky. Mide el ancho intrínseco de marca, nav y acciones para
- * usar una fila siempre que quepan y dos solamente cuando empezarían a chocar.
+ * Header global sticky. Mide el ancho real de marca, enlaces y acciones para
+ * mostrar la navegación completa solo cuando cabe en una fila.
  */
 export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dreiSlug: string | null }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLAnchorElement>(null);
   const navSlotRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
-  const [stacked, setStacked] = useState(false);
+  const [compact, setCompact] = useState(true);
 
   useLayoutEffect(() => {
     const inner = innerRef.current;
@@ -40,7 +40,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
 
     const measure = () => {
       if (!active || !desktop.matches) {
-        if (active) setStacked(false);
+        if (active) setCompact(true);
         return;
       }
 
@@ -58,7 +58,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
         + navWidth
         + 32;
 
-      setStacked(required + 4 > available);
+      setCompact(required + 4 > available);
     };
 
     const observer = new ResizeObserver(measure);
@@ -79,8 +79,8 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink-950/[0.92] backdrop-blur-[10px]">
-      <div ref={innerRef} className="shop-header-inner" data-stacked={stacked}>
-        <MobileMenu categories={categories} dreiSlug={dreiSlug} />
+      <div ref={innerRef} className="shop-header-inner" data-compact={compact}>
+        <MobileMenu categories={categories} dreiSlug={dreiSlug} compact={compact} />
         <Link
           ref={brandRef}
           href="/"
@@ -92,7 +92,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
           <Wordmark size={22} className="ml-[2px] hidden sm:block" />
         </Link>
 
-        <div ref={navSlotRef} className="shop-header-nav-slot">
+        <div ref={navSlotRef} className="shop-header-nav-slot" aria-hidden={compact} inert={compact}>
           <NavLinks
             categories={categories}
             dreiSlug={dreiSlug}
