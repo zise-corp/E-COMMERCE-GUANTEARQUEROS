@@ -106,13 +106,13 @@ export function SquareImageCropper({
           </div>
 
           <div className="p-4 sm:p-6">
-            <p className="mb-3 text-[12px] leading-relaxed text-content-muted">Aleja la imagen hasta llenar el cuadrado sin dejar bordes. Puedes moverla y acercarla para elegir el encuadre.</p>
+            <p className="mb-3 text-[12px] leading-relaxed text-content-muted">Arrastra la imagen para encuadrarla. Usa la rueda del mouse, pellizca con dos dedos o desliza el control de zoom. El alejamiento se detiene antes de dejar bordes vacíos.</p>
             <div className="relative h-[min(58vh,520px)] min-h-[300px] overflow-hidden bg-[#0A0A09]">
-              <Cropper image={source} crop={crop} zoom={zoom} minZoom={minZoom} maxZoom={maxZoom} restrictPosition aspect={aspect} cropShape="rect" showGrid objectFit="cover" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} onMediaLoaded={setMediaSize} onCropSizeChange={setCropSize} />
+              <Cropper image={source} crop={crop} zoom={zoom} minZoom={minZoom} maxZoom={maxZoom} zoomSpeed={0.15} restrictPosition aspect={aspect} cropShape="rect" showGrid objectFit="cover" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} onMediaLoaded={setMediaSize} onCropSizeChange={setCropSize} />
             </div>
-            <label className="mt-4 flex items-center gap-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-content-dim">
-              Zoom
-              <input type="range" min={minZoom} max={maxZoom} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 flex-1 accent-brand" />
+            <label className="mt-3 flex items-center gap-4 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-content-dim">
+              <span>Zoom</span>
+              <input type="range" min={minZoom} max={maxZoom} step={0.001} value={zoom} onInput={(event) => setZoom(Number(event.currentTarget.value))} className="crop-zoom-range flex-1" />
             </label>
             <button type="button" onClick={() => { setCrop({ x: 0, y: 0 }); setZoom(fillZoom); }} disabled={!mediaSize || !cropSize} className="mt-3 text-[11px] font-bold text-brand transition-colors hover:text-brand-hot disabled:opacity-50">Ajustar al cuadrado</button>
             {error ? <p role="alert" className="mt-3 text-[12px] text-alert-soft">{error}</p> : null}
