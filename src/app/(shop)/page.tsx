@@ -23,6 +23,7 @@ import {
   type HomeHeroProduct,
 } from "@/db/queries/catalog";
 import { getHomeSettings } from "@/db/queries/settings";
+import { formatBs } from "@/lib/money";
 
 /**
  * DEMO temporal: foto de stock por categoría, para que la home no se vea vacía
@@ -210,7 +211,7 @@ function Hero({
         ) : product ? (
           <Link
             href={`/p/${product.slug}`}
-            aria-label={`Ver producto ${product.name}`}
+            aria-label={`Ver producto ${product.name}, ${formatBs(product.price)}`}
             className="group relative block aspect-square overflow-hidden border border-line transition-colors hover:border-brand focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 clip-hero lg:h-full lg:aspect-auto"
           >
             <ProductImage
@@ -227,11 +228,20 @@ function Hero({
             <span className="absolute right-0 top-0 bg-brand px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-950 transition-colors group-hover:bg-brand-hot">
               Ver producto
             </span>
-            {discount ? (
-              <p className="absolute bottom-[26px] left-0 bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
-                {discount}% OFF
-              </p>
-            ) : null}
+            <span className="absolute inset-x-0 bottom-0 p-5">
+              {discount ? (
+                <span className="mb-2.5 inline-block bg-alert px-5 py-2.5 pl-[26px] font-display text-xl tracking-[0.04em] text-white skew-fast-8">
+                  {discount}% OFF
+                </span>
+              ) : null}
+              <span className="block truncate text-[15px] font-bold text-content">{product.name}</span>
+              <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="text-[18px] font-extrabold text-white">{formatBs(product.price)}</span>
+                {discount && product.compareAtPrice ? (
+                  <span className="text-[12px] font-semibold text-content-muted line-through">{formatBs(product.compareAtPrice)}</span>
+                ) : null}
+              </span>
+            </span>
           </Link>
         ) : (
           <div className="relative aspect-square overflow-hidden border border-line clip-hero lg:h-full lg:aspect-auto">

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { HomeHeroProduct } from "@/db/queries/catalog";
 import type { HomeSettings } from "@/db/queries/settings";
 import { cn } from "@/lib/cn";
+import { formatBs } from "@/lib/money";
 import { ProductImage } from "./ProductImage";
 
 const INTERVALO_MS = 5000;
@@ -75,7 +76,7 @@ export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]
             <Link
               key={p.id}
               href={`/p/${p.slug}`}
-              aria-label={`Ver producto ${p.name}${source === "new" ? ", nuevo" : ""}${off ? `, ${off}% de descuento` : ""}`}
+              aria-label={`Ver producto ${p.name}, ${formatBs(p.price)}${source === "new" ? ", nuevo" : ""}${off ? `, ${off}% de descuento` : ""}`}
               aria-hidden={!visible}
               // Las diapositivas ocultas no deben ser enfocables con el teclado
               // ni clicables: quedan detrás pero seguirían recibiendo el foco.
@@ -121,6 +122,12 @@ export function HeroCarousel({ products, source }: { products: HomeHeroProduct[]
                   </span>
                 ) : null}
                 <span className="block truncate text-[15px] font-bold text-content">{p.name}</span>
+                <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="text-[18px] font-extrabold text-white">{formatBs(p.price)}</span>
+                  {off && p.compareAtPrice ? (
+                    <span className="text-[12px] font-semibold text-content-muted line-through">{formatBs(p.compareAtPrice)}</span>
+                  ) : null}
+                </span>
               </span>
             </Link>
           );
