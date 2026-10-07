@@ -22,7 +22,7 @@ import {
   getHomeHeroProduct,
   type HomeHeroProduct,
 } from "@/db/queries/catalog";
-import { getHomeSettings } from "@/db/queries/settings";
+import { getContactSettings, getHomeSettings } from "@/db/queries/settings";
 import { formatBs } from "@/lib/money";
 
 /**
@@ -49,7 +49,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ pagina?: string }> }) {
   const { pagina } = await searchParams;
   const requestedPage = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
-  const [homeSettings, categories, productPage, brands, offerProducts, newProducts, categoryProductImages] = await Promise.all([
+  const [homeSettings, categories, productPage, brands, offerProducts, newProducts, categoryProductImages, contact] = await Promise.all([
     getHomeSettings(),
     getCategoryTree(),
     getProductsPage(requestedPage, 12),
@@ -57,6 +57,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     getHeroCarouselProducts("offers", 6),
     getHeroCarouselProducts("new", 6),
     getCategoryCarouselImages(6),
+    getContactSettings(),
   ]);
   const heroProduct = await getHomeHeroProduct(homeSettings.heroProductId);
 
@@ -131,7 +132,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </section>
 
       <StoreLocations />
-      <ContactSection />
+      <ContactSection phone={contact.supportWhatsapp} />
     </>
   );
 }

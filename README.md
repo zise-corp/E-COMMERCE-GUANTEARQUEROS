@@ -81,7 +81,9 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de la cuenta ImageKit usada para imágenes nuevas y rutas almacenadas |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, `https://guantearqueros.com`, sin slash final |
-| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, `NEXT_PUBLIC_DREI_WHATSAPP`, `NEXT_PUBLIC_SUPPORT_URL` | Contacto y sitio externo de soporte |
+| `NEXT_PUBLIC_SUPPORT_WHATSAPP` | Número inicial de Guante Arqueros; después se edita en Panel → Configuración y se guarda en `site_settings` |
+| `NEXT_PUBLIC_DREI_WHATSAPP` | WhatsApp independiente de DREI |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_URL` | Correo técnico usado por la integración de pagos y sitio externo de soporte; el modal de soporte público muestra solo WhatsApp |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
 | `YOPAGO_COMPANY_CODE` | Código de comercio que el adaptador lee en runtime; nunca se incorpora a la imagen Docker |
 | `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |
@@ -100,7 +102,8 @@ Sin base configurada, el catálogo público puede renderizar contenido vacío/de
 - Portada con ofertas/novedades, carrusel de categorías, catálogo paginado y bloque DREI configurable.
 - Categorías y subcategorías, filtros por marca/talla/precio, búsqueda y fichas con galería.
 - Productos con tallas, atributos libres, personalización opcional, precio anterior y flags de publicación, destacado y novedad.
-- Panel con catálogo, marcas, imágenes, pedidos, calendario de ventas, métricas, ajustes de inicio, envíos y descuentos.
+- Panel con catálogo, marcas, imágenes, pedidos, calendario de ventas, métricas, ajustes de inicio, contacto, envíos y descuentos.
+- El número de Guante Arqueros se cambia en Panel → Configuración. Actualiza Contacto, el WhatsApp del footer y el botón flotante, el soporte de pedidos y el teléfono publicado para buscadores. DREI mantiene su número propio. No requiere cambiar `.env` ni reconstruir la imagen tras cada edición.
 - Checkout de invitado: nombre, apellido, teléfono, nota y datos opcionales para solicitar factura. La solicitud no emite factura fiscal.
 - La Paz, Santa Cruz y Cochabamba tienen sucursal y permiten retiro o entrega local con ubicación. Para otros destinos se solicitan datos de documento y contacto según las validaciones del formulario; la empresa de transporte se coordina después.
 - Códigos de descuento porcentuales o fijos sobre productos; el envío no se descuenta.

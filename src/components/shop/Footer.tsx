@@ -5,7 +5,7 @@ import { FacebookIcon, InstagramIcon, TiktokIcon, WhatsappIcon } from "@/compone
 import { site, whatsappLink } from "@/lib/site";
 import type { NavCategory } from "./Header";
 
-export function Footer({ categories }: { categories: NavCategory[] }) {
+export function Footer({ categories, phone }: { categories: NavCategory[]; phone: string }) {
   const year = new Date().getFullYear();
 
   return (
@@ -40,7 +40,7 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
               <SocialLink href={site.social.tiktok} label={`TikTok de ${site.name}`}>
                 <TiktokIcon size={18} />
               </SocialLink>
-              <SocialLink href={whatsappLink("Hola, quisiera información sobre sus productos.")} label={`WhatsApp de ${site.shortName}`}>
+              <SocialLink href={whatsappLink("Hola, quisiera información sobre sus productos.", phone)} label={`WhatsApp de ${site.shortName}`}>
                 <WhatsappIcon size={18} />
               </SocialLink>
             </SocialGroup>
@@ -69,7 +69,7 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
             { label: "Guía de tallas", href: "/ayuda/tallas" },
             { label: "Envíos y transporte", href: "/ayuda/envios" },
             { label: "Cambios", href: "/ayuda/cambios" },
-            { label: "Contacto", href: `mailto:${site.supportEmail}` },
+            { label: "Contacto", href: whatsappLink("Hola, quisiera información sobre sus productos.", phone), external: true },
           ]}
         />
         <FooterColumn
@@ -144,7 +144,7 @@ function FooterColumn({
   items,
 }: {
   title: string;
-  items: { label: string; href: string }[];
+  items: { label: string; href: string; external?: boolean }[];
 }) {
   return (
     <div>
@@ -152,12 +152,15 @@ function FooterColumn({
       <ul>
         {items.map((it) => (
           <li key={it.label}>
-            <Link
-              href={it.href}
-              className="block py-[5px] text-[13.5px] text-content-dim transition-colors duration-150 hover:text-brand"
-            >
-              {it.label}
-            </Link>
+            {it.external ? (
+              <a href={it.href} target="_blank" rel="noopener noreferrer" className="block py-[5px] text-[13.5px] text-content-dim transition-colors duration-150 hover:text-brand">
+                {it.label}
+              </a>
+            ) : (
+              <Link href={it.href} className="block py-[5px] text-[13.5px] text-content-dim transition-colors duration-150 hover:text-brand">
+                {it.label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

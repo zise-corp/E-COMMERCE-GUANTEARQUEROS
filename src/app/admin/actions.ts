@@ -8,9 +8,9 @@ import { brands, categories, productImages, products } from "@/db/schema";
 import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { changeAdminPassword } from "@/db/queries/auth";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
-import { setCampaign, setCheckoutSettings, setHomeSettings } from "@/db/queries/settings";
+import { setCampaign, setCheckoutSettings, setContactSettings, setHomeSettings } from "@/db/queries/settings";
 import { logoutAdmin, requireAdmin, requireAnyAdmin } from "@/lib/admin-auth";
-import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
+import { CONTACT_SETTINGS_CACHE_TAG, PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import { toDbNumeric } from "@/lib/money";
 import { isReservedCategorySlug, slugify } from "@/lib/slug";
 import { SYSTEM_CATEGORY_SLUGS } from "@/lib/slug";
@@ -19,6 +19,7 @@ import {
   brandSchema,
   changePasswordSchema,
   checkoutSettingsSchema,
+  contactSettingsSchema,
   homeSettingsSchema,
   categorySchema,
   orderStatusSchema,
@@ -502,6 +503,19 @@ export async function saveCheckoutSettingsAction(input: unknown): Promise<Action
   await setCheckoutSettings(parsed.data);
   revalidatePath("/admin/ajustes");
   revalidatePath("/checkout/envio");
+  return { ok: true };
+}
+
+export async function saveContactSettingsAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = contactSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa el número de contacto." };
+  }
+  await setContactSettings(parsed.data);
+  revalidateTag(CONTACT_SETTINGS_CACHE_TAG);
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/ajustes");
   return { ok: true };
 }
 

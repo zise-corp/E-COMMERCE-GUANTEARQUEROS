@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
-import { db, withFallback } from "../index";
+import { db, isDbConfigured, withFallback } from "../index";
 import { siteSettings } from "../schema";
-import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
-import { checkoutSettingsSchema } from "@/lib/validators";
+import { CONTACT_SETTINGS_CACHE_TAG, PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
+import { contactSettingsSchema, checkoutSettingsSchema } from "@/lib/validators";
+import { site } from "@/lib/site";
 
 export type CampaignSettings = {
   enabled: boolean;
@@ -14,6 +15,45 @@ export type CampaignSettings = {
 export const CAMPAIGN_KEY = "campaign";
 export const CHECKOUT_KEY = "checkout";
 export const HOME_KEY = "home";
+export const CONTACT_KEY = "contact";
+export type ContactSettings = { supportWhatsapp: string };
+export const CONTACT_DEFAULT: ContactSettings = { supportWhatsapp: site.supportWhatsapp.replace(/\D/g, "") };
+
+async function queryContactSettings(): Promise<ContactSettings> {
+  const [row] = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, CONTACT_KEY))
+    .limit(1);
+  if (!row) return CONTACT_DEFAULT;
+  const parsed = contactSettingsSchema.safeParse(row.value);
+  if (!parsed.success) throw new Error("El número de contacto guardado no es válido.");
+  return parsed.data;
+}
+
+const getCachedContactSettings = unstable_cache(
+  queryContactSettings,
+  ["public-contact-settings-v1"],
+  { revalidate: 300, tags: [CONTACT_SETTINGS_CACHE_TAG] },
+);
+
+export async function getContactSettings(): Promise<ContactSettings> {
+  // Durante el build sin BD usamos el número inicial. Con BD configurada, un
+  // fallo de lectura no debe volver a mostrar un número antiguo del entorno.
+  if (!isDbConfigured()) return CONTACT_DEFAULT;
+  return getCachedContactSettings();
+}
+
+export async function setContactSettings(next: ContactSettings): Promise<void> {
+  await db
+    .insert(siteSettings)
+    .values({ key: CONTACT_KEY, value: next })
+    .onConflictDoUpdate({
+      target: siteSettings.key,
+      set: { value: next, updatedAt: new Date() },
+    });
+}
+
 export type HomeSettings = {
   heroSource: "offers" | "new";
   heroProductId: number | null;
