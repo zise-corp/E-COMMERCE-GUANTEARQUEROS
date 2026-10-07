@@ -252,13 +252,6 @@ export const campaignSchema = z.object({
   messages: z.array(z.string().trim().min(1).max(80)).min(1).max(6),
 });
 
-export const contactSettingsSchema = z.object({
-  supportWhatsapp: z.string().trim().min(1, "Escribe el número de WhatsApp.").max(30)
-    .regex(/^\+?[0-9\s()-]+$/, "Usa solo números, espacios y el prefijo internacional.")
-    .transform((value) => value.replace(/\D/g, ""))
-    .refine((digits) => /^[1-9]\d{7,14}$/.test(digits), "Escribe el número completo con código de país (por ejemplo, 59161234567)."),
-});
-
 export const checkoutSettingsSchema = z.object({
   localDeliveryPrice: z.number().min(0).max(10_000),
   transportPrice: z.number().min(0).max(10_000),

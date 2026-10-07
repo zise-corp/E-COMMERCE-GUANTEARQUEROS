@@ -4,7 +4,7 @@ import { displayWhatsapp, whatsappLink } from "@/lib/site";
 
 const CONTACT_MESSAGE = "Hola, necesito ayuda o información de Guante Arqueros Bolivia.";
 
-export function ContactSection({ phone }: { phone: string }) {
+export function ContactSection() {
   return (
     <section id="contacto" className="render-deferred container-shop mb-16 scroll-mt-28" aria-labelledby="contact-title">
       <div className="relative overflow-hidden border border-brand bg-ink-900 px-6 py-8 sm:px-9 sm:py-10 lg:px-12">
@@ -21,17 +21,17 @@ export function ContactSection({ phone }: { phone: string }) {
           </div>
 
           <a
-            href={whatsappLink(CONTACT_MESSAGE, phone)}
+            href={whatsappLink(CONTACT_MESSAGE)}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`Contactar por WhatsApp al ${displayWhatsapp(phone)}`}
+            aria-label={`Contactar por WhatsApp al ${displayWhatsapp()}`}
             className="group inline-flex min-w-[245px] items-center justify-between gap-5 bg-brand px-5 py-4 text-ink-950 transition-colors duration-150 hover:bg-brand-hot sm:px-6"
           >
             <span className="flex items-center gap-3">
               <WhatsappIcon size={22} />
               <span>
                 <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em]">WhatsApp</span>
-                <span className="mt-0.5 block text-sm font-extrabold tabular">{displayWhatsapp(phone)}</span>
+                <span className="mt-0.5 block text-sm font-extrabold tabular">{displayWhatsapp()}</span>
               </span>
             </span>
             <ArrowRightIcon size={18} className="transition-transform duration-150 group-hover:translate-x-1" />

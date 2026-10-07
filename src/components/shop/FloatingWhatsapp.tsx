@@ -3,10 +3,10 @@ import { whatsappLink } from "@/lib/site";
 
 const MESSAGE = "Hola, quisiera información sobre sus productos.";
 
-export function FloatingWhatsapp({ phone }: { phone: string }) {
+export function FloatingWhatsapp() {
   return (
     <a
-      href={whatsappLink(MESSAGE, phone)}
+      href={whatsappLink(MESSAGE)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Contactar directamente por WhatsApp"

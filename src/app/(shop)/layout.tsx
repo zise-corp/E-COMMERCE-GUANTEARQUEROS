@@ -1,21 +1,18 @@
 import { CartDrawer } from "@/components/shop/CartDrawer";
 import { CartProvider } from "@/components/shop/CartProvider";
-import { ContactProvider } from "@/components/shop/ContactProvider";
 import { Footer } from "@/components/shop/Footer";
 import { FloatingWhatsapp } from "@/components/shop/FloatingWhatsapp";
 import { Header } from "@/components/shop/Header";
 import { StoreIntro } from "@/components/shop/StoreIntro";
 import { ToastProvider } from "@/components/ui/Toast";
 import { getNavCategories, isDreiVisible } from "@/db/queries/catalog";
-import { getContactSettings } from "@/db/queries/settings";
 import { absoluteUrl, serializeJsonLd } from "@/lib/seo";
 import { site, STORE_LOCATIONS } from "@/lib/site";
 
 export const revalidate = 300;
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const [categories, dreiVisible, contact] = await Promise.all([getNavCategories(), isDreiVisible(), getContactSettings()]);
-  const phone = contact.supportWhatsapp;
+  const [categories, dreiVisible] = await Promise.all([getNavCategories(), isDreiVisible()]);
 
   // DREI vive dentro de Poleras: el ítem del nav apunta a esa categoría.
   const drei = dreiVisible ? (categories.find((c) => c.slug === "poleras") ?? null) : null;
@@ -35,7 +32,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         contactPoint: {
           "@type": "ContactPoint",
           contactType: "atención al cliente",
-          telephone: `+${phone}`,
+          telephone: `+${site.supportWhatsapp}`,
           areaServed: "BO",
           availableLanguage: "Spanish",
         },
@@ -73,20 +70,18 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   };
 
   return (
-    <ContactProvider phone={phone}>
-      <CartProvider>
-        <ToastProvider>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-          <StoreIntro />
-          <div className="shop-frame flex min-h-dvh flex-col">
-            <Header categories={categories} dreiSlug={drei?.slug ?? null} />
-            <main className="flex-1">{children}</main>
-            <Footer categories={categories} phone={phone} />
-          </div>
-          <CartDrawer />
-          <FloatingWhatsapp phone={phone} />
-        </ToastProvider>
-      </CartProvider>
-    </ContactProvider>
+    <CartProvider>
+      <ToastProvider>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+        <StoreIntro />
+        <div className="shop-frame flex min-h-dvh flex-col">
+          <Header categories={categories} dreiSlug={drei?.slug ?? null} />
+          <main className="flex-1">{children}</main>
+          <Footer categories={categories} />
+        </div>
+        <CartDrawer />
+        <FloatingWhatsapp />
+      </ToastProvider>
+    </CartProvider>
   );
 }

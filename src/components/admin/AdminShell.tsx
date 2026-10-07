@@ -16,7 +16,7 @@ const NAV = [
   { href: "/admin/marcas", label: "Marcas", badge: null },
   { href: "/admin/productos", label: "Productos", badge: "products" },
   { href: "/admin/pedidos", label: "Pedidos", badge: "newOrders" },
-  { href: "/admin/ajustes", label: "Configuración", badge: null },
+  { href: "/admin/ajustes", label: "Envíos y descuentos", badge: null },
   { href: "/admin/seguridad", label: "Seguridad", badge: null },
 ] as const;
 
