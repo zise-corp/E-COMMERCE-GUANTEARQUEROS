@@ -81,7 +81,7 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de la cuenta ImageKit usada para imágenes nuevas y rutas almacenadas |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, `https://guantearqueros.com`, sin slash final |
-| `NEXT_PUBLIC_SUPPORT_WHATSAPP` | Número inicial de Guante Arqueros; después se edita en Panel → Configuración y se guarda en `site_settings` |
+| WhatsApp de Guante Arqueros | Se guarda en `site_settings` (clave `contact`) y se edita en Panel → Configuración; no requiere variable de entorno |
 | `NEXT_PUBLIC_DREI_WHATSAPP` | WhatsApp independiente de DREI |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_URL` | Correo técnico usado por la integración de pagos y sitio externo de soporte; el modal de soporte público muestra solo WhatsApp |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |

@@ -17,8 +17,6 @@ export const site = {
   ),
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearqueros.com",
   supportUrl: process.env.NEXT_PUBLIC_SUPPORT_URL ?? "https://zise.lat",
-  /** Solo dígitos, formato internacional: se usa en el link de wa.me. */
-  supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "59161235265",
   dreiWhatsapp: process.env.NEXT_PUBLIC_DREI_WHATSAPP ?? "59162507981",
   social: {
     facebook: "https://www.facebook.com/guantearqueros.bolivia",
@@ -30,7 +28,7 @@ export const site = {
 } as const;
 
 /** Cómo se muestra el WhatsApp en pantalla: +591 61235265 */
-export function displayWhatsapp(digits: string = site.supportWhatsapp): string {
+export function displayWhatsapp(digits: string): string {
   const d = digits.replace(/\D/g, "");
   if (d.length === 11 && d.startsWith("591")) {
     return `+591 ${d.slice(3)}`;
@@ -38,7 +36,7 @@ export function displayWhatsapp(digits: string = site.supportWhatsapp): string {
   return `+${d}`;
 }
 
-export function whatsappLink(message: string, digits: string = site.supportWhatsapp): string {
+export function whatsappLink(message: string, digits: string): string {
   return `https://wa.me/${digits.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
 }
 

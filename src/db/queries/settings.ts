@@ -4,7 +4,6 @@ import { db, isDbConfigured, withFallback } from "../index";
 import { siteSettings } from "../schema";
 import { CONTACT_SETTINGS_CACHE_TAG, PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import { contactSettingsSchema, checkoutSettingsSchema } from "@/lib/validators";
-import { site } from "@/lib/site";
 
 export type CampaignSettings = {
   enabled: boolean;
@@ -17,7 +16,9 @@ export const CHECKOUT_KEY = "checkout";
 export const HOME_KEY = "home";
 export const CONTACT_KEY = "contact";
 export type ContactSettings = { supportWhatsapp: string };
-export const CONTACT_DEFAULT: ContactSettings = { supportWhatsapp: site.supportWhatsapp.replace(/\D/g, "") };
+// Respaldo solo para builds sin conexión a PostgreSQL e instalaciones sin esta fila.
+// En la tienda configurada, el valor vigente se lee de site_settings.contact.
+export const CONTACT_DEFAULT: ContactSettings = { supportWhatsapp: "59161235265" };
 
 async function queryContactSettings(): Promise<ContactSettings> {
   const [row] = await db
