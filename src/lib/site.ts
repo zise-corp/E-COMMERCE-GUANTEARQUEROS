@@ -15,7 +15,6 @@ export const site = {
     /\/+$/,
     "",
   ),
-  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "ventas@guantearqueros.com",
   supportUrl: process.env.NEXT_PUBLIC_SUPPORT_URL ?? "https://zise.lat",
   dreiWhatsapp: process.env.NEXT_PUBLIC_DREI_WHATSAPP ?? "59162507981",
   social: {

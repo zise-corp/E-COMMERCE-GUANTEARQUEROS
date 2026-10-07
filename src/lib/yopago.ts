@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { site } from "./site";
+
+// YoPago requiere un correo para el comprobante. Permanece solo en el servidor.
+const YOPAGO_BILLING_EMAIL = "ventas@guantearquerosbolivia.com.bo";
 
 export type PaymentMethod = "qr" | "card";
 export type YoPagoCurrency = "BOB" | "USD";
@@ -77,7 +79,7 @@ export function buildYoPagoPayload(input: YoPagoPaymentInput) {
     // Datos de facturación fijos, como los valores por defecto de Tienda-Virtual.
     // El email es el de la tienda: si YoPago manda un comprobante, le llega al
     // negocio y no a una casilla ajena.
-    billName: "Sin Nombre", billNit: "0", email: site.supportEmail,
+    billName: "Sin Nombre", billNit: "0", email: YOPAGO_BILLING_EMAIL,
     generateBill: "1", concept: input.concept, currency: input.currency, amount: formatYoPagoAmount(input.amount),
     messagePayment: "Gracias por su compra", codeExternal: "",
   };

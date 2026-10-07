@@ -81,9 +81,9 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` | Endpoint público de la cuenta ImageKit usada para imágenes nuevas y rutas almacenadas |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY` | Autorización de subidas; la privada nunca va al navegador |
 | `NEXT_PUBLIC_SITE_URL` | URL pública canónica, `https://guantearqueros.com`, sin slash final |
-| WhatsApp de Guante Arqueros | Se guarda en `site_settings` (clave `contact`) y se edita en Panel → Configuración; no requiere variable de entorno |
+| WhatsApp de Guante Arqueros | Se guarda en `site_settings` (clave `contact`); en Panel → Configuración se escriben solo ocho dígitos y el sistema agrega `591` |
 | `NEXT_PUBLIC_DREI_WHATSAPP` | WhatsApp independiente de DREI |
-| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_URL` | Correo técnico usado por la integración de pagos y sitio externo de soporte; el modal de soporte público muestra solo WhatsApp |
+| `NEXT_PUBLIC_SUPPORT_URL` | Sitio externo de soporte administrativo; el soporte público muestra solo WhatsApp |
 | `YOPAGO_MODE` | Debe ser `live`; habilita exclusivamente los endpoints reales configurados |
 | `YOPAGO_COMPANY_CODE` | Código de comercio que el adaptador lee en runtime; nunca se incorpora a la imagen Docker |
 | `YOPAGO_CALLBACK_USERNAME`, `YOPAGO_CALLBACK_PASSWORD` | Credenciales de autenticación del callback; solo servidor |
@@ -92,6 +92,8 @@ Las columnas de desglose añadidas a pedidos históricos pueden permanecer en `N
 | `APP_BASE_URL` | Origen público HTTPS usado en las URLs de retorno; reutiliza `NEXT_PUBLIC_SITE_URL` si se omite |
 
 La aplicación no expone un simulador de pagos. Para generar un cobro exige `YOPAGO_MODE=live`, código de comercio, credenciales de callback y una URL pública válida. Si falta una configuración obligatoria, el intento se rechaza antes de contactar a YoPago.
+
+YoPago exige un correo para el comprobante. Ese dato se mantiene únicamente en el módulo de pagos del servidor; no se usa como contacto público ni requiere `NEXT_PUBLIC_SUPPORT_EMAIL`.
 
 Al cambiar de cuenta ImageKit, actualiza juntas las claves y el endpoint en el entorno de despliegue y reconstruye la aplicación: `NEXT_PUBLIC_*` se incorpora al bundle durante el build. Las imágenes guardadas como rutas de la cuenta anterior no se transfieren automáticamente; hay que migrarlas o conservar URLs absolutas de origen antes de apuntarlas a la cuenta nueva. Nunca incluyas las claves privadas en documentación o código versionado.
 

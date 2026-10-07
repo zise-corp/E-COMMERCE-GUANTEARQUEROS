@@ -260,10 +260,13 @@ export const campaignSchema = z.object({
 });
 
 export const contactSettingsSchema = z.object({
-  supportWhatsapp: z.string().trim().min(1, "Escribe el número de WhatsApp.").max(30)
-    .regex(/^\+?[0-9\s()-]+$/, "Usa solo números, espacios y el prefijo internacional.")
-    .transform((value) => value.replace(/\D/g, ""))
-    .refine((digits) => /^[1-9]\d{7,14}$/.test(digits), "Escribe el número completo con código de país (por ejemplo, 59161234567)."),
+  supportWhatsapp: z.string().regex(/^591[1-9]\d{7}$/, "El número guardado debe tener el prefijo 591 y ocho dígitos."),
+});
+
+export const contactSettingsInputSchema = z.object({
+  supportWhatsapp: z.string().trim()
+    .regex(/^[1-9]\d{7}$/, "Escribe un número boliviano de ocho dígitos.")
+    .transform((digits) => `591${digits}`),
 });
 
 export const checkoutSettingsSchema = z.object({

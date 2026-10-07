@@ -19,7 +19,7 @@ import {
   brandSchema,
   changePasswordSchema,
   checkoutSettingsSchema,
-  contactSettingsSchema,
+  contactSettingsInputSchema,
   homeSettingsSchema,
   categorySchema,
   orderStatusSchema,
@@ -532,7 +532,7 @@ export async function saveCheckoutSettingsAction(input: unknown): Promise<Action
 
 export async function saveContactSettingsAction(input: unknown): Promise<ActionResult> {
   await requireAdmin();
-  const parsed = contactSettingsSchema.safeParse(input);
+  const parsed = contactSettingsInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa el número de contacto." };
   }
