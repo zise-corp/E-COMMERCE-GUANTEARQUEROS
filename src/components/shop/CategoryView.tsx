@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Display } from "@/components/ui/Heading";
 import {
+  getBrandFacets,
   getCategoryFacets,
   getCategoryTree,
+  getProductsByBrand,
   getProductsByCategory,
   type CatalogFilters,
 } from "@/db/queries/catalog";
@@ -36,40 +38,54 @@ export async function CategoryView({
   searchParams,
   displayName,
   fixedBrandName,
+  fixedBrandSlug,
 }: {
-  categorySlug: string;
+  categorySlug?: string;
   subcategorySlug?: string;
   searchParams: SearchParams;
   displayName?: string;
   fixedBrandName?: string;
+  fixedBrandSlug?: string;
 }) {
+  const isBrandView = Boolean(fixedBrandName && fixedBrandSlug);
+  if (!categorySlug && !isBrandView) notFound();
+
+  const tree = categorySlug ? await getCategoryTree() : [];
   const target = subcategorySlug ?? categorySlug;
-  const tree = await getCategoryTree();
-  const root = tree.find((c) => c.slug === categorySlug);
+  const root = categorySlug ? tree.find((c) => c.slug === categorySlug) : undefined;
   const category = subcategorySlug
     ? root?.children.find((child) => child.slug === target)
     : root;
-  if (!category) notFound();
+  if (!isBrandView && !category) notFound();
 
   const parent = subcategorySlug ? root : null;
   if (subcategorySlug && !parent) notFound();
   const categoryIntro = fixedBrandName
     ? "Camisetas, uniformes y calzas DREI Athletic para arqueros y equipos de fútbol en Bolivia."
-    : categorySearchContent(category.name, category.slug, parent?.name).intro;
+    : category
+      ? categorySearchContent(category.name, category.slug, parent?.name).intro
+      : "";
+  const resolvedDisplayName = displayName ?? category?.name ?? fixedBrandName ?? "Catálogo";
 
-  const resolvedCategory = {
-    id: category.id,
-    parentId: subcategorySlug ? (parent?.id ?? null) : null,
-  };
+  const resolvedCategory = category
+    ? {
+        id: category.id,
+        parentId: subcategorySlug ? (parent?.id ?? null) : null,
+      }
+    : undefined;
 
   const filters = filtersFromParams(searchParams);
-  if (fixedBrandName) filters.brandNames = [fixedBrandName];
-  const [products, facets] = await Promise.all([
-    getProductsByCategory(categorySlug, subcategorySlug, filters, resolvedCategory),
-    getCategoryFacets(categorySlug, subcategorySlug, resolvedCategory),
-  ]);
+  const [products, facets] = fixedBrandSlug
+    ? await Promise.all([
+        getProductsByBrand(fixedBrandSlug, filters),
+        getBrandFacets(fixedBrandSlug),
+      ])
+    : await Promise.all([
+        getProductsByCategory(categorySlug!, subcategorySlug, filters, resolvedCategory),
+        getCategoryFacets(categorySlug!, subcategorySlug, resolvedCategory),
+      ]);
 
-  const node = tree.find((c) => c.slug === categorySlug);
+  const node = categorySlug ? tree.find((c) => c.slug === categorySlug) : undefined;
   const subcategories = node?.children ?? [];
 
   return (
@@ -82,7 +98,7 @@ export async function CategoryView({
           Inicio
         </Link>
         {" / "}
-        {subcategorySlug && parent ? (
+        {categorySlug && subcategorySlug && parent ? (
           <>
             <Link
               href={`/${parent.slug}`}
@@ -93,12 +109,12 @@ export async function CategoryView({
             {" / "}
           </>
         ) : null}
-        <span className="text-brand">{displayName ?? category.name}</span>
+        <span className="text-brand">{resolvedDisplayName}</span>
       </nav>
 
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-[18px]">
         <Display as="h1" size="lg">
-          {displayName ?? category.name}
+          {resolvedDisplayName}
         </Display>
         <p className="text-[12.5px] text-content-muted">
           {products.length} {products.length === 1 ? "resultado" : "resultados"}

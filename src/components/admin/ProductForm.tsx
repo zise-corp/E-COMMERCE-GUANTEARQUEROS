@@ -174,6 +174,10 @@ export function ProductForm({
       : null;
     const stock = Number.parseInt(form.stock, 10);
 
+    if (!form.name.trim()) {
+      setError("Pon un nombre para el producto.");
+      return;
+    }
     if (!Number.isFinite(price)) {
       setError("Pon un precio válido.");
       return;
@@ -184,6 +188,10 @@ export function ProductForm({
     }
     if (subs.length > 0 && form.subcategoryId === null) {
       setError("Elige una subcategoría para clasificar el producto.");
+      return;
+    }
+    if (form.images.length === 0) {
+      setError("Agrega al menos una imagen del producto antes de guardar.");
       return;
     }
 
@@ -220,14 +228,15 @@ export function ProductForm({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-3 sm:p-10">
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] backdrop-blur-[3px]">
+        <div className="flex min-h-full items-center justify-center p-3 sm:p-6 md:p-10">
         <div
           ref={ref}
           role="dialog"
           aria-modal="true"
           aria-label={product ? "Editar producto" : "Nuevo producto"}
           tabIndex={-1}
-          className="admin-modal mx-auto w-full max-w-[860px] border border-line-strong bg-ink-850 animate-rise outline-none"
+          className="admin-modal w-full max-w-[860px] border border-line-strong bg-ink-850 animate-rise outline-none"
         >
           <div className="flex items-center justify-between border-b border-ink-700 px-6 py-5">
             <h2 className="font-display text-2xl uppercase skew-fast-6">
@@ -420,13 +429,22 @@ export function ProductForm({
             </div>
 
             <div className="flex flex-col gap-3.5">
-              <ImageKitDropzone
-                slug={folderSlug}
-                value={form.images}
-                onChange={(next) => set("images", next)}
-                squareCrop
-                cropEyebrow="Imagen de producto"
-              />
+              <div>
+                <ImageKitDropzone
+                  slug={folderSlug}
+                  value={form.images}
+                  onChange={(next) => set("images", next)}
+                  squareCrop
+                  required
+                  label="Imágenes del producto · ImageKit"
+                  cropEyebrow="Imagen de producto"
+                />
+                {form.images.length === 0 ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-alert-soft">
+                    Es obligatorio subir al menos una imagen antes de guardar.
+                  </p>
+                ) : null}
+              </div>
 
               {dreiBrand ? (
                 <div className="border border-drei-line/40 bg-drei/[0.08] p-3.5">
@@ -509,6 +527,7 @@ export function ProductForm({
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </Portal>

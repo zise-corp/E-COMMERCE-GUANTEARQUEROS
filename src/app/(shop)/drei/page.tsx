@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { CategoryView, type SearchParams } from "@/components/shop/CategoryView";
 import { DreiIntro } from "@/components/shop/DreiIntro";
-import { isDreiVisible } from "@/db/queries/catalog";
 import { absoluteUrl, breadcrumbJsonLd, serializeJsonLd } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -32,8 +30,6 @@ export default async function DreiPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  if (!(await isDreiVisible())) notFound();
-
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{
@@ -44,10 +40,10 @@ export default async function DreiPage({
       }} />
       <DreiIntro />
       <CategoryView
-        categorySlug="poleras"
         searchParams={await searchParams}
         displayName="DREI Athletic"
         fixedBrandName="DREI"
+        fixedBrandSlug="drei"
       />
     </>
   );

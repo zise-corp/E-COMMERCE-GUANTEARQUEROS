@@ -464,7 +464,16 @@ export async function setOrderStatus(orderId: number, status: OrderSummary["stat
     if (order.status === status) return;
     const transitions: Record<OrderSummary["status"], OrderSummary["status"][]> = { recibido: ["en_proceso", "cancelado"], en_proceso: ["completado"], completado: [], cancelado: [] };
     if (!transitions[order.status].includes(status)) throw new OrderError("Ese cambio de estado no está permitido.");
-    if (status === "cancelado" && (order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado" || (order.transactionId && order.paymentStatus === "pendiente"))) {
+    // Un intento de pago está "vivo" solo cuando el financial status indica
+    // que YoPago aún puede confirmarlo (pending o payment_created). Si el
+    // cliente ya abandonó el flujo, o el intento expiró/falló, el pedido
+    // puede cancelarse operativamente sin más — el admin asume el riesgo de
+    // que llegue un callback tardío (que seguirá procesándose en
+    // paid_inventory_review si corresponde, sin descuadrar inventario).
+    const paymentIntentActive = Boolean(order.transactionId)
+      && order.paymentStatus === "pendiente"
+      && (order.financialStatus === "pending" || order.financialStatus === "payment_created");
+    if (status === "cancelado" && (order.paymentStatus === "pagado" || order.paymentStatus === "reembolsado" || paymentIntentActive)) {
       throw new OrderError("Resuelve primero el pago. Cancelar un pedido no cancela ni reembolsa un cobro.");
     }
     if (status !== "cancelado" && order.paymentStatus !== "pagado") throw new OrderError("El pedido debe estar pagado para avanzar.");

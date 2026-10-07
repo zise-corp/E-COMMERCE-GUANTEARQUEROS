@@ -47,7 +47,17 @@ function blank(kind: CategoryKind, rows: AdminCategoryRow[]): Editing {
   };
 }
 
-export function CategoriesManager({ rows, openNew, initialView = "principales" }: { rows: AdminCategoryRow[]; openNew?: CategoryKind | null; initialView?: View }) {
+export function CategoriesManager({
+  rows,
+  openNew,
+  initialView = "principales",
+  searchTerm = "",
+}: {
+  rows: AdminCategoryRow[];
+  openNew?: CategoryKind | null;
+  initialView?: View;
+  searchTerm?: string;
+}) {
   const router = useRouter();
   const { show } = useToast();
   const view = initialView;
@@ -67,6 +77,19 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
     parent.subs.map((subcategory) => ({ ...subcategory, parentId: parent.id, parentName: parent.name })),
   );
 
+  // Filtro por nombre: para principales matchea su propio nombre; para
+  // subcategorías matchea el nombre de la sub o el de su categoría padre, así
+  // buscar "arquero" devuelve "Poleras" (padre) o "Arquero" (sub).
+  const term = searchTerm.trim().toLowerCase();
+  const filteredRows = term
+    ? rows.filter((row) => row.name.toLowerCase().includes(term))
+    : rows;
+  const filteredSubcategories = term
+    ? subcategories.filter((row) =>
+        row.name.toLowerCase().includes(term) || row.parentName.toLowerCase().includes(term),
+      )
+    : subcategories;
+
   function editPrincipal(row: AdminCategoryRow) {
     setError(null);
     setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, imagePath: row.imagePath, imageFileId: row.imageFileId });
@@ -82,6 +105,13 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
     const wasEditing = form.id !== undefined;
     const label = form.kind === "principal" ? "Categoría" : "Subcategoría";
     setError(null);
+    // Las categorías principales reales (no las del sistema como "Ofertas" o
+    // "Nuevos", que no muestran dropzone) exigen una imagen antes de guardar.
+    const isSystem = form.slug !== null && SYSTEM_CATEGORY_SLUGS.has(form.slug);
+    if (form.kind === "principal" && !isSystem && !form.imagePath) {
+      setError("Agrega una imagen de la categoría antes de guardar.");
+      return;
+    }
     startTransition(async () => {
       const result = await saveCategoryAction({
         name: form.name,
@@ -120,7 +150,16 @@ export function CategoriesManager({ rows, openNew, initialView = "principales" }
         </div>
 
         {error && !form ? <p className="border-b border-ink-700 px-5 py-3 text-[12px] text-alert-soft">{error}</p> : null}
-        {view === "principales" ? <PrincipalTable rows={rows} onEdit={editPrincipal} onRemove={remove} /> : <SubcategoryTable rows={subcategories} onEdit={editSubcategory} onRemove={remove} />}
+        {term ? (
+          <p className="border-b border-ink-700 px-5 py-2 text-[11px] text-content-dim">
+            {view === "principales"
+              ? `${filteredRows.length} de ${rows.length} coinciden con “${searchTerm}”.`
+              : `${filteredSubcategories.length} de ${subcategories.length} coinciden con “${searchTerm}”.`}
+          </p>
+        ) : null}
+        {view === "principales"
+          ? <PrincipalTable rows={filteredRows} dragEnabled={!term} searchTerm={term ? searchTerm : null} onEdit={editPrincipal} onRemove={remove} />
+          : <SubcategoryTable rows={filteredSubcategories} searchTerm={term ? searchTerm : null} onEdit={editSubcategory} onRemove={remove} />}
       </div>
 
       <CategoryFormModal form={form} roots={rows.filter((row) => !SYSTEM_CATEGORY_SLUGS.has(row.slug))} pending={pending} error={error} onChange={setForm} onClose={() => { setForm(null); setError(null); router.replace(`/admin/categorias?vista=${view}`); }} onSave={save} />
@@ -142,8 +181,9 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] p-3 sm:p-10">
-        <div ref={ref} role="dialog" aria-modal="true" aria-label={form.id ? "Editar clasificación" : "Nueva clasificación"} tabIndex={-1} className="admin-modal mx-auto w-full max-w-[680px] border border-line-strong bg-ink-850 animate-rise outline-none">
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] backdrop-blur-[3px]">
+        <div className="flex min-h-full items-center justify-center p-3 sm:p-6 md:p-10">
+        <div ref={ref} role="dialog" aria-modal="true" aria-label={form.id ? "Editar clasificación" : "Nueva clasificación"} tabIndex={-1} className="admin-modal w-full max-w-[680px] border border-line-strong bg-ink-850 animate-rise outline-none">
           <div className="flex items-center justify-between border-b border-ink-700 px-6 py-5">
             <div><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{isPrincipal ? "Categoría principal" : "Subcategoría"}</p><h2 className="mt-1 font-display text-2xl uppercase skew-fast-6">{form.id ? "Editar" : "Crear"} {isPrincipal ? "categoría" : "subcategoría"}</h2></div>
             <button type="button" onClick={onClose} aria-label="Cerrar" className="p-1 text-content-dim transition-colors hover:text-brand"><CloseIcon size={19} /></button>
@@ -160,7 +200,26 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
               <div className="border border-ink-700 bg-[#0E0E0D] p-3.5"><Toggle checked={form.active} label="Visible en la tienda" onChange={(active) => onChange({ ...form, active })} /></div>
             </div>
 
-            {isPrincipal && !isSystemCategory ? <ImageKitDropzone slug={form.slug ?? slugify(form.name)} value={imageValue} onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }} folder="/guantearqueros/categorias" maxImages={1} label="Imagen de categoría · ImageKit" assetTag="categoria" squareCrop /> : null}
+            {isPrincipal && !isSystemCategory ? (
+              <div>
+                <ImageKitDropzone
+                  slug={form.slug ?? slugify(form.name)}
+                  value={imageValue}
+                  onChange={(next) => { const image = next[0]; onChange({ ...form, imagePath: image?.publicId ?? null, imageFileId: image?.fileId ?? null }); }}
+                  folder="/guantearqueros/categorias"
+                  maxImages={1}
+                  label="Imagen de categoría · ImageKit"
+                  assetTag="categoria"
+                  squareCrop
+                  required
+                />
+                {imageValue.length === 0 ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-alert-soft">
+                    Es obligatorio subir una imagen antes de guardar.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="border-t border-ink-700 px-6 py-5">
@@ -168,12 +227,25 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
             <div className="flex justify-end gap-2.5"><button type="button" onClick={onClose} className="border border-line-strong px-4 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-muted hover:border-content-dim">Cancelar</button><button type="button" onClick={onSave} disabled={pending || form.name.trim().length < 2 || (!isPrincipal && form.parentId === null)} className="bg-brand px-5 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-950 hover:bg-brand-hot disabled:bg-ink-700 disabled:text-content-faint">{pending ? "Guardando…" : "Guardar"}</button></div>
           </div>
         </div>
+        </div>
       </div>
     </Portal>
   );
 }
 
-function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; onEdit: (row: AdminCategoryRow) => void; onRemove: (id: number, name: string) => void }) {
+function PrincipalTable({
+  rows,
+  dragEnabled = true,
+  searchTerm = null,
+  onEdit,
+  onRemove,
+}: {
+  rows: AdminCategoryRow[];
+  dragEnabled?: boolean;
+  searchTerm?: string | null;
+  onEdit: (row: AdminCategoryRow) => void;
+  onRemove: (id: number, name: string) => void;
+}) {
   const router = useRouter();
   const { show } = useToast();
   const [order, setOrder] = useState(() => rows.map((row) => row.id));
@@ -199,19 +271,29 @@ function PrincipalTable({ rows, onEdit, onRemove }: { rows: AdminCategoryRow[]; 
 
   return <div>
     <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px] lg:gap-3.5"><span /><span /><span>Categoría principal</span><span>Subcategorías</span><span>Productos</span><span /></div>
-    {ordered.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay categorías principales.</p> : null}
+    {ordered.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">{searchTerm ? `Sin categorías que coincidan con “${searchTerm}”.` : "Todavía no hay categorías principales."}</p> : null}
     {ordered.map((row) => <div key={row.id} ref={(element) => { if (element) rowRefs.current.set(row.id, element); else rowRefs.current.delete(row.id); }} className={cn("admin-data-row grid items-center gap-3.5 border-b border-line-soft px-5 py-3 lg:grid-cols-[28px_52px_1.5fr_1fr_90px_80px]", draggingId === row.id && "relative z-10 border-brand bg-[#171716] shadow-card")}>
-      {SYSTEM_CATEGORY_SLUGS.has(row.slug) ? <span /> : <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>}
+      {SYSTEM_CATEGORY_SLUGS.has(row.slug) || !dragEnabled ? <span /> : <button type="button" onPointerDown={(event) => startDrag(event, row.id)} aria-label={`Reordenar ${row.name}`} className="hidden cursor-grab touch-none justify-center text-content-faint hover:text-brand lg:flex"><GripIcon /></button>}
       <div className="relative h-10 w-10 overflow-hidden bg-ink-950">{row.imagePath ? <Image src={imageKitUrl(row.imagePath, "thumb")} alt="" fill sizes="40px" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center"><Escudo width={16} height={19} className="opacity-20" title="" /></span>}</div>
       <div className="min-w-0"><p className="truncate text-[13.5px] font-bold">{row.name}{!row.active ? <span className="ml-2 text-[9.5px] uppercase tracking-[0.12em] text-content-faint">oculta</span> : null}</p><p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p></div>
       <span className="text-[13px] text-content-muted">{SYSTEM_CATEGORY_SLUGS.has(row.slug) ? "Automática" : row.subs.length}</span><span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span><Actions name={row.name} onEdit={() => onEdit(row)} onRemove={SYSTEM_CATEGORY_SLUGS.has(row.slug) ? undefined : () => onRemove(row.id, row.name)} />
     </div>)}</div>;
 }
 
-function SubcategoryTable({ rows, onEdit, onRemove }: { rows: SubcategoryRow[]; onEdit: (row: SubcategoryRow) => void; onRemove: (id: number, name: string) => void }) {
+function SubcategoryTable({
+  rows,
+  searchTerm = null,
+  onEdit,
+  onRemove,
+}: {
+  rows: SubcategoryRow[];
+  searchTerm?: string | null;
+  onEdit: (row: SubcategoryRow) => void;
+  onRemove: (id: number, name: string) => void;
+}) {
   return <div>
     <div className="hidden border-b border-ink-700 px-5 py-3 text-[10.5px] uppercase tracking-[0.16em] text-content-dim lg:grid lg:grid-cols-[1.5fr_1.3fr_90px_80px] lg:gap-3.5"><span>Subcategoría</span><span>Dentro de</span><span>Productos</span><span /></div>
-    {rows.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">Todavía no hay subcategorías. Créala desde el botón superior.</p> : null}
+    {rows.length === 0 ? <p className="px-5 py-12 text-center text-[13px] text-content-dim">{searchTerm ? `Sin subcategorías que coincidan con “${searchTerm}”.` : "Todavía no hay subcategorías. Créala desde el botón superior."}</p> : null}
     {rows.map((row) => <div key={row.id} className="grid items-center gap-3.5 border-b border-line-soft px-5 py-4 lg:grid-cols-[1.5fr_1.3fr_90px_80px]">
       <div className="min-w-0"><p className="truncate text-[13.5px] font-bold">{row.name}{!row.active ? <span className="ml-2 text-[9.5px] uppercase tracking-[0.12em] text-content-faint">oculta</span> : null}</p><p className="mt-0.5 text-[11px] text-content-faint">/{row.slug}</p></div><span className="text-[13px] text-content-muted">{row.parentName}</span><span className="text-[13.5px] font-extrabold tabular">{row.productCount}</span><Actions name={row.name} onEdit={() => onEdit(row)} onRemove={() => onRemove(row.id, row.name)} />
     </div>)}</div>;

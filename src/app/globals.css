@@ -353,7 +353,7 @@
  * En escritorio, un menú abierto conserva toda la atención: el header queda
  * nítido y una capa muy ligera separa visualmente el catálogo del desplegable.
  */
-@media (min-width: 1340px) {
+@media (min-width: 1024px) {
   .shop-frame::after {
     content: "";
     position: fixed;
@@ -418,7 +418,7 @@
   }
 }
 
-@media (min-width: 1340px) {
+@media (min-width: 1024px) {
   .shop-header-nav-slot {
     display: block;
     flex: 1 1 auto;
@@ -439,6 +439,23 @@
 
   .shop-header-inner[data-compact="true"] .shop-header-nav {
     width: max-content;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Más aire en pantallas de escritorio comunes. */
+  .shop-header-inner {
+    padding-inline: 56px;
+    gap: 28px;
+  }
+}
+
+@media (min-width: 1600px) {
+  /* En monitores anchos limitamos el centro para que el grupo no quede
+     perdido en el medio con metros de aire a los costados. */
+  .shop-header-inner {
+    padding-inline: 72px;
+    gap: 32px;
   }
 }
 

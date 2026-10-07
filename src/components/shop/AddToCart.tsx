@@ -117,7 +117,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
             type="button"
             onClick={addToCart}
             disabled={outOfStock}
-            className="flex min-h-[52px] items-center justify-center border border-brand px-3 text-center text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand transition-colors hover:bg-brand/10 disabled:border-line disabled:text-content-faint"
+            className="flex min-h-[52px] items-center justify-center border border-brand px-2 text-center text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-brand transition-colors hover:bg-brand/10 disabled:border-line disabled:text-content-faint sm:px-3 sm:text-[11px] sm:tracking-[0.1em]"
           >
             {outOfStock ? "Sin stock" : "Agregar al carrito"}
           </button>
@@ -125,7 +125,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
             type="button"
             onClick={buyNow}
             disabled={outOfStock}
-            className="flex min-h-[52px] items-center justify-center bg-brand px-3 text-center text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-[background-color,box-shadow] clip-slash-lg hover:bg-brand-hot hover:shadow-glow-brand disabled:bg-ink-700 disabled:text-content-faint disabled:shadow-none"
+            className="flex min-h-[52px] items-center justify-center bg-brand px-2 text-center text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-ink-950 transition-[background-color,box-shadow] clip-slash-lg hover:bg-brand-hot hover:shadow-glow-brand disabled:bg-ink-700 disabled:text-content-faint disabled:shadow-none sm:px-3 sm:text-[11px] sm:tracking-[0.1em]"
           >
             {outOfStock ? "Sin stock" : "Comprar ahora"}
           </button>

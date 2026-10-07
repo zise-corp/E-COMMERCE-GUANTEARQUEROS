@@ -20,7 +20,7 @@ export type NavCategory = {
  * Header global sticky. Mide el ancho real de marca, enlaces y acciones para
  * mostrar la navegación completa solo cuando cabe en una fila.
  */
-export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dreiSlug: string | null }) {
+export function Header({ categories }: { categories: NavCategory[] }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLAnchorElement>(null);
   const navSlotRef = useRef<HTMLDivElement>(null);
@@ -35,7 +35,7 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
     const nav = navSlot?.querySelector("nav");
     if (!inner || !brand || !nav || !actions) return;
 
-    const desktop = window.matchMedia("(min-width: 1340px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
     let active = true;
 
     const measure = () => {
@@ -75,12 +75,12 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
       observer.disconnect();
       desktop.removeEventListener("change", measure);
     };
-  }, [categories, dreiSlug]);
+  }, [categories]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink-950/[0.92] backdrop-blur-[10px]">
       <div ref={innerRef} className="shop-header-inner" data-compact={compact}>
-        <MobileMenu categories={categories} dreiSlug={dreiSlug} compact={compact} />
+        <MobileMenu categories={categories} compact={compact} />
         <Link
           ref={brandRef}
           href="/"
@@ -95,7 +95,6 @@ export function Header({ categories, dreiSlug }: { categories: NavCategory[]; dr
         <div ref={navSlotRef} className="shop-header-nav-slot" aria-hidden={compact} inert={compact}>
           <NavLinks
             categories={categories}
-            dreiSlug={dreiSlug}
             className="shop-header-nav"
           />
         </div>

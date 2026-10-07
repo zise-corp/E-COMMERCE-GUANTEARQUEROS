@@ -159,6 +159,15 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
     }
   }
 
+  // Permite al cliente desaplicar un descuento ya cargado antes de pagar: si
+  // se arrepiente del código no tiene que recargar la página. Limpia tanto el
+  // input visible como el estado del descuento.
+  function clearCode() {
+    setDiscount(null);
+    setCode("");
+    setCodeError(null);
+  }
+
   const activeDiscount = discount?.subtotal === checkoutSubtotal ? discount : null;
   const effectiveShipping = !shipping.department || shipping.mode === "pickup"
     ? 0
@@ -262,23 +271,56 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
               <div className="flex justify-between"><span className="text-content-dim">{isLocalDepartment(shipping.department) ? "Envío a domicilio" : "Envío por transporte"}</span><span>{formatBs(effectiveShipping)}</span></div>
             )}
             {activeDiscount ? (
-              <div className="flex justify-between text-state-ok"><span>Descuento · {activeDiscount.code}</span><span>− {formatBs(activeDiscount.amount)}</span></div>
+              <div className="flex justify-between text-state-ok">
+                <span className="inline-flex items-center gap-1.5">
+                  Descuento · {activeDiscount.code}
+                  <button
+                    type="button"
+                    onClick={clearCode}
+                    aria-label={`Quitar código ${activeDiscount.code}`}
+                    title="Quitar código"
+                    className="inline-flex h-4 w-4 items-center justify-center border border-state-ok/50 text-[11px] leading-none text-state-ok transition-colors hover:border-alert hover:bg-alert/10 hover:text-alert"
+                  >
+                    ×
+                  </button>
+                </span>
+                <span>− {formatBs(activeDiscount.amount)}</span>
+              </div>
             ) : null}
           </div>
 
           <div className="mt-4">
             <label className="label-xs mb-1.5 block text-content-dim">Código de descuento</label>
-            <div className="flex gap-2">
-              <input
-                value={code}
-                onChange={(event) => { setCode(event.target.value.toUpperCase()); setDiscount(null); setCodeError(null); }}
-                placeholder="Ingresa tu código"
-                className="min-w-0 flex-1 border border-line-strong bg-ink-950 px-3 py-2.5 uppercase outline-none focus:border-brand"
-              />
-              <button type="button" disabled={!code.trim() || checkingCode} onClick={applyCode} className="border border-brand px-3 text-[11px] font-extrabold uppercase text-brand hover:bg-brand hover:text-ink-950 disabled:opacity-50">
-                {checkingCode ? "..." : "Aplicar"}
-              </button>
-            </div>
+            {activeDiscount ? (
+              /* Con un código ya aplicado, en vez de dejar el input editable
+                 (que confunde si debe reemplazar o acumular), mostramos el
+                 código como "chip" y un botón "Quitar" que lo libera. */
+              <div className="flex items-center gap-2 border border-state-ok/40 bg-state-ok/5 px-3 py-2.5">
+                <span className="font-mono text-[13px] font-extrabold uppercase tracking-[0.08em] text-state-ok">
+                  {activeDiscount.code}
+                </span>
+                <span className="text-[11.5px] text-content-dim">aplicado</span>
+                <button
+                  type="button"
+                  onClick={clearCode}
+                  className="ml-auto border border-line-strong px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-muted transition-colors hover:border-alert hover:text-alert"
+                >
+                  Quitar
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={code}
+                  onChange={(event) => { setCode(event.target.value.toUpperCase()); setDiscount(null); setCodeError(null); }}
+                  placeholder="Ingresa tu código"
+                  className="min-w-0 flex-1 border border-line-strong bg-ink-950 px-3 py-2.5 uppercase outline-none focus:border-brand"
+                />
+                <button type="button" disabled={!code.trim() || checkingCode} onClick={applyCode} className="border border-brand px-3 text-[11px] font-extrabold uppercase text-brand hover:bg-brand hover:text-ink-950 disabled:opacity-50">
+                  {checkingCode ? "..." : "Aplicar"}
+                </button>
+              </div>
+            )}
             {codeError ? <p className="mt-1.5 text-xs text-alert-soft">{codeError}</p> : null}
           </div>
 

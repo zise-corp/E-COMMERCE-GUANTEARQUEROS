@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../index";
 import {
@@ -463,7 +463,7 @@ export async function getBrandOptions() {
   return db
     .select({ id: brands.id, name: brands.name, isOwnBrand: sql<boolean>`${brands.slug} = 'drei'` })
     .from(brands)
-    .where(eq(brands.active, true))
+    .where(or(eq(brands.active, true), eq(brands.slug, "drei")))
     .orderBy(asc(brands.position), asc(brands.name));
 }
 

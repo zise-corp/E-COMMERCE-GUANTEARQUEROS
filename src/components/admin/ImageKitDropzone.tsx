@@ -32,6 +32,7 @@ export function ImageKitDropzone({
   squareCrop = false,
   wideCrop = false,
   cropEyebrow = "Imagen de categoría",
+  required = false,
 }: {
   slug: string;
   value: ProductImageValue[];
@@ -44,6 +45,8 @@ export function ImageKitDropzone({
   squareCrop?: boolean;
   /** Editor horizontal 16:9 para banners de la portada. */
   wideCrop?: boolean;
+  /** Marca el campo como obligatorio: asterisco en el label y aria-required. */
+  required?: boolean;
   cropEyebrow?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,10 +66,15 @@ export function ImageKitDropzone({
 
     const room = maxImages - value.length;
     if (room <= 0) {
-      setError(`Máximo ${maxImages} ${maxImages === 1 ? "imagen" : "imágenes"}.`);
+      setError(
+        maxImages === 1
+          ? "Ya hay una imagen cargada. Quítala si quieres subir otra."
+          : `Ya alcanzaste el máximo de ${maxImages} imágenes. Quita alguna para subir una nueva.`,
+      );
       return;
     }
 
+    const rejected = Math.max(0, list.length - room);
     setError(null);
     setBusy(true);
     try {
@@ -110,6 +118,11 @@ export function ImageKitDropzone({
         onChange([...value, ...uploaded]);
         show(`${uploaded.length === 1 ? "Imagen subida" : `${uploaded.length} imágenes subidas`}. Guarda los cambios para aplicarla${uploaded.length === 1 ? "" : "s"}.`);
       }
+      if (rejected > 0) {
+        // El admin eligió más imágenes de las que caben; informamos cuántas
+        // quedaron fuera para que no crea que todas se subieron.
+        setError(`${rejected} ${rejected === 1 ? "imagen quedó" : "imágenes quedaron"} sin subir: el máximo del producto son ${maxImages}.`);
+      }
     } catch {
       setError("No pudimos subir las imágenes. Revisa tu conexión e inténtalo otra vez.");
     } finally {
@@ -143,7 +156,11 @@ export function ImageKitDropzone({
       return;
     }
     if (value.length >= maxImages) {
-      setError("Quita la imagen actual antes de subir otra.");
+      setError(
+        maxImages === 1
+          ? "Quita la imagen actual antes de subir otra."
+          : `Ya alcanzaste el máximo de ${maxImages} imágenes. Quita alguna para subir una nueva.`,
+      );
       return;
     }
     setError(null);
@@ -156,22 +173,55 @@ export function ImageKitDropzone({
     setCropSource(null);
   }
 
+  const isFull = value.length >= maxImages;
+  const multiple = maxImages > 1;
+
   return (
     <div>
-      <p className="mb-2 text-[10.5px] uppercase tracking-[0.16em] text-content-dim">
-        {label}
-      </p>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <p className="text-[10.5px] uppercase tracking-[0.16em] text-content-dim">
+          {label}
+          {required ? <span className="ml-1 text-brand" aria-hidden>*</span> : null}
+        </p>
+        {multiple ? (
+          <p
+            className={cn(
+              "text-[10.5px] font-extrabold uppercase tracking-[0.14em] tabular",
+              isFull ? "text-brand" : "text-content-faint",
+            )}
+            aria-label={`${value.length} de ${maxImages} imágenes cargadas`}
+          >
+            {value.length} / {maxImages}
+          </p>
+        ) : null}
+      </div>
       <div
-        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        role={required ? "group" : undefined}
+        aria-required={required || undefined}
+        aria-invalid={required && value.length === 0 ? true : undefined}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!isFull) setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
+          if (isFull) {
+            setError(
+              maxImages === 1
+                ? "Ya hay una imagen cargada. Quítala si quieres subir otra."
+                : `Ya alcanzaste el máximo de ${maxImages} imágenes. Quita alguna para subir una nueva.`,
+            );
+            return;
+          }
           chooseFiles(event.dataTransfer.files);
         }}
         className={cn(
           "border border-dashed p-[22px] text-center transition-colors duration-150",
           dragging ? "border-brand bg-brand/[0.06]" : "border-[#3A3A38]",
+          required && value.length === 0 && !dragging && "border-alert/60",
+          isFull && !dragging && "border-ink-700 bg-ink-900/40",
         )}
       >
         {busy ? (
@@ -179,10 +229,19 @@ export function ImageKitDropzone({
             <Spinner size={22} />
             <p className="text-[13px] text-content-muted">Subiendo…</p>
           </div>
+        ) : isFull ? (
+          <>
+            <p className="text-[13px] text-content-muted">
+              Alcanzaste el máximo de {maxImages} {maxImages === 1 ? "imagen" : "imágenes"}.
+            </p>
+            <p className="mt-1.5 text-[11px] text-content-faint">
+              Quita alguna de las miniaturas para subir otra en su lugar.
+            </p>
+          </>
         ) : (
           <>
             <p className="text-[13px] text-content-muted">
-              Arrastra imágenes o{" "}
+              Arrastra {multiple ? "imágenes" : "una imagen"} o{" "}
               <button type="button" onClick={() => inputRef.current?.click()} className="text-brand underline-offset-2 hover:underline">
                 busca en tu equipo
               </button>
@@ -190,9 +249,14 @@ export function ImageKitDropzone({
             <p className="mt-1.5 text-[11px] text-content-faint">
               Se sube a <span className="text-content-muted">{folder}/{slug || "…"}</span>
             </p>
+            {multiple ? (
+              <p className="mt-1.5 text-[11px] text-content-faint">
+                Puedes subir hasta {maxImages} imágenes por producto. La primera queda como principal.
+              </p>
+            ) : null}
             {squareCrop ? (
               <p className="mt-1.5 text-[11px] text-content-faint">
-                Ajusta el encuadre cuadrado antes de subir{maxImages > 1 ? " cada imagen, una por vez" : " la imagen"}.
+                Ajusta el encuadre cuadrado antes de subir{multiple ? " cada imagen, una por vez" : " la imagen"}.
               </p>
             ) : null}
           </>

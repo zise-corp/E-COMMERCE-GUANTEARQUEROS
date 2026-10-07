@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getCategoryTree, getSitemapProducts, isDreiVisible } from "@/db/queries/catalog";
+import { getCategoryTree, getSitemapProducts } from "@/db/queries/catalog";
 import { imageKitUrl } from "@/lib/images";
 import { site } from "@/lib/site";
 
@@ -8,10 +8,9 @@ import { site } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [tree, products, dreiVisible] = await Promise.all([
+  const [tree, products] = await Promise.all([
     getCategoryTree(),
     getSitemapProducts(),
-    isDreiVisible(),
   ]);
 
   const categories = tree.map((c) => ({
@@ -40,9 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: site.url, changeFrequency: "daily", priority: 1 },
-    ...(dreiVisible && tree.some((category) => category.slug === "poleras")
-      ? [{ url: `${site.url}/drei`, changeFrequency: "weekly" as const, priority: 0.8 }]
-      : []),
+    { url: `${site.url}/drei`, changeFrequency: "weekly" as const, priority: 0.8 },
     ...categories,
     ...subcategories,
     ...productUrls,

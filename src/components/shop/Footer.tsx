@@ -83,8 +83,12 @@ export function Footer({ categories }: { categories: NavCategory[] }) {
         />
       </div>
 
+      {/* El botón flotante de WhatsApp (fixed, 52px en móvil, 56px en >=640)
+          se superpone a la esquina inferior derecha. Reservamos espacio al pie
+          del footer en móvil y tablet para que no tape el copyright ni el
+          enlace ZISE. En escritorio se queda al margen y no hace falta. */}
       <div className="border-t border-ink-800">
-        <div className="container-shop flex flex-col items-center justify-center gap-2.5 py-5 text-center">
+        <div className="container-shop flex flex-col items-center justify-center gap-2.5 pb-[88px] pt-5 text-center sm:pb-20 lg:py-5">
           <p className="text-[11px] leading-relaxed text-content-faint">
             © {year} {site.name}. Todos los derechos reservados.
           </p>

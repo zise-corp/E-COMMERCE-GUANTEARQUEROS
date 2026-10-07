@@ -74,13 +74,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       : [];
 
   const guantes = categories.find((c) => c.slug === "guantes") ?? categories[0];
-  const poleras = categories.find((c) => c.slug === "poleras") ?? categories[1];
 
   return (
     <>
       <Hero
         guantesSlug={guantes?.slug ?? null}
-        dreiSlug={poleras?.slug ?? null}
         product={heroProduct}
         slides={heroSlides}
         heroSource={homeSettings.heroSource}
@@ -109,7 +107,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </section>
       ) : null}
 
-      <DreiBlock slug={poleras?.slug ?? null} imagePath={homeSettings.dreiImagePath} />
+      <DreiBlock imagePath={homeSettings.dreiImagePath} />
 
       <section id="productos" className="render-deferred container-shop scroll-mt-28 py-14">
         <SectionHeader
@@ -138,13 +136,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
 function Hero({
   guantesSlug,
-  dreiSlug,
   product,
   slides,
   heroSource,
 }: {
   guantesSlug: string | null;
-  dreiSlug: string | null;
   product: Awaited<ReturnType<typeof getHomeHeroProduct>>;
   slides: HomeHeroProduct[];
   heroSource: "offers" | "new";
@@ -164,7 +160,11 @@ function Hero({
           Temporada 2026 · Bolivia
         </p>
 
-        <h1 className="mt-[22px] max-w-[760px] font-display text-[clamp(2.55rem,6.5vw,4.8rem)] uppercase leading-[0.9] tracking-[-0.01em] skew-fast">
+        {/* El clamp arranca en 2rem (32px) para no desbordar el contenedor
+            de 335px en pantallas de ~375px: con 2.55rem (40.8px) la línea
+            "indumentaria para" se cortaba contra el borde. En viewports
+            medianos crece con 8vw y en escritorio alcanza 4.8rem. */}
+        <h1 className="mt-[22px] max-w-[760px] font-display text-[clamp(2rem,8vw,4.8rem)] uppercase leading-[0.9] tracking-[-0.01em] skew-fast">
           <span className="block text-content">La tienda #1</span>
           <span className="block text-content">de guantes e</span>
           <span className="block text-content">indumentaria para</span>
@@ -187,11 +187,9 @@ function Hero({
               Ver guantes
             </ButtonLink>
           ) : null}
-          {dreiSlug ? (
-            <ButtonLink href="/drei" variant="outline" size="lg" className="hover:border-drei-line hover:text-drei-line">
-              DREI Athletic
-            </ButtonLink>
-          ) : null}
+          <ButtonLink href="/drei" variant="outline" size="lg" className="hover:border-drei-line hover:text-drei-line">
+            DREI Athletic
+          </ButtonLink>
         </div>
       </div>
 
@@ -273,8 +271,7 @@ function Hero({
   );
 }
 
-function DreiBlock({ slug, imagePath }: { slug: string | null; imagePath: string | null }) {
-  if (!slug) return null;
+function DreiBlock({ imagePath }: { imagePath: string | null }) {
   return (
     <section id="drei" className="render-deferred container-shop my-16 scroll-mt-28">
       <div

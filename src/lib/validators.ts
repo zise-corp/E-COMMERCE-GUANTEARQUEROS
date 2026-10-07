@@ -216,8 +216,15 @@ export const productSchema = z.object({
       fileId: z.string().trim().min(1).max(200).nullable().default(null),
       alt: z.string().trim().max(200).default(""),
     }))
-    .max(12)
-    .default([]),
+    // Un producto sin imágenes queda inservible en el catálogo público: la
+    // tarjeta se renderiza vacía y la ficha pierde su valor principal. El
+    // panel debe exigir al menos una imagen al crear o editar.
+    .min(1, "Agrega al menos una imagen del producto.")
+    // El tope real del catálogo son 8 imágenes por producto. Es el mismo
+    // número que respeta el dropzone del panel (MAX_IMAGES = 8); mantener
+    // ambos lados alineados evita que un payload manual pueda guardar más
+    // imágenes de las que el UI deja administrar después.
+    .max(8, "El máximo son 8 imágenes por producto."),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
   isNew: z.boolean().default(false),

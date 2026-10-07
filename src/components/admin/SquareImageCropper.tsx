@@ -63,10 +63,18 @@ export function SquareImageCropper({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rememberCrop = useCallback((_area: Area, croppedAreaPixels: Area) => setPixels(croppedAreaPixels), []);
+  // "Fit" = la imagen cabe entera dentro del recuadro (pueden quedar franjas
+  // oscuras arriba/abajo o a los costados según su relación de aspecto). Es el
+  // estado inicial: el administrador ve la imagen COMPLETA y después decide si
+  // acerca el zoom para recortar. "Fill" (cubrir) se usa como atajo si quiere
+  // llenar el cuadrado y perder los márgenes.
+  const fitZoom = mediaSize && cropSize
+    ? Math.min(cropSize.width / mediaSize.width, cropSize.height / mediaSize.height)
+    : 1;
   const fillZoom = mediaSize && cropSize
     ? Math.max(cropSize.width / mediaSize.width, cropSize.height / mediaSize.height)
     : 1;
-  const minZoom = fillZoom;
+  const minZoom = fitZoom;
   const maxZoom = Math.max(3, fillZoom * 3);
 
   useEffect(() => {
@@ -74,11 +82,11 @@ export function SquareImageCropper({
     if (!zoomInitialized.current) {
       zoomInitialized.current = true;
       setCrop({ x: 0, y: 0 });
-      setZoom(fillZoom);
+      setZoom(fitZoom);
     } else {
       setZoom((current) => Math.max(current, minZoom));
     }
-  }, [mediaSize, cropSize, fillZoom, minZoom]);
+  }, [mediaSize, cropSize, fitZoom, minZoom]);
 
   async function confirm() {
     if (!pixels || processing) return;
@@ -106,15 +114,18 @@ export function SquareImageCropper({
           </div>
 
           <div className="p-4 sm:p-6">
-            <p className="mb-3 text-[12px] leading-relaxed text-content-muted">Arrastra la imagen para encuadrarla. Usa la rueda del mouse, pellizca con dos dedos o desliza el control de zoom. El alejamiento se detiene antes de dejar bordes vacíos.</p>
+            <p className="mb-3 text-[12px] leading-relaxed text-content-muted">La imagen aparece completa al principio: arrastra y usa el zoom (rueda del mouse, pellizco o deslizador) para elegir el encuadre dentro del recuadro.</p>
             <div className="relative h-[min(58vh,520px)] min-h-[300px] overflow-hidden bg-[#0A0A09]">
-              <Cropper image={source} crop={crop} zoom={zoom} minZoom={minZoom} maxZoom={maxZoom} zoomSpeed={0.15} restrictPosition aspect={aspect} cropShape="rect" showGrid objectFit="cover" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} onMediaLoaded={setMediaSize} onCropSizeChange={setCropSize} />
+              <Cropper image={source} crop={crop} zoom={zoom} minZoom={minZoom} maxZoom={maxZoom} zoomSpeed={0.15} restrictPosition={false} aspect={aspect} cropShape="rect" showGrid objectFit="contain" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={rememberCrop} onMediaLoaded={setMediaSize} onCropSizeChange={setCropSize} />
             </div>
             <label className="mt-3 flex items-center gap-4 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-content-dim">
               <span>Zoom</span>
               <input type="range" min={minZoom} max={maxZoom} step={0.001} value={zoom} onInput={(event) => setZoom(Number(event.currentTarget.value))} className="crop-zoom-range flex-1" />
             </label>
-            <button type="button" onClick={() => { setCrop({ x: 0, y: 0 }); setZoom(fillZoom); }} disabled={!mediaSize || !cropSize} className="mt-3 text-[11px] font-bold text-brand transition-colors hover:text-brand-hot disabled:opacity-50">Ajustar al cuadrado</button>
+            <div className="mt-3 flex flex-wrap gap-4 text-[11px] font-bold">
+              <button type="button" onClick={() => { setCrop({ x: 0, y: 0 }); setZoom(fitZoom); }} disabled={!mediaSize || !cropSize} className="text-brand transition-colors hover:text-brand-hot disabled:opacity-50">Ver imagen completa</button>
+              <button type="button" onClick={() => { setCrop({ x: 0, y: 0 }); setZoom(fillZoom); }} disabled={!mediaSize || !cropSize} className="text-content-muted transition-colors hover:text-brand disabled:opacity-50">Llenar el recuadro</button>
+            </div>
             {error ? <p role="alert" className="mt-3 text-[12px] text-alert-soft">{error}</p> : null}
           </div>
 

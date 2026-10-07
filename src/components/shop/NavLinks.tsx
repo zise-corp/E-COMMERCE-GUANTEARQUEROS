@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import type { NavCategory } from "./Header";
 
@@ -15,13 +15,117 @@ const HOME_LINKS: ReadonlyArray<{ label: string; href: string }> = [
   { label: "Contacto", href: "/#contacto" },
 ];
 
-export function NavLinks({ categories, dreiSlug, className }: { categories: NavCategory[]; dreiSlug: string | null; className?: string }) {
+export function NavLinks({ categories, className }: { categories: NavCategory[]; className?: string }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const regularCategories = categories.filter((category) => !isProtected(category));
-  const visibleCategories = regularCategories.slice(0, 5);
-  const overflowCategories = regularCategories.slice(5);
+  // Memorizamos para que las referencias sean estables entre renders y los
+  // efectos de medición no se reinicien cada vez que React vuelve a correr
+  // este componente.
+  const regularCategories = useMemo(() => categories.filter((category) => !isProtected(category)), [categories]);
+  const protectedCategories = useMemo(() => categories.filter(isProtected), [categories]);
+
+  // Cuántas categorías regulares caben inline antes de mandar el resto al menú
+  // "Más categorías". Arranca optimista (todas) y la medición las reduce si
+  // no caben. El cálculo depende del ancho real del slot y del ancho real de
+  // cada ítem, así que escala a 2, 5 o 20 categorías sin un corte arbitrario.
+  const [maxVisible, setMaxVisible] = useState(regularCategories.length);
+  const lastMoreWidthRef = useRef<number>(140);
+  // Caché de anchos por slug: una vez que una categoría se midió al menos una
+  // vez, recordamos su ancho aunque esté dentro de "Más categorías". Sin esto,
+  // al reducir el visible count el medidor solo ve 1 ítem y cree que todas las
+  // otras caben → oscilación entre todas-visibles y una-visible.
+  const widthCacheRef = useRef<Map<string, number>>(new Map());
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const slot = nav?.parentElement;
+    const inner = slot?.parentElement; // .shop-header-inner (flex row)
+    if (!nav || !slot || !inner) return;
+
+    const measure = () => {
+      // El slot cambia de ancho entre modo normal y compact (compact lo
+      // vuelve position:absolute + width:max-content). Para no engancharnos a
+      // ese valor, calculamos el disponible como lo haría el Header: ancho del
+      // inner menos su padding, menos los hermanos visibles del slot (brand +
+      // actions; ignoramos el botón hamburguesa porque solo aparece cuando ya
+      // estamos en compact y la decisión de volver a non-compact depende de
+      // suponer que no está).
+      const innerStyle = window.getComputedStyle(inner);
+      const padLeft = Number.parseFloat(innerStyle.paddingLeft) || 0;
+      const padRight = Number.parseFloat(innerStyle.paddingRight) || 0;
+      const outerGap = Number.parseFloat(innerStyle.columnGap) || 0;
+
+      const siblings = (Array.from(inner.children) as HTMLElement[]).filter(
+        (el) => el !== slot && !el.classList.contains("shop-header-menu"),
+      );
+      const siblingsWidth = siblings.reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);
+      const totalItems = siblings.length + 1; // + slot
+      const outerGaps = Math.max(0, totalItems - 1) * outerGap;
+
+      const available = inner.clientWidth - padLeft - padRight - siblingsWidth - outerGaps;
+      if (available <= 0) return;
+
+      const style = window.getComputedStyle(nav);
+      const gap = Number.parseFloat(style.columnGap) || 0;
+
+      let staticWidth = 0;
+      let staticCount = 0;
+
+      for (const child of Array.from(nav.children) as HTMLElement[]) {
+        const role = child.dataset["navRole"] ?? "static";
+        const width = child.getBoundingClientRect().width;
+        if (role === "regular") {
+          const slug = child.dataset["catSlug"];
+          if (slug) widthCacheRef.current.set(slug, width);
+        } else if (role === "more") {
+          lastMoreWidthRef.current = width;
+        } else {
+          staticWidth += width;
+          staticCount++;
+        }
+      }
+
+      // Para el cálculo de fit usamos los anchos cacheados de TODAS las
+      // categorías regulares (no solo las que están rendereadas ahora). Si
+      // alguna no está en caché aún, estimamos con el promedio de las que sí.
+      const cached = regularCategories.map((c) => widthCacheRef.current.get(c.slug));
+      const knownWidths = cached.filter((w): w is number => w !== undefined);
+      const fallback = knownWidths.length > 0
+        ? knownWidths.reduce((a, b) => a + b, 0) / knownWidths.length
+        : 90;
+      const allRegularWidths = cached.map((w) => w ?? fallback);
+
+      const total = regularCategories.length;
+      const moreWidth = lastMoreWidthRef.current;
+
+      // Buscamos el mayor N tal que N categorías + (botón "Más" si N < total)
+      // sumadas al resto quepan en el slot disponible.
+      let fit = 0;
+      for (let n = total; n >= 0; n--) {
+        const regularSum = allRegularWidths.slice(0, n).reduce((a, b) => a + b, 0);
+        const needsMore = n < total;
+        const items = staticCount + n + (needsMore ? 1 : 0);
+        const gaps = Math.max(0, items - 1) * gap;
+        const totalWidth = staticWidth + regularSum + (needsMore ? moreWidth : 0) + gaps;
+        if (totalWidth <= available) { fit = n; break; }
+      }
+
+      setMaxVisible((prev) => (prev === fit ? prev : fit));
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(inner);
+    observer.observe(nav);
+    void document.fonts.ready.then(measure);
+    measure();
+
+    return () => observer.disconnect();
+  }, [regularCategories]);
+
+  const effectiveMaxVisible = Math.min(maxVisible, regularCategories.length);
+  const visibleCategories = regularCategories.slice(0, effectiveMaxVisible);
+  const overflowCategories = regularCategories.slice(effectiveMaxVisible);
 
   // Los <details> ("Inicio", "Más categorías") no se cierran solos al tocar
   // fuera ni con Escape: en pantallas táctiles anchas quedaban abiertos, y
@@ -52,9 +156,10 @@ export function NavLinks({ categories, dreiSlug, className }: { categories: NavC
   }, [pathname]);
 
   return (
-    <nav ref={navRef} className={cn(className, "desktop-nav flex-nowrap items-center gap-x-2 min-[1440px]:gap-x-3 2xl:gap-x-5")} aria-label="Navegación principal">
+    <nav ref={navRef} className={cn(className, "desktop-nav flex-nowrap items-center gap-x-2 min-[1280px]:gap-x-3 min-[1440px]:gap-x-4 2xl:gap-x-6")} aria-label="Navegación principal">
       <details
         ref={detailsRef}
+        data-nav-role="static"
         className="group relative"
         onMouseEnter={(event) => { event.currentTarget.open = true; }}
         onMouseLeave={(event) => { event.currentTarget.open = false; }}
@@ -87,30 +192,40 @@ export function NavLinks({ categories, dreiSlug, className }: { categories: NavC
       </details>
 
       {visibleCategories.map((category) => (
-        <NavCategoryLink key={category.slug} category={category} pathname={pathname} />
+        <NavCategoryLink key={category.slug} category={category} pathname={pathname} role="regular" />
       ))}
 
       {overflowCategories.length > 0 ? (
         <MoreCategoriesMenu categories={overflowCategories} pathname={pathname} />
       ) : null}
 
-      {dreiSlug ? (
-        <Link
-          href="/drei"
-          aria-current={pathname === "/drei" ? "page" : undefined}
-          className={cn(
-            "group/drei relative flex items-center gap-2 whitespace-nowrap border border-drei-line/55 bg-drei/25 px-3 py-[7px] text-[12px] font-extrabold uppercase tracking-[0.09em] text-drei-ink transition-all duration-200 clip-slash-sm hover:border-drei-line hover:bg-drei/55 hover:text-white",
-            pathname === "/drei" && "border-drei-line bg-drei/70 text-white shadow-[0_0_20px_rgba(78,143,203,0.22)]",
-          )}
-        >
-          <span className="block h-3 w-[3px] bg-drei-line shadow-[0_0_8px_#4E8FCB] transition-transform group-hover/drei:scale-y-125" aria-hidden />
-          <span>DREI</span>
-          <span className="text-[8px] font-bold tracking-[0.16em] text-drei-line">Athletic</span>
-        </Link>
-      ) : null}
+      {/*
+        Separador vertical: marca el límite entre el grupo de categorías
+        (texto + "Más categorías") y el grupo de identidad/sistema (DREI,
+        Nuevos, Ofertas). Es puramente visual y no se cuenta como ítem.
+      */}
+      <span
+        aria-hidden
+        data-nav-role="static"
+        className="hidden h-6 w-px bg-white/20 min-[1024px]:block"
+      />
 
-      {categories.filter(isProtected).map((category) => (
-        <NavCategoryLink key={category.slug} category={category} pathname={pathname} />
+      <Link
+        href="/drei"
+        data-nav-role="static"
+        aria-current={pathname === "/drei" ? "page" : undefined}
+        className={cn(
+          "group/drei relative flex items-center gap-2 whitespace-nowrap border border-drei-line/55 bg-drei/25 px-3 py-[7px] text-[12px] font-extrabold uppercase tracking-[0.09em] text-drei-ink transition-all duration-200 clip-slash-sm hover:border-drei-line hover:bg-drei/55 hover:text-white",
+          pathname === "/drei" && "border-drei-line bg-drei/70 text-white shadow-[0_0_20px_rgba(78,143,203,0.22)]",
+        )}
+      >
+        <span className="block h-3 w-[3px] bg-drei-line shadow-[0_0_8px_#4E8FCB] transition-transform group-hover/drei:scale-y-125" aria-hidden />
+        <span>DREI</span>
+        <span className="text-[8px] font-bold tracking-[0.16em] text-drei-line">Athletic</span>
+      </Link>
+
+      {protectedCategories.map((category) => (
+        <NavCategoryLink key={category.slug} category={category} pathname={pathname} role="static" />
       ))}
     </nav>
   );
@@ -128,6 +243,7 @@ function MoreCategoriesMenu({ categories, pathname }: { categories: NavCategory[
   return (
     <details
       ref={detailsRef}
+      data-nav-role="more"
       className="group/more relative"
       onMouseEnter={(event) => { event.currentTarget.open = true; }}
       onMouseLeave={(event) => { event.currentTarget.open = false; }}
@@ -226,7 +342,15 @@ function isProtected(category: NavCategory) {
   return category.slug === "ofertas" || category.slug === "nuevos";
 }
 
-function NavCategoryLink({ category, pathname }: { category: NavCategory; pathname: string }) {
+function NavCategoryLink({
+  category,
+  pathname,
+  role = "regular",
+}: {
+  category: NavCategory;
+  pathname: string;
+  role?: "regular" | "static";
+}) {
   const [open, setOpen] = useState(false);
   const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
   const isOffers = category.slug === "ofertas";
@@ -241,6 +365,8 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
     return (
       <div
         className="nav-category-group relative"
+        data-nav-role={role}
+        data-cat-slug={category.slug}
         data-open={open ? "true" : "false"}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
@@ -320,6 +446,8 @@ function NavCategoryLink({ category, pathname }: { category: NavCategory; pathna
   return (
     <Link
       href={`/${category.slug}`}
+      data-nav-role={role}
+      data-cat-slug={category.slug}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center gap-1.5 whitespace-nowrap py-1.5 text-[12px] font-extrabold uppercase tracking-[0.08em] transition-all duration-200",

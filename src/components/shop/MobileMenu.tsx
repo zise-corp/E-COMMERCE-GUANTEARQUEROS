@@ -12,11 +12,9 @@ import type { NavCategory } from "./Header";
 
 export function MobileMenu({
   categories,
-  dreiSlug,
   compact,
 }: {
   categories: NavCategory[];
-  dreiSlug: string | null;
   compact: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,7 +37,7 @@ export function MobileMenu({
         <span className="block h-[2px] w-[18px] bg-current" />
         <span className="block h-[2px] w-[18px] bg-current" />
       </button>
-      <MobileMenuDrawer open={open} onClose={close} categories={categories} dreiSlug={dreiSlug} pathname={pathname} />
+      <MobileMenuDrawer open={open} onClose={close} categories={categories} pathname={pathname} />
     </>
   );
 }
@@ -48,13 +46,11 @@ function MobileMenuDrawer({
   open,
   onClose,
   categories,
-  dreiSlug,
   pathname,
 }: {
   open: boolean;
   onClose: () => void;
   categories: NavCategory[];
-  dreiSlug: string | null;
   pathname: string;
 }) {
   const ref = useDialog(open, onClose);
@@ -101,6 +97,19 @@ function MobileMenuDrawer({
               </div>
             </details>
 
+            <Link
+              href="/drei"
+              onClick={onClose}
+              className={cn(
+                "mt-3 flex min-h-[52px] items-center gap-2.5 border border-drei-line/60 bg-gradient-to-r from-drei/70 to-drei/20 px-4 py-3 text-[13px] font-extrabold uppercase tracking-[0.1em] text-drei-ink clip-slash-sm transition-colors hover:border-drei-line hover:text-white",
+                pathname === "/drei" && "border-drei-line from-drei to-drei/45 text-white shadow-[0_0_22px_rgba(78,143,203,0.16)]",
+              )}
+            >
+              <span className="h-5 w-[3px] bg-drei-line shadow-[0_0_9px_#4E8FCB]" aria-hidden />
+              <span>DREI <span className="text-[9px] tracking-[0.16em] text-drei-line">Athletic</span></span>
+              <span className="ml-auto text-[9px] font-bold tracking-[0.12em] text-drei-line/80">Marca propia</span>
+            </Link>
+
             <div className="mt-3 border-t border-line-soft pt-2">
               {categories.map((category) => {
                 const active = pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`);
@@ -135,20 +144,6 @@ function MobileMenuDrawer({
                 );
               })}
             </div>
-
-            {dreiSlug ? (
-              <Link
-                href="/drei"
-                onClick={onClose}
-                className={cn(
-                  "mt-4 flex items-center gap-2.5 border border-drei-line/60 bg-gradient-to-r from-drei/70 to-drei/20 px-4 py-4 text-[13px] font-extrabold uppercase tracking-[0.1em] text-drei-ink clip-slash-sm transition-colors hover:border-drei-line hover:text-white",
-                  pathname === "/drei" && "border-drei-line from-drei to-drei/45 text-white shadow-[0_0_22px_rgba(78,143,203,0.16)]",
-                )}
-              >
-                <span className="h-5 w-[3px] bg-drei-line shadow-[0_0_9px_#4E8FCB]" aria-hidden />
-                <span>DREI <span className="text-[9px] tracking-[0.16em] text-drei-line">Athletic</span></span>
-              </Link>
-            ) : null}
 
           </nav>
 

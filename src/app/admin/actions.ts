@@ -108,6 +108,18 @@ export async function saveCategoryAction(
     };
   }
 
+  // Toda categoría principal necesita una imagen propia: así se renderizan
+  // correctamente las tarjetas del inicio y los encabezados de la tienda. Las
+  // categorías del sistema (Ofertas, Nuevos) quedan excluidas porque ya se
+  // atajaron arriba antes de llegar a este punto; las subcategorías tampoco
+  // llevan imagen propia.
+  if (values.parentId === null && !values.imagePath) {
+    return {
+      ok: false,
+      error: "Agrega una imagen de la categoría antes de guardar.",
+    };
+  }
+
   // Un nivel: una subcategoría no puede colgar de otra subcategoría.
   if (values.parentId !== null) {
     const parent = await db.query.categories.findFirst({
@@ -257,11 +269,17 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   const values = parsed.data;
   let isDrei = false;
+  let existingAccentHex: string | null = null;
 
   if (id !== undefined) {
-    const [current] = await db.select({ slug: brands.slug }).from(brands).where(eq(brands.id, id)).limit(1);
+    const [current] = await db
+      .select({ slug: brands.slug, accentHex: brands.accentHex })
+      .from(brands)
+      .where(eq(brands.id, id))
+      .limit(1);
     if (!current) return { ok: false, error: "La marca ya no existe. Recarga la página." };
     isDrei = current.slug === "drei";
+    existingAccentHex = current.accentHex;
   } else if (slugify(values.name) === "drei") {
     return { ok: false, error: "DREI es la marca propia protegida y ya está configurada." };
   }
@@ -273,8 +291,14 @@ export async function saveBrandAction(input: unknown, id?: number): Promise<Acti
       }
       const data = {
         name: values.name,
-        accentHex: values.accentHex,
-        active: values.active,
+        // DREI tiene paleta propia y permanente: ignoramos cualquier
+        // accentHex que llegue del cliente y conservamos el guardado. Las
+        // marcas externas no usan acento en la tienda, así que lo normalizamos
+        // a null para no acumular datos muertos.
+        accentHex: isDrei ? existingAccentHex : null,
+        // DREI es la identidad propia permanente del negocio. Puede editarse
+        // su nombre visible, pero nunca ocultarse accidentalmente.
+        active: isDrei ? true : values.active,
         isOwnBrand: isDrei,
       };
       if (id === undefined) {

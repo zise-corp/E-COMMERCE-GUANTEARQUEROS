@@ -1,4 +1,4 @@
-import { and, arrayOverlaps, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, arrayOverlaps, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
@@ -383,7 +383,7 @@ async function queryBrands() {
       accentHex: brands.accentHex,
     })
     .from(brands)
-    .where(eq(brands.active, true))
+    .where(or(eq(brands.active, true), eq(brands.slug, "drei")))
     .orderBy(asc(brands.position), asc(brands.name));
 }
 
@@ -395,22 +395,6 @@ const getCachedBrands = unstable_cache(
 
 export async function getBrands() {
   return withFallback<{ id: number; name: string; slug: string; accentHex: string | null }[]>([], getCachedBrands);
-}
-
-/** Estado público de la marca propia; controla todos los accesos a DREI. */
-async function queryDreiVisible(): Promise<boolean> {
-    const [drei] = await db.select({ active: brands.active }).from(brands).where(eq(brands.slug, "drei")).limit(1);
-    return drei?.active ?? false;
-}
-
-const getCachedDreiVisible = unstable_cache(
-  queryDreiVisible,
-  ["public-drei-visible-v1"],
-  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
-);
-
-export async function isDreiVisible(): Promise<boolean> {
-  return withFallback(true, getCachedDreiVisible);
 }
 
 /* ── Productos ────────────────────────────────────────────────────────────── */
@@ -609,6 +593,84 @@ export async function getCategoryFacets(
   return withFallback<{ sizes: string[]; brandNames: string[]; maxPrice: number }>(
     { sizes: [], brandNames: [], maxPrice: 900 },
     () => getCachedCategoryFacets(categorySlug, subcategorySlug, resolvedCategory),
+  );
+}
+
+/**
+ * Catálogo de una marca propia, independiente de la categoría en la que estén
+ * organizados sus productos. DREI no debe desaparecer si una categoría se
+ * renombra o se elimina desde el panel.
+ */
+async function queryProductsByBrand(
+  brandSlug: string,
+  filters: CatalogFilters = {},
+): Promise<ProductCard[]> {
+  const where = [
+    eq(products.published, true),
+    eq(brands.slug, brandSlug),
+  ];
+  if (filters.maxPrice !== undefined) {
+    where.push(lte(products.price, filters.maxPrice.toFixed(2)));
+  }
+  if (filters.minPrice !== undefined) {
+    where.push(gte(products.price, filters.minPrice.toFixed(2)));
+  }
+  if (filters.sizes?.length) {
+    where.push(arrayOverlaps(products.sizes, filters.sizes));
+  }
+
+  const rows = await db
+    .select(cardColumns)
+    .from(products)
+    .innerJoin(brands, eq(products.brandId, brands.id))
+    .where(and(...where))
+    .orderBy(desc(products.featured), asc(products.name));
+  return rows.map(toCard);
+}
+
+const getCachedProductsByBrand = unstable_cache(
+  queryProductsByBrand,
+  ["public-products-by-brand-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getProductsByBrand(
+  brandSlug: string,
+  filters: CatalogFilters = {},
+): Promise<ProductCard[]> {
+  return withFallback<ProductCard[]>([], () => getCachedProductsByBrand(brandSlug, filters));
+}
+
+async function queryBrandFacets(brandSlug: string) {
+  const rows = await db
+    .select({ sizes: products.sizes, price: products.price })
+    .from(products)
+    .innerJoin(brands, eq(products.brandId, brands.id))
+    .where(and(eq(products.published, true), eq(brands.slug, brandSlug)));
+
+  const sizes: string[] = [];
+  let maxPrice = 0;
+  for (const row of rows) {
+    for (const size of row.sizes ?? []) if (!sizes.includes(size)) sizes.push(size);
+    maxPrice = Math.max(maxPrice, Number.parseFloat(row.price));
+  }
+  return {
+    sizes,
+    brandNames: [],
+    maxPrice: Math.ceil((maxPrice || 900) / 10) * 10,
+  };
+}
+
+const getCachedBrandFacets = unstable_cache(
+  queryBrandFacets,
+  ["public-brand-facets-v1"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
+);
+
+export async function getBrandFacets(brandSlug: string) {
+  return withFallback<{ sizes: string[]; brandNames: string[]; maxPrice: number }>(
+    { sizes: [], brandNames: [], maxPrice: 900 },
+    () => getCachedBrandFacets(brandSlug),
   );
 }
 

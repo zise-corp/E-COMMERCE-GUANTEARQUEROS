@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { setOrderStatusAction } from "@/app/admin/actions";
 import { Escudo } from "@/components/brand/Escudo";
 import { Drawer } from "@/components/ui/Drawer";
+import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import type { OrderSummary } from "@/db/queries/orders";
@@ -17,6 +18,48 @@ import { OrderLocationMap } from "./OrderLocationMap";
 import { PaymentBadge } from "./PaymentBadge";
 
 const STATUSES: OrderSummary["status"][] = ["recibido", "en_proceso", "completado", "cancelado"];
+
+/**
+ * Espejo de la lógica autorizada en `setOrderStatus` ([src/db/queries/orders.ts]).
+ * Se replica aquí solo para INHABILITAR visualmente los botones que de todas
+ * formas el server rechazaría — la decisión real sigue siendo del server.
+ */
+const ALLOWED_TRANSITIONS: Record<OrderSummary["status"], OrderSummary["status"][]> = {
+  recibido: ["en_proceso", "cancelado"],
+  en_proceso: ["completado"],
+  completado: [],
+  cancelado: [],
+};
+
+function transitionCheck(
+  order: Pick<OrderSummary, "status" | "paymentStatus" | "financialStatus" | "transactionId">,
+  next: OrderSummary["status"],
+): { allowed: true } | { allowed: false; reason: string } {
+  if (order.status === next) return { allowed: false, reason: "Es el estado actual del pedido." };
+  if (!ALLOWED_TRANSITIONS[order.status].includes(next)) {
+    return { allowed: false, reason: `No se puede volver de “${order.status}” a “${next}”.` };
+  }
+  if (next === "cancelado") {
+    if (order.paymentStatus === "pagado") {
+      return { allowed: false, reason: "El pedido ya está pagado. Reembolsa primero el cobro en YoPago; cancelarlo aquí no devuelve el dinero." };
+    }
+    if (order.paymentStatus === "reembolsado") {
+      return { allowed: false, reason: "El pago fue reembolsado; el pedido queda en su estado final." };
+    }
+    const paymentIntentActive = Boolean(order.transactionId)
+      && order.paymentStatus === "pendiente"
+      && (order.financialStatus === "pending" || order.financialStatus === "payment_created");
+    if (paymentIntentActive) {
+      return { allowed: false, reason: "Hay un intento de pago vivo en YoPago. Espera a que se confirme o se abandone antes de cancelar." };
+    }
+    return { allowed: true };
+  }
+  // Para cualquier avance (en_proceso, completado) el pago tiene que estar confirmado.
+  if (order.paymentStatus !== "pagado") {
+    return { allowed: false, reason: "El pedido necesita estar pagado para avanzar operativamente." };
+  }
+  return { allowed: true };
+}
 
 const DOCUMENT_LABELS: Record<OrderSummary["documentType"], string> = {
   ci: "Cédula de identidad",
@@ -55,13 +98,21 @@ export function OrderDetailDrawer({
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
+  // Pedimos confirmación para transiciones irreversibles (completado, cancelado).
+  // `recibido → en_proceso` se queda a un click porque es el flujo normal del
+  // pedido pagado y no cierra nada. Cuando `pendingStatus` es null el modal
+  // está oculto.
+  const [pendingStatus, setPendingStatus] = useState<OrderSummary["status"] | null>(null);
   const { show } = useToast();
 
   useEffect(() => {
     if (orderId === null) {
       setOrder(null);
+      setPendingStatus(null);
       return;
     }
+    // Al cambiar de pedido, descartamos cualquier modal abierto del anterior.
+    setPendingStatus(null);
     let cancelled = false;
     setLoading(true);
     void (async () => {
@@ -78,7 +129,20 @@ export function OrderDetailDrawer({
     };
   }, [orderId]);
 
-  function changeStatus(next: OrderSummary["status"]) {
+  // Estados que requieren confirmación (irreversibles una vez aplicados).
+  const requiresConfirmation = (status: OrderSummary["status"]) =>
+    status === "completado" || status === "cancelado";
+
+  function requestStatusChange(next: OrderSummary["status"]) {
+    if (!order) return;
+    if (requiresConfirmation(next)) {
+      setPendingStatus(next);
+      return;
+    }
+    applyStatusChange(next);
+  }
+
+  function applyStatusChange(next: OrderSummary["status"]) {
     if (!order) return;
     startTransition(async () => {
       const result = await setOrderStatusAction(order.id, next);
@@ -86,7 +150,12 @@ export function OrderDetailDrawer({
         setOrder({ ...order, status: next });
         show(`Pedido marcado como ${STATUS_META[next].label.toLowerCase()}.`);
         onChanged();
-      } else show(result.error, "error");
+      } else {
+        show(result.error, "error");
+      }
+      // Cerramos el modal pase lo que pase: éxito ya se refleja arriba, y en
+      // error el toast muestra el motivo del server.
+      setPendingStatus(null);
     });
   }
 
@@ -119,7 +188,22 @@ export function OrderDetailDrawer({
             { k: "Transporte", v: "A coordinar por el vendedor" },
           ];
 
+  const confirmMeta = pendingStatus
+    ? pendingStatus === "completado"
+      ? {
+          title: "¿Marcar pedido como completado?",
+          body: "El pedido quedará cerrado y no podrá volver a cambiarse de estado desde el panel. Esta acción no se puede deshacer.",
+          confirm: "Marcar completado",
+        }
+      : {
+          title: "¿Cancelar este pedido?",
+          body: "El pedido se marcará como cancelado y no se podrá reactivar. Si el cliente ya pagó, deberás gestionar el reembolso por separado en YoPago.",
+          confirm: "Cancelar pedido",
+        }
+    : null;
+
   return (
+    <>
     <Drawer
       open={orderId !== null}
       onClose={onClose}
@@ -261,14 +345,27 @@ export function OrderDetailDrawer({
               {STATUSES.map((s) => {
                 const meta = STATUS_META[s];
                 const active = order.status === s;
+                const check = transitionCheck(order, s);
+                // Mantenemos el estado actual siempre interactivo visualmente
+                // (aunque hacer click no hace nada), para que el admin pueda
+                // ver en qué estado está. Los demás se deshabilitan si la
+                // transición no es válida.
+                const disabled = pending || (!active && !check.allowed);
+                const tooltip = active
+                  ? `Estado actual: ${meta.label}`
+                  : check.allowed
+                    ? `Marcar como ${meta.label.toLowerCase()}`
+                    : (check as { reason: string }).reason;
                 return (
                   <button
                     key={s}
                     type="button"
-                    disabled={pending}
-                    onClick={() => changeStatus(s)}
+                    disabled={disabled}
+                    onClick={() => { if (check.allowed) requestStatusChange(s); }}
                     aria-pressed={active}
-                    className="border px-1.5 py-[11px] text-center text-[11px] font-extrabold uppercase tracking-[0.08em] transition-colors duration-150 disabled:opacity-60"
+                    aria-disabled={disabled}
+                    title={tooltip}
+                    className="border px-1.5 py-[11px] text-center text-[11px] font-extrabold uppercase tracking-[0.08em] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                     style={{
                       borderColor: active ? meta.color : "#2B2B29",
                       background: active ? meta.bg : "transparent",
@@ -280,7 +377,13 @@ export function OrderDetailDrawer({
                 );
               })}
             </div>
-            {order.paymentStatus !== "pagado" ? (
+            {/* Mensaje contextual: priorizamos avisar sobre el bloqueo más
+                relevante para el estado actual del pedido. */}
+            {order.paymentStatus === "pagado" && order.status !== "cancelado" && order.status !== "completado" ? (
+              <p className="mt-2.5 text-[11.5px] leading-relaxed text-state-ok/80">
+                El pedido está pagado. Si necesitas anularlo, primero reembolsa el cobro en YoPago.
+              </p>
+            ) : order.paymentStatus !== "pagado" && order.status === "recibido" ? (
               <p className="mt-2.5 text-[11.5px] leading-relaxed text-content-dim">
                 Para pasar a “En proceso” el pago tiene que estar confirmado por YoPago.
               </p>
@@ -293,6 +396,49 @@ export function OrderDetailDrawer({
         </div>
       )}
     </Drawer>
+
+    <Modal
+      open={pendingStatus !== null && order !== null}
+      onClose={() => { if (!pending) setPendingStatus(null); }}
+      title={confirmMeta?.title ?? ""}
+      description={confirmMeta?.body}
+      width={460}
+    >
+      {order && pendingStatus ? (
+        <>
+          <div className="mb-5 border-l-2 border-brand bg-brand/[0.05] px-3 py-2.5">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-content-dim">
+              Pedido #{order.number}
+            </p>
+            <p className="mt-1 text-[13px] font-bold text-content">
+              {order.customerName} · {formatBs(order.total)}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setPendingStatus(null)}
+              disabled={pending}
+              className="border border-line-strong px-4 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-muted transition-colors hover:border-content-dim disabled:opacity-50"
+            >
+              Volver atrás
+            </button>
+            <button
+              type="button"
+              onClick={() => applyStatusChange(pendingStatus)}
+              disabled={pending}
+              className={pendingStatus === "cancelado"
+                ? "inline-flex items-center gap-2 bg-alert px-4 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-white transition-colors hover:bg-alert-soft hover:text-ink-950 disabled:opacity-50"
+                : "inline-flex items-center gap-2 bg-brand px-4 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-950 transition-colors hover:bg-brand-hot disabled:opacity-50"}
+            >
+              {pending ? <Spinner size={13} /> : null}
+              {pending ? "Guardando…" : confirmMeta?.confirm}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </Modal>
+    </>
   );
 }
 
