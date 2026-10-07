@@ -1,13 +1,16 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../index";
 import {
+  adminUsers,
   brands,
   categories,
   orderItems,
   orders,
   productImages,
+  productVariants,
+  inventoryMovements,
   products,
 } from "../schema";
 
@@ -126,7 +129,7 @@ export async function getDashboard(): Promise<DashboardData> {
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(products)
-      .where(and(lte(products.stock, LOW_STOCK), eq(products.published, true))),
+      .where(and(eq(products.published, true), sql`EXISTS (SELECT 1 FROM ${productVariants} v WHERE v.product_id = ${products.id} AND v.stock <= ${LOW_STOCK})`)),
     db
       .select({
         week: sql<string>`to_char(date_trunc('week', ${orders.createdAt}), 'YYYY-MM-DD')`,
@@ -339,6 +342,8 @@ export type AdminProductRow = {
   categoryName: string;
   brandName: string | null;
   stock: number;
+  variantSummary: string;
+  hasLowVariant: boolean;
   price: string;
   attributeCount: number;
   published: boolean;
@@ -356,6 +361,8 @@ export async function getAdminProducts(categoryId?: number): Promise<AdminProduc
       categoryName: parentCategory.name,
       brandName: brands.name,
       stock: products.stock,
+      variantSummary: sql<string>`COALESCE((SELECT string_agg(CASE WHEN v.size = '' THEN 'Única' ELSE v.size END || ': ' || v.stock::text, ' · ' ORDER BY v.position, v.id) FROM ${productVariants} v WHERE v.product_id = ${products.id}), '')`,
+      hasLowVariant: sql<boolean>`EXISTS (SELECT 1 FROM ${productVariants} v WHERE v.product_id = ${products.id} AND v.stock <= ${LOW_STOCK})`,
       price: products.price,
       attributes: products.attributes,
       published: products.published,
@@ -381,6 +388,8 @@ export async function getAdminProducts(categoryId?: number): Promise<AdminProduc
     categoryName: r.categoryName,
     brandName: r.brandName,
     stock: r.stock,
+    variantSummary: r.variantSummary,
+    hasLowVariant: r.hasLowVariant,
     price: r.price,
     attributeCount: (r.attributes ?? []).length,
     published: r.published,
@@ -402,6 +411,8 @@ export type AdminProductDetail = {
   compareAtPrice: string | null;
   stock: number;
   sizes: string[];
+  variants: { size: string; stock: number }[];
+  inventoryHistory: { id: number; size: string; delta: number; previousStock: number; newStock: number; reason: string; note: string | null; adminUsername: string | null; orderNumber: number | null; createdAt: string }[];
   attributes: { name: string; value: string }[];
   customizable: boolean;
   published: boolean;
@@ -414,11 +425,23 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
   const [row] = await db.select().from(products).where(eq(products.id, id)).limit(1);
   if (!row) return null;
 
-  const images = await db
+  const [images, variants, history] = await Promise.all([db
     .select({ publicId: productImages.publicId, fileId: productImages.fileId, alt: productImages.alt })
     .from(productImages)
     .where(eq(productImages.productId, id))
-    .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id));
+    .orderBy(desc(productImages.isPrimary), asc(productImages.position), asc(productImages.id)),
+    db.select({ size: productVariants.size, stock: productVariants.stock })
+      .from(productVariants).where(eq(productVariants.productId, id))
+      .orderBy(asc(productVariants.position), asc(productVariants.id)),
+    db.select({ id: inventoryMovements.id, size: inventoryMovements.size, delta: inventoryMovements.delta,
+      previousStock: inventoryMovements.previousStock, newStock: inventoryMovements.newStock,
+      reason: inventoryMovements.reason, note: inventoryMovements.note,
+      adminUsername: adminUsers.username, orderNumber: orders.number, createdAt: inventoryMovements.createdAt })
+      .from(inventoryMovements).leftJoin(adminUsers, eq(adminUsers.id, inventoryMovements.adminUserId))
+      .leftJoin(orders, eq(orders.id, inventoryMovements.orderId))
+      .where(eq(inventoryMovements.productId, id)).orderBy(desc(inventoryMovements.createdAt), desc(inventoryMovements.id))
+      .limit(100),
+  ]);
 
   return {
     id: row.id,
@@ -432,6 +455,8 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
     compareAtPrice: row.compareAtPrice,
     stock: row.stock,
     sizes: row.sizes ?? [],
+    variants,
+    inventoryHistory: history.map((movement) => ({ ...movement, createdAt: movement.createdAt.toISOString() })),
     attributes: row.attributes ?? [],
     customizable: row.customizable,
     published: row.published,

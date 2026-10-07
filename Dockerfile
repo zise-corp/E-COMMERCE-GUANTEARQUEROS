@@ -37,6 +37,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # La ruta /opengraph-image lee esta fuente desde process.cwd() en runtime.
 COPY --from=builder --chown=nextjs:nodejs /app/src/app/fonts ./src/app/fonts
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-inventory-migration.mjs ./scripts/apply-inventory-migration.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle/0020_lean_havok.sql ./drizzle/0020_lean_havok.sql
 
 USER nextjs
 EXPOSE 3000

@@ -19,7 +19,6 @@ import { ProductForm, type BrandOption, type CategoryOption } from "./ProductFor
 import { NewProductButton } from "./NewProductButton";
 import { AdminPagination, ADMIN_PAGE_SIZE } from "./AdminPagination";
 
-const LOW_STOCK = 5;
 
 export function ProductsManager({
   rows,
@@ -187,6 +186,7 @@ export function ProductsManager({
                 GQ-{String(p.id).padStart(4, "0")} · {p.attributeCount}{" "}
                 {p.attributeCount === 1 ? "atributo" : "atributos"}
               </p>
+              {p.variantSummary ? <p className="mt-0.5 truncate text-[11px] text-content-dim" title={p.variantSummary}>{p.variantSummary}</p> : null}
             </div>
 
             <span className="min-w-0 truncate text-[13px] text-content-muted" title={p.categoryName}>{p.categoryName}</span>
@@ -194,7 +194,7 @@ export function ProductsManager({
             <span
               className={cn(
                 "text-[13px] font-bold tabular",
-                p.stock <= LOW_STOCK ? "text-alert-soft" : "text-[#E9E7E4]",
+                p.hasLowVariant ? "text-alert-soft" : "text-[#E9E7E4]",
               )}
             >
               {p.stock}

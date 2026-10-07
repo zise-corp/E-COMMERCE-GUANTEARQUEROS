@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../index";
-import { orderItems, orders, paymentAttempts, paymentEvents, products } from "../schema";
+import { inventoryMovements, orderItems, orders, paymentAttempts, paymentEvents, productVariants, products } from "../schema";
 import { OrderError } from "./orders";
 import { yoPagoCompanyCode, generateYoPagoCard, generateYoPagoQr, normalizeYoPagoCurrency } from "@/lib/yopago";
 
@@ -200,21 +200,42 @@ export async function processYoPagoCallback(payload: YoPagoCallback, eventKey: s
       return "duplicate";
     }
 
-    const lines = await tx.select({ productId: orderItems.productId, quantity: sql<number>`sum(${orderItems.quantity})::int` }).from(orderItems).where(eq(orderItems.orderId, order.id)).groupBy(orderItems.productId).orderBy(asc(orderItems.productId));
-    const requested = new Map(lines.filter((line) => line.productId !== null).map((line) => [line.productId!, line.quantity]));
+    const lines = await tx.select({ productId: orderItems.productId, size: orderItems.size, quantity: sql<number>`sum(${orderItems.quantity})::int` })
+      .from(orderItems).where(eq(orderItems.orderId, order.id)).groupBy(orderItems.productId, orderItems.size)
+      .orderBy(asc(orderItems.productId), asc(orderItems.size));
+    const requested = new Map<number, number>();
+    for (const line of lines) if (line.productId !== null) requested.set(line.productId, (requested.get(line.productId) ?? 0) + line.quantity);
     const inventoryRows = requested.size
-      ? await tx.select({ id: products.id, stock: products.stock }).from(products).where(inArray(products.id, [...requested.keys()])).orderBy(asc(products.id)).for("update")
+      ? await tx.select({ id: products.id, name: products.name, stock: products.stock }).from(products).where(inArray(products.id, [...requested.keys()])).orderBy(asc(products.id)).for("update")
       : [];
-    let inventoryComplete = lines.length > 0 && requested.size === lines.length && inventoryRows.length === requested.size
+    const variantRows = requested.size
+      ? await tx.select({ id: productVariants.id, productId: productVariants.productId, size: productVariants.size, stock: productVariants.stock })
+        .from(productVariants).where(inArray(productVariants.productId, [...requested.keys()]))
+        .orderBy(asc(productVariants.productId), asc(productVariants.size)).for("update")
+      : [];
+    const variantKey = (productId: number, size: string | null) => `${productId}\u0000${size ?? ""}`;
+    const variantByKey = new Map(variantRows.map((row) => [variantKey(row.productId, row.size), row]));
+    const inventoryComplete = lines.length > 0 && lines.every((line) => line.productId !== null) && inventoryRows.length === requested.size
       && inventoryRows.every((row) => row.stock >= (requested.get(row.id) ?? Number.MAX_SAFE_INTEGER));
-    if (inventoryComplete) {
+    const variantsComplete = inventoryComplete && lines.every((line) => {
+      const variant = variantByKey.get(variantKey(line.productId!, line.size));
+      return variant !== undefined && variant.stock >= line.quantity;
+    });
+    if (variantsComplete) {
+      for (const line of lines) {
+        const variant = variantByKey.get(variantKey(line.productId!, line.size))!;
+        await tx.update(productVariants).set({ stock: variant.stock - line.quantity }).where(eq(productVariants.id, variant.id));
+        await tx.insert(inventoryMovements).values({ productId: line.productId!, productName: inventoryRows.find((row) => row.id === line.productId)!.name,
+          size: variant.size, previousStock: variant.stock, delta: -line.quantity, newStock: variant.stock - line.quantity,
+          reason: "sale", orderId: order.id });
+      }
       for (const row of inventoryRows) {
         const quantity = requested.get(row.id)!;
         const updated = await tx.update(products).set({ stock: sql`${products.stock} - ${quantity}`, updatedAt: new Date() }).where(and(eq(products.id, row.id), gte(products.stock, quantity))).returning({ id: products.id });
         if (!updated.length) throw new OrderError("No se pudo actualizar el inventario de forma segura.");
       }
     }
-    if (!inventoryComplete) {
+    if (!variantsComplete) {
       // Undo any earlier decrements in this transaction before preserving the paid/review state.
       throw new InventoryReviewRequired(attempt, order.id);
     }

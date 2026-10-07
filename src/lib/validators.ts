@@ -206,8 +206,21 @@ export const productSchema = z.object({
   brandId: z.number().int().positive().nullable().default(null),
   price: z.number().nonnegative().max(1_000_000),
   compareAtPrice: z.number().nonnegative().max(1_000_000).nullable().default(null),
-  stock: z.number().int().min(0).max(100_000),
-  sizes: z.array(z.string().trim().min(1).max(40)).max(40).default([]),
+  variants: z.array(z.object({
+    size: z.string().trim().max(40),
+    stock: z.number().int().min(0).max(100_000),
+    expectedStock: z.number().int().min(0).max(100_000).nullable(),
+  })).min(1, "Agrega una opción de inventario.").max(40).superRefine((variants, ctx) => {
+    const names = variants.map((variant) => variant.size.toLocaleLowerCase("es"));
+    if (new Set(names).size !== names.length) ctx.addIssue({ code: "custom", message: "Hay tallas repetidas." });
+    if (variants.length > 1 && variants.some((variant) => !variant.size)) {
+      ctx.addIssue({ code: "custom", message: "Cada opción debe tener una talla." });
+    }
+    if (variants.reduce((total, variant) => total + variant.stock, 0) > 100_000) {
+      ctx.addIssue({ code: "custom", message: "El stock total supera 100.000 unidades." });
+    }
+  }),
+  inventoryNote: z.string().trim().max(200).default(""),
   attributes: z.array(attributeSchema).max(40).default([]),
   customizable: z.boolean().default(false),
   images: z

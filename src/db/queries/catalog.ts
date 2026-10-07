@@ -1,9 +1,9 @@
-import { and, arrayOverlaps, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { db, withFallback } from "../index";
-import { brands, categories, productImages, products } from "../schema";
+import { brands, categories, productImages, productVariants, products } from "../schema";
 import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import type { HomeSettings } from "./settings";
 
@@ -32,6 +32,7 @@ export type ProductCard = {
 };
 
 export type ProductDetail = ProductCard & {
+  variantStocks: { size: string; stock: number }[];
   description: string;
   attributes: ProductAttribute[];
   customizable: boolean;
@@ -180,6 +181,12 @@ const primaryImage = sql<string | null>`(
   WHERE pi.product_id = ${products.id}
   ORDER BY pi.is_primary DESC, pi.position ASC, pi.id ASC
   LIMIT 1
+)`;
+
+const stockedSizes = sql<string[]>`ARRAY(
+  SELECT v.size FROM ${productVariants} v
+  WHERE v.product_id = ${products.id} AND v.stock > 0 AND v.size <> ''
+  ORDER BY v.position, v.id
 )`;
 
 const cardColumns = {
@@ -497,8 +504,7 @@ async function queryProductsByCategory(
       where.push(gte(products.price, filters.minPrice.toFixed(2)));
     }
     if (filters.sizes?.length) {
-      // `sizes` es text[]: se filtra por solapamiento con las tallas elegidas.
-      where.push(arrayOverlaps(products.sizes, filters.sizes));
+      where.push(sql`EXISTS (SELECT 1 FROM ${productVariants} v WHERE v.product_id = ${products.id} AND v.stock > 0 AND ${inArray(sql`v.size`, filters.sizes)})`);
     }
 
     const rows = await db
@@ -556,7 +562,7 @@ async function queryCategoryFacets(
 
       const rows = await db
         .select({
-          sizes: products.sizes,
+          sizes: stockedSizes,
           brandName: brands.name,
           price: products.price,
         })
@@ -616,7 +622,7 @@ async function queryProductsByBrand(
     where.push(gte(products.price, filters.minPrice.toFixed(2)));
   }
   if (filters.sizes?.length) {
-    where.push(arrayOverlaps(products.sizes, filters.sizes));
+    where.push(sql`EXISTS (SELECT 1 FROM ${productVariants} v WHERE v.product_id = ${products.id} AND v.stock > 0 AND ${inArray(sql`v.size`, filters.sizes)})`);
   }
 
   const rows = await db
@@ -643,7 +649,7 @@ export async function getProductsByBrand(
 
 async function queryBrandFacets(brandSlug: string) {
   const rows = await db
-    .select({ sizes: products.sizes, price: products.price })
+    .select({ sizes: stockedSizes, price: products.price })
     .from(products)
     .innerJoin(brands, eq(products.brandId, brands.id))
     .where(and(eq(products.published, true), eq(brands.slug, brandSlug)));
@@ -717,6 +723,10 @@ async function queryProductBySlug(slug: string): Promise<ProductDetail | null> {
         : [{ publicId: item.imagePublicId, alt: item.imageAlt ?? "" }],
     );
 
+    const variantStocks = await db.select({ size: productVariants.size, stock: productVariants.stock })
+      .from(productVariants).where(eq(productVariants.productId, row.id))
+      .orderBy(asc(productVariants.position), asc(productVariants.id));
+
     return {
       id: row.id,
       slug: row.slug,
@@ -729,6 +739,7 @@ async function queryProductBySlug(slug: string): Promise<ProductDetail | null> {
       compareAtPrice: row.compareAtPrice,
       stock: row.stock,
       sizes: row.sizes ?? [],
+      variantStocks,
       attributes: row.attributes ?? [],
       customizable: row.customizable,
       imagePublicId: images[0]?.publicId ?? null,

@@ -12,18 +12,23 @@ export function AddToCart({ product }: { product: ProductDetail }) {
   const cart = useCart();
   const router = useRouter();
   const hasSizes = product.sizes.length > 0;
-  const [size, setSize] = useState<string | null>(hasSizes ? (product.sizes[1] ?? product.sizes[0] ?? null) : null);
+  const [size, setSize] = useState<string | null>(hasSizes ? (product.variantStocks.find((variant) => variant.stock > 0)?.size ?? null) : null);
   const [quantity, setQuantity] = useState(1);
   const [wantsPersonalization, setWantsPersonalization] = useState(false);
   const [personalization, setPersonalization] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const outOfStock = product.stock <= 0;
+  const available = product.variantStocks.find((variant) => variant.size === (size ?? ""))?.stock ?? 0;
+  const outOfStock = available <= 0;
   const sizeLabel = product.categorySlug === "guantes" ? "Talla de guante" : "Talla";
 
   function selectedItem(): Omit<CartItem, "quantity"> | null {
     if (hasSizes && !size) {
       setError("Elige una talla.");
+      return null;
+    }
+    if (available < quantity) {
+      setError("No hay suficientes unidades de esa talla.");
       return null;
     }
     const engraving = wantsPersonalization ? personalization.trim() : "";
@@ -40,7 +45,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
       unitPrice: product.price,
       size,
       imagePublicId: product.imagePublicId,
-      stock: product.stock,
+      stock: available,
       personalization: product.customizable && engraving ? engraving : null,
     };
   }
@@ -75,8 +80,13 @@ export function AddToCart({ product }: { product: ProductDetail }) {
                 key={s}
                 filled
                 active={size === s}
+                disabled={(product.variantStocks.find((variant) => variant.size === s)?.stock ?? 0) <= 0}
+                aria-label={`${s}: ${product.variantStocks.find((variant) => variant.size === s)?.stock ?? 0} unidades disponibles`}
+                title={(product.variantStocks.find((variant) => variant.size === s)?.stock ?? 0) <= 0 ? "Talla agotada" : `${product.variantStocks.find((variant) => variant.size === s)?.stock} disponibles`}
+                className="disabled:cursor-not-allowed disabled:opacity-35 disabled:line-through"
                 onClick={() => {
                   setSize(s);
+                  setQuantity(1);
                   setError(null);
                 }}
               >
@@ -84,6 +94,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
               </SizeChip>
             ))}
           </div>
+          {size ? <p className="mt-2 text-[11px] text-content-dim">{available} {available === 1 ? "unidad disponible" : "unidades disponibles"} en talla {size}</p> : null}
         </div>
       ) : null}
 
@@ -110,7 +121,7 @@ export function AddToCart({ product }: { product: ProductDetail }) {
         <QuantityStepper
           value={quantity}
           onChange={setQuantity}
-          max={Math.max(1, product.stock)}
+          max={Math.max(1, available)}
         />
         <div className="grid flex-1 grid-cols-2 gap-2.5">
           <button

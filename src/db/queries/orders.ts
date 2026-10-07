@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../index";
-import { orderItems, orders, productImages, products } from "../schema";
+import { orderItems, orders, productImages, productVariants, products } from "../schema";
 import type { ShippingOutput } from "@/lib/validators";
 import { toDbNumeric } from "@/lib/money";
 import { isLocalDepartment } from "@/lib/site";
@@ -43,9 +43,14 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
     .where(inArray(products.id, ids));
 
   const byId = new Map(rows.map((r) => [r.id, r]));
-  const requestedByProduct = new Map<number, number>();
+  const variantRows = await db.select({ productId: productVariants.productId, size: productVariants.size, stock: productVariants.stock })
+    .from(productVariants).where(inArray(productVariants.productId, ids));
+  const variantKey = (productId: number, size: string | null) => `${productId}\u0000${size ?? ""}`;
+  const byVariant = new Map(variantRows.map((row) => [variantKey(row.productId, row.size), row]));
+  const requestedByVariant = new Map<string, number>();
   for (const line of lines) {
-    requestedByProduct.set(line.productId, (requestedByProduct.get(line.productId) ?? 0) + line.quantity);
+    const key = variantKey(line.productId, line.size);
+    requestedByVariant.set(key, (requestedByVariant.get(key) ?? 0) + line.quantity);
   }
   const imageRows = await db
     .select({ productId: productImages.productId, publicId: productImages.publicId })
@@ -62,17 +67,15 @@ export async function priceLines(lines: OrderLineInput[]): Promise<PricedLine[]>
     if (!p || !p.published) {
       throw new OrderError("Uno de los productos ya no está disponible. Revisa tu carrito.");
     }
-    const requested = requestedByProduct.get(p.id) ?? line.quantity;
-    if (p.stock < requested) {
-      throw new OrderError(
-        p.stock === 0
-          ? `“${p.name}” se quedó sin stock.`
-          : `De “${p.name}” quedan ${p.stock} unidades.`,
-      );
-    }
     const sizes = p.sizes ?? [];
     if (sizes.length > 0 && (line.size === null || !sizes.includes(line.size))) {
       throw new OrderError(`Elige una talla válida para “${p.name}”.`);
+    }
+    if (sizes.length === 0 && line.size !== null) throw new OrderError(`“${p.name}” no tiene tallas para elegir.`);
+    const variant = byVariant.get(variantKey(p.id, line.size));
+    const requested = requestedByVariant.get(variantKey(p.id, line.size)) ?? line.quantity;
+    if (!variant || variant.stock < requested) {
+      throw new OrderError(variant?.stock ? `De “${p.name}” en talla ${line.size || "única"} quedan ${variant.stock} unidades.` : `“${p.name}” en talla ${line.size || "única"} se quedó sin stock.`);
     }
     const personalization = line.personalization?.trim() || null;
     if (personalization && !p.customizable) {

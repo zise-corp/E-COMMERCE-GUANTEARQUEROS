@@ -1,7 +1,7 @@
 import "../lib/load-env";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { brands, categories, productImages, products } from "./schema";
+import { brands, categories, inventoryMovements, productImages, productVariants, products } from "./schema";
 
 const TREE: Record<string, string[]> = {
   Guantes: ["Competición", "Entrenamiento", "Junior"],
@@ -367,6 +367,20 @@ export async function seedDemoProducts() {
       inserted?.id ??
       (await db.query.products.findFirst({ where: eq(products.slug, productSlug) }))?.id;
     if (!productId) continue;
+
+    // El seed demo se puede repetir sin sobrescribir restocks o ventas.
+    const existingVariants = await db.select({ id: productVariants.id })
+      .from(productVariants).where(eq(productVariants.productId, productId)).limit(1);
+    if (!existingVariants.length) {
+      const sizes = p.sizes.length ? p.sizes : [""];
+      const stocks = sizes.map((_, position) => Math.floor(p.stock / sizes.length) + (position < p.stock % sizes.length ? 1 : 0));
+      await db.insert(productVariants).values(sizes.map((size, position) => ({ productId, size, stock: stocks[position]!, position })));
+      const initialMovements = sizes.map((size, position) => ({
+        productId, productName: p.name, size, previousStock: 0, delta: stocks[position]!, newStock: stocks[position]!,
+        reason: "initial" as const, note: "Carga de demostración",
+      })).filter((movement) => movement.delta > 0);
+      if (initialMovements.length) await db.insert(inventoryMovements).values(initialMovements);
+    }
 
     // Una foto controlada y coherente con la categoría, reemplazando las imágenes
     // aleatorias antiguas si el seed ya se ejecutó antes.

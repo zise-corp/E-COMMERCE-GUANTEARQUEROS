@@ -115,6 +115,13 @@ async function main() {
     const [category] = await database.insert(schema.categories).values({ name: "Test", slug: "test-checkout" }).returning();
     const [product] = await database.insert(schema.products).values({ name: "Guante Test", slug: "guante-test", categoryId: category!.id, price: "10.05", stock: 5, sizes: ["8", "9"], published: true }).returning();
     const [second] = await database.insert(schema.products).values({ name: "Segundo Test", slug: "segundo-test", categoryId: category!.id, price: "5.00", stock: 2, published: true }).returning();
+    await database.insert(schema.productVariants).values([
+      { productId: product!.id, size: "8", stock: 3, position: 0 },
+      { productId: product!.id, size: "9", stock: 2, position: 1 },
+      { productId: second!.id, size: "", stock: 2, position: 0 },
+    ]);
+    await assert.rejects(priceLines([{ productId: product!.id, size: "8", personalization: null, quantity: 4 }]));
+    await assert.rejects(priceLines([{ productId: product!.id, size: "8", personalization: "A", quantity: 2 }, { productId: product!.id, size: "8", personalization: "B", quantity: 2 }]));
     await setCheckoutSettings({ localDeliveryPrice: 30, transportPrice: 40, discounts: [{ code: "MITAD", type: "percent", value: 50, active: true }] });
     const input = quoteOrderSchema.parse({
       checkoutKey: randomUUID(), discountCode: "MITAD",
@@ -193,6 +200,8 @@ async function main() {
     assert.equal(await processYoPagoCallback({ transactionId: "REAL-1", companyCode: "TEST-COMPANY" }, "event-1", "hash-1"), "duplicate");
     const [stock] = await database.select().from(schema.products).where(eq(schema.products.id, product!.id));
     assert.equal(stock?.stock, 4);
+    assert.equal((await database.select().from(schema.productVariants).where(eq(schema.productVariants.size, "8")))[0]?.stock, 2);
+    assert.equal((await database.select().from(schema.inventoryMovements).where(eq(schema.inventoryMovements.orderId, first.id))).length, 1);
     assert.equal((await getOrder(first.id))?.paymentStatus, "pagado");
     await assert.rejects(abandonYoPagoPayment(first.id));
     await assert.rejects(updateOrder(first.id, input.shipping, lines, pricing, requestHash(input)));
@@ -210,6 +219,7 @@ async function main() {
     await abandonYoPagoPayment(secondOrder.id);
     assert.equal((await getOrder(secondOrder.id))?.financialStatus, "abandoned");
     await database.update(schema.products).set({ stock: 0 }).where(eq(schema.products.id, second!.id));
+    await database.update(schema.productVariants).set({ stock: 0 }).where(eq(schema.productVariants.productId, second!.id));
     assert.equal(await processYoPagoCallback({ transactionId: "REAL-2", companyCode: "TEST-COMPANY" }, "event-2", "hash-2"), "processed");
     assert.equal((await database.select().from(schema.products).where(eq(schema.products.id, product!.id)))[0]?.stock, 4);
     assert.equal((await getOrder(secondOrder.id))?.financialStatus, "paid_inventory_review");

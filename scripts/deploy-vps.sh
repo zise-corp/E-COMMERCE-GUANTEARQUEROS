@@ -17,7 +17,22 @@ test "$(git rev-parse origin/main)" = "$expected_sha" || {
 git merge --ff-only origin/main
 
 docker compose config --quiet
-docker compose up -d --build --remove-orphans
+docker compose build app
+migration_state=$(docker compose run --rm --no-deps --entrypoint node app scripts/apply-inventory-migration.mjs --check | tail -n 1)
+if [ "$migration_state" = pending ]; then
+  # Mientras el código anterior siga vendiendo, su descuento de stock no conoce
+  # las nuevas tallas. Detenerlo evita una diferencia entre migración y recambio.
+  docker compose stop app
+  if ! docker compose run --rm --no-deps --entrypoint node app scripts/apply-inventory-migration.mjs; then
+    docker compose start app
+    echo 'Inventory migration failed; previous app restarted' >&2
+    exit 1
+  fi
+elif [ "$migration_state" != ready ]; then
+  echo "Unexpected inventory migration state: $migration_state" >&2
+  exit 1
+fi
+docker compose up -d --no-build --remove-orphans
 
 container_id=$(docker compose ps -q app)
 test -n "$container_id" || { echo 'App container was not created' >&2; exit 1; }

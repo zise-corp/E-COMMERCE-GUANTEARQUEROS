@@ -13,14 +13,19 @@ const FOCUSABLE =
  */
 let lockDepth = 0;
 
-export function useDialog(open: boolean, onClose: () => void) {
+export function useDialog(open: boolean, onClose: () => void, suspended = false) {
   const ref = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const suspendedRef = useRef(suspended);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    suspendedRef.current = suspended;
+  }, [suspended]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,6 +45,8 @@ export function useDialog(open: boolean, onClose: () => void) {
     (first ?? node)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
+      // Un diálogo hijo controla Escape y Tab mientras esté abierto.
+      if (suspendedRef.current) return;
       if (event.key === "Escape") {
         event.stopPropagation();
         onCloseRef.current();

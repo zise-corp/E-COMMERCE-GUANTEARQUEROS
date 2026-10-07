@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { saveProductAction } from "@/app/admin/actions";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
@@ -24,8 +24,8 @@ type FormState = {
   brandId: number | null;
   price: string;
   compareAtPrice: string;
-  stock: string;
-  sizes: string[];
+  variants: { size: string; stock: string; expectedStock: number | null }[];
+  inventoryNote: string;
   attributes: { name: string; value: string }[];
   customizable: boolean;
   images: ProductImageValue[];
@@ -44,8 +44,8 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
       brandId: null,
       price: "",
       compareAtPrice: "",
-      stock: "0",
-      sizes: [],
+      variants: [{ size: "", stock: "0", expectedStock: null }],
+      inventoryNote: "",
       attributes: [{ name: "", value: "" }],
       customizable: false,
       images: [],
@@ -62,8 +62,8 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     brandId: product.brandId,
     price: product.price,
     compareAtPrice: product.compareAtPrice ?? "",
-    stock: String(product.stock),
-    sizes: product.sizes,
+    variants: product.variants.map((variant) => ({ ...variant, stock: String(variant.stock), expectedStock: variant.stock })),
+    inventoryNote: "",
     attributes: product.attributes.length > 0 ? product.attributes : [{ name: "", value: "" }],
     customizable: product.customizable,
     images: product.images,
@@ -71,6 +71,57 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     featured: product.featured,
     isNew: product.isNew,
   };
+}
+
+function InventoryHistoryModal({ product, onClose }: { product: AdminProductDetail; onClose: () => void }) {
+  const ref = useDialog(true, onClose);
+  const labels: Record<string, string> = {
+    sale: "Venta", restock: "Reposición", adjustment: "Ajuste",
+    migration: "Migración", initial: "Stock inicial",
+  };
+  return (
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-[#040404]/[0.84] p-3 backdrop-blur-[3px] sm:p-6">
+      <div className="flex min-h-full items-center justify-center">
+        <div
+          ref={ref}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="inventory-history-title"
+          tabIndex={-1}
+          className="admin-modal w-full max-w-[760px] border border-line-strong bg-ink-850 animate-rise outline-none"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-ink-700 px-5 py-4 sm:px-6">
+            <div>
+              <h2 id="inventory-history-title" className="font-display text-2xl uppercase skew-fast-6">Historial de inventario</h2>
+              <p className="mt-1 text-xs text-content-dim">{product.name}</p>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Cerrar historial" className="p-1 text-lg leading-none text-content-dim hover:text-brand">✕</button>
+          </div>
+          <div className="max-h-[min(68vh,600px)] space-y-3 overflow-y-auto px-5 py-4 sm:px-6">
+            {product.inventoryHistory.length ? product.inventoryHistory.map((movement) => (
+              <div key={movement.id} className="border-b border-line pb-3 text-xs leading-relaxed text-content-dim">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span className="font-bold text-content">{labels[movement.reason] ?? movement.reason} · {movement.size || "Talla única"}</span>
+                  <time dateTime={movement.createdAt}>{new Date(movement.createdAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}</time>
+                </div>
+                <p className="mt-1">
+                  <span className={movement.delta > 0 ? "font-bold text-brand" : "font-bold text-content"}>{movement.delta > 0 ? "+" : ""}{movement.delta}</span>
+                  {` unidades · ${movement.previousStock} → ${movement.newStock}`}
+                  {movement.adminUsername ? ` · ${movement.adminUsername}` : ""}
+                  {movement.orderNumber ? ` · Pedido #${movement.orderNumber}` : ""}
+                </p>
+                {movement.note ? <p className="mt-1 text-content-muted">{movement.note}</p> : null}
+              </div>
+            )) : <p className="py-8 text-center text-sm text-content-faint">Aún no hay movimientos de inventario.</p>}
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-ink-700 px-5 py-3 sm:px-6">
+            <p className="text-[10px] text-content-faint">Horario de Bolivia · últimos 100 movimientos.</p>
+            <button type="button" onClick={onClose} className="border border-brand px-4 py-2 text-xs font-extrabold uppercase tracking-[0.08em] text-brand hover:bg-brand hover:text-ink-950">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ProductForm({
@@ -93,9 +144,11 @@ export function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [sizeDraft, setSizeDraft] = useState("");
   const [sizeError, setSizeError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
   const { show } = useToast();
-  const ref = useDialog(open, onClose);
+  const ref = useDialog(open, onClose, historyOpen);
 
   useEffect(() => {
     if (open) {
@@ -103,6 +156,7 @@ export function ProductForm({
       setError(null);
       setSizeDraft("");
       setSizeError(null);
+      setHistoryOpen(false);
     }
     // Se re-arma solo al abrir o al cambiar de producto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,22 +201,38 @@ export function ProductForm({
       setSizeError("Cada talla puede tener hasta 40 caracteres.");
       return;
     }
-    if (form.sizes.some((size) => size.toLocaleLowerCase("es") === next.toLocaleLowerCase("es"))) {
+    if (form.variants.some((variant) => variant.size.toLocaleLowerCase("es") === next.toLocaleLowerCase("es"))) {
       setSizeError("Esa talla ya fue agregada.");
       return;
     }
-    if (form.sizes.length >= 40) {
+    if (form.variants.length >= 40) {
       setSizeError("Puedes agregar hasta 40 tallas por producto.");
       return;
     }
-    set("sizes", [...form.sizes, next]);
+    if (form.variants.length === 1 && form.variants[0]?.size === "" && form.variants[0]?.expectedStock !== null && form.variants[0].expectedStock > 0) {
+      setSizeError("Para pasar de talla única a varias tallas, deja su stock en cero y guarda primero.");
+      return;
+    }
+    set("variants", form.variants.length === 1 && form.variants[0]?.size === "" && (form.variants[0]?.expectedStock === null || form.variants[0]?.expectedStock === 0)
+      ? [{ size: next, stock: form.variants[0].stock, expectedStock: null }]
+      : [...form.variants, { size: next, stock: "0", expectedStock: null }]);
     setSizeDraft("");
     setSizeError(null);
   }
 
   function removeSize(index: number) {
-    set("sizes", form.sizes.filter((_, position) => position !== index));
+    const row = form.variants[index];
+    if (row && row.expectedStock !== null && row.expectedStock > 0) {
+      setSizeError("Primero deja en cero el stock de esa talla y guarda el producto antes de quitarla.");
+      return;
+    }
+    const remaining = form.variants.filter((_, position) => position !== index);
+    set("variants", remaining.length ? remaining : [{ size: "", stock: "0", expectedStock: null }]);
     setSizeError(null);
+  }
+
+  function setVariantStock(index: number, stock: string) {
+    setForm((current) => ({ ...current, variants: current.variants.map((variant, position) => position === index ? { ...variant, stock } : variant) }));
   }
 
   function save() {
@@ -172,7 +242,10 @@ export function ProductForm({
     const compareAt = form.compareAtPrice.trim()
       ? Number.parseFloat(form.compareAtPrice.replace(",", "."))
       : null;
-    const stock = Number.parseInt(form.stock, 10);
+    if (form.variants.some((variant) => !/^(0|[1-9]\d*)$/.test(variant.stock) || Number(variant.stock) > 100_000)) {
+      setError("Cada stock debe ser un número entero entre 0 y 100.000.");
+      return;
+    }
 
     if (!form.name.trim()) {
       setError("Pon un nombre para el producto.");
@@ -203,8 +276,8 @@ export function ProductForm({
       brandId: form.brandId,
       price,
       compareAtPrice: compareAt,
-      stock: Number.isFinite(stock) ? stock : 0,
-      sizes: form.sizes,
+      variants: form.variants.map((variant) => ({ ...variant, stock: Number(variant.stock) })),
+      inventoryNote: form.inventoryNote,
       // Las filas vacías no se guardan: el admin puede dejar una a mano abierta.
       attributes: form.attributes.filter((a) => a.name.trim() && a.value.trim()),
       customizable: form.customizable,
@@ -228,13 +301,16 @@ export function ProductForm({
 
   return (
     <Portal>
+      <>
       <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#040404]/[0.78] backdrop-blur-[3px]">
         <div className="flex min-h-full items-center justify-center p-3 sm:p-6 md:p-10">
         <div
           ref={ref}
           role="dialog"
-          aria-modal="true"
+          aria-modal={!historyOpen}
           aria-label={product ? "Editar producto" : "Nuevo producto"}
+          aria-hidden={historyOpen}
+          inert={historyOpen}
           tabIndex={-1}
           className="admin-modal w-full max-w-[860px] border border-line-strong bg-ink-850 animate-rise outline-none"
         >
@@ -298,7 +374,7 @@ export function ProductForm({
                 ) : null}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   label="Precio Bs"
                   inputMode="decimal"
@@ -314,14 +390,6 @@ export function ProductForm({
                   hint="Opcional"
                   onChange={(e) => set("compareAtPrice", e.target.value)}
                 />
-                <Input
-                  label="Stock"
-                  type="number"
-                  min={0}
-                  value={form.stock}
-                  className="bg-[#0E0E0D]"
-                  onChange={(e) => set("stock", e.target.value)}
-                />
               </div>
 
               <Textarea
@@ -332,14 +400,38 @@ export function ProductForm({
                 onChange={(e) => set("description", e.target.value)}
               />
 
-              <div>
-                <label htmlFor="product-size-entry" className="label-xs text-content-dim">Tallas</label>
+              <div className="border border-line-strong bg-[#0E0E0D] p-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="label-xs text-content-dim">Inventario por talla</p>
+                  <p className="text-xs font-bold text-brand">Total: {form.variants.reduce((sum, variant) => sum + (Number(variant.stock) || 0), 0)}</p>
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-content-dim">Si el producto no tiene tallas, usa «Talla única». Para varias tallas, agrega cada una e indica sus unidades. Los cambios de stock quedan registrados.</p>
+                <div className="mt-3 space-y-2">
+                  {form.variants.map((variant, index) => (
+                    <div key={`${variant.size}-${index}`} className="grid grid-cols-[minmax(0,1fr)_100px_28px] items-end gap-2">
+                      <div>
+                        <label className="label-xs text-content-dim">{variant.size || "Talla única"}</label>
+                        <p className="truncate py-2 text-sm text-content">{variant.size || "Sin selector de talla"}</p>
+                        {variant.expectedStock !== null ? (
+                          <p className="text-[10px] text-content-faint">
+                            Actual: {variant.expectedStock}
+                            {variant.stock && Number(variant.stock) > variant.expectedStock ? ` · +${Number(variant.stock) - variant.expectedStock} de reposición` : ""}
+                            {variant.stock && Number(variant.stock) < variant.expectedStock ? ` · ${Number(variant.stock) - variant.expectedStock} de ajuste` : ""}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Input label="Stock final" type="number" min={0} max={100000} step={1} value={variant.stock} className="bg-ink-950" onChange={(event) => setVariantStock(index, event.target.value)} />
+                      {variant.size ? <button type="button" onClick={() => removeSize(index)} aria-label={`Quitar talla ${variant.size}`} className="mb-3 text-xl text-content-dim hover:text-alert">×</button> : <span />}
+                    </div>
+                  ))}
+                </div>
+                <label htmlFor="product-size-entry" className="mt-4 block label-xs text-content-dim">Agregar talla</label>
                 <div className="mt-2 flex min-w-0 gap-2">
                   <input
                     id="product-size-entry"
                     value={sizeDraft}
                     maxLength={40}
-                    placeholder="Ej. 38, XL, Junior o Talla única"
+                    placeholder="Ej. 38, XL o Junior"
                     className="min-w-0 flex-1 border border-line-strong bg-[#0E0E0D] px-3.5 py-3 text-[13px] text-content outline-none placeholder:text-content-faint focus:border-brand"
                     onChange={(event) => { setSizeDraft(event.target.value); setSizeError(null); }}
                     onKeyDown={(event) => {
@@ -351,19 +443,22 @@ export function ProductForm({
                   />
                   <button type="button" onClick={addSize} disabled={!sizeDraft.trim()} className="shrink-0 border border-brand px-3.5 text-[10.5px] font-extrabold uppercase tracking-[0.09em] text-brand transition-colors hover:bg-brand hover:text-ink-950 disabled:border-line-strong disabled:text-content-faint disabled:hover:bg-transparent">Agregar</button>
                 </div>
-                <p className="mt-1.5 text-[10.5px] leading-relaxed text-content-faint">Escribe cualquier talla y presiona Enter. Puede contener letras, números o palabras.</p>
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-content-faint">Presiona Enter para agregarla. Luego indica cuántas unidades hay de esa talla.</p>
                 {sizeError ? <p role="alert" className="mt-1.5 text-[11px] text-alert-soft">{sizeError}</p> : null}
-                {form.sizes.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2" aria-label="Tallas agregadas">
-                    {form.sizes.map((size, index) => (
-                      <span key={`${size}-${index}`} className="inline-flex max-w-full items-center gap-2 border border-brand/60 bg-brand/[0.08] px-2.5 py-2 text-[12px] font-bold text-content">
-                        <span className="truncate" title={size}>{size}</span>
-                        <button type="button" onClick={() => removeSize(index)} aria-label={`Quitar talla ${size}`} className="shrink-0 text-content-dim transition-colors hover:text-alert">×</button>
-                      </span>
-                    ))}
-                  </div>
-                ) : <p className="mt-3 border border-dashed border-line px-3 py-2.5 text-[11px] text-content-faint">Sin tallas: el producto se tratará como opción única.</p>}
+                {product ? <div className="mt-4"><Input label="Motivo del ajuste de stock" value={form.inventoryNote} maxLength={200} placeholder="Ej. Reposición del proveedor o corrección de conteo" className="bg-ink-950" onChange={(event) => set("inventoryNote", event.target.value)} /><p className="mt-1 text-[10.5px] text-content-faint">Obligatorio si reduces unidades. Se guarda con la fecha y el administrador.</p></div> : null}
               </div>
+
+              {product ? (
+                <button
+                  ref={historyTriggerRef}
+                  type="button"
+                  onClick={() => setHistoryOpen(true)}
+                  className="flex w-full items-center justify-between gap-3 border border-line-strong bg-[#0E0E0D] px-4 py-3 text-left text-xs font-extrabold uppercase tracking-[0.08em] text-content transition-colors hover:border-brand hover:text-brand"
+                >
+                  <span>Ver historial de inventario</span>
+                  <span className="text-content-dim">{product.inventoryHistory.length} movimientos ›</span>
+                </button>
+              ) : null}
 
               <div className="border border-line-strong bg-[#0E0E0D] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -530,6 +625,13 @@ export function ProductForm({
         </div>
         </div>
       </div>
+      {historyOpen && product ? (
+        <InventoryHistoryModal product={product} onClose={() => {
+          setHistoryOpen(false);
+          window.requestAnimationFrame(() => historyTriggerRef.current?.focus());
+        }} />
+      ) : null}
+      </>
     </Portal>
   );
 }

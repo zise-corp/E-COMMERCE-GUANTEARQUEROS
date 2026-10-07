@@ -4,7 +4,7 @@ import { eq, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
-import { brands, categories, productImages, products } from "@/db/schema";
+import { brands, categories, inventoryMovements, productImages, productVariants, products } from "@/db/schema";
 import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { changeAdminPassword } from "@/db/queries/auth";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
@@ -364,7 +364,7 @@ export async function reorderBrandsAction(input: unknown): Promise<ActionResult>
 /* ── Productos ────────────────────────────────────────────────────────────── */
 
 export async function saveProductAction(input: unknown, id?: number): Promise<ActionResult> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) {
@@ -408,8 +408,8 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     brandId: v.brandId,
     price: toDbNumeric(v.price),
     compareAtPrice: v.compareAtPrice === null ? null : toDbNumeric(v.compareAtPrice),
-    stock: v.stock,
-    sizes: v.sizes,
+    stock: v.variants.reduce((total, variant) => total + variant.stock, 0),
+    sizes: v.variants.map((variant) => variant.size).filter(Boolean),
     attributes: v.attributes,
     customizable: v.customizable,
     published: v.published,
@@ -432,6 +432,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
           .returning({ id: products.id });
         if (!row) throw new Error("insert sin retorno");
         target = row.id;
+        if (v.variants.some((variant) => variant.expectedStock !== null)) throw new Error("Inventario inicial inválido.");
       } else {
         // Editar: el slug queda fijo para no romper la ficha ya publicada,
         // aunque el nombre cambie.
@@ -439,11 +440,45 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
           .select({ slug: products.slug })
           .from(products)
           .where(eq(products.id, target))
-          .limit(1);
+          .limit(1).for("update");
         if (!existing) throw new Error("producto no encontrado");
         finalSlug = existing.slug;
-        await tx.update(products).set(values).where(eq(products.id, target));
       }
+
+      const current = await tx.select({ id: productVariants.id, size: productVariants.size, stock: productVariants.stock })
+        .from(productVariants).where(eq(productVariants.productId, target)).for("update");
+      const incoming = new Map(v.variants.map((variant) => [variant.size, variant]));
+      for (const old of current) {
+        const next = incoming.get(old.size);
+        if (!next && old.stock > 0) throw new Error(`Primero deja en cero el stock de la talla ${old.size || "única"} antes de quitarla.`);
+        if (next && next.expectedStock !== old.stock) throw new Error("El stock cambió mientras editabas. Cierra y vuelve a abrir el producto.");
+      }
+      const existingNames = new Set(current.map((variant) => variant.size));
+      for (const next of v.variants) {
+        if (!existingNames.has(next.size) && next.expectedStock !== null) throw new Error("La lista de tallas cambió mientras editabas. Vuelve a abrir el producto.");
+      }
+      for (const old of current) if (!incoming.has(old.size)) {
+        await tx.delete(productVariants).where(eq(productVariants.id, old.id));
+      }
+      for (let position = 0; position < v.variants.length; position++) {
+        const next = v.variants[position]!;
+        const old = current.find((variant) => variant.size === next.size);
+        if (old) {
+          await tx.update(productVariants).set({ stock: next.stock, position }).where(eq(productVariants.id, old.id));
+        } else {
+          await tx.insert(productVariants).values({ productId: target, size: next.size, stock: next.stock, position });
+        }
+        const previous = old?.stock ?? 0;
+        const delta = next.stock - previous;
+        if (delta !== 0) {
+          if (delta < 0 && !v.inventoryNote) throw new Error("Explica el motivo de la reducción de stock.");
+          await tx.insert(inventoryMovements).values({ productId: target, productName: v.name, size: next.size,
+            previousStock: previous, delta, newStock: next.stock,
+            reason: old ? (delta > 0 ? "restock" : "adjustment") : "initial",
+            note: v.inventoryNote || null, adminUserId: session.uid });
+        }
+      }
+      await tx.update(products).set(values).where(eq(products.id, target));
 
       // Las imágenes se reemplazan enteras: el formulario manda la lista final.
       await tx.delete(productImages).where(eq(productImages.productId, target));
@@ -469,6 +504,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     return { ok: true };
   } catch (error) {
     console.error("[admin] saveProduct", error);
+    if (error instanceof Error && /stock|talla|inventario|producto no encontrado/i.test(error.message)) return { ok: false, error: error.message };
     return { ok: false, error: "Ya existe un producto con un nombre muy parecido. Prueba con otro nombre." };
   }
 }

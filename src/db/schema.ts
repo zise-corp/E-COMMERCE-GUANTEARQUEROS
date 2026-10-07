@@ -101,6 +101,38 @@ export const productImages = pgTable("product_images", {
   productOrderIdx: index("product_images_product_order_idx").on(t.productId, t.isPrimary, t.position),
 }));
 
+/** Una fila por opción vendible. La talla vacía representa talla única. */
+export const productVariants = pgTable("product_variants", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
+  size: text("size").notNull().default(""),
+  stock: integer("stock").notNull().default(0),
+  position: integer("position").notNull().default(0),
+}, (t) => ({
+  productSizeUq: uniqueIndex("product_variants_product_size_uq").on(t.productId, t.size),
+  stockCheck: check("product_variants_stock_check", sql`${t.stock} >= 0`),
+}));
+
+/** Libro de movimientos: sobrevive al borrado de un producto. */
+export const inventoryMovements = pgTable("inventory_movements", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").references(() => products.id, { onDelete: "set null" }),
+  productName: text("product_name").notNull(),
+  size: text("size").notNull(),
+  previousStock: integer("previous_stock").notNull(),
+  delta: integer("delta").notNull(),
+  newStock: integer("new_stock").notNull(),
+  reason: text("reason").$type<"initial" | "restock" | "adjustment" | "sale" | "migration">().notNull(),
+  note: text("note"),
+  adminUserId: integer("admin_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+  orderId: integer("order_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  productCreatedIdx: index("inventory_movements_product_created_idx").on(t.productId, t.createdAt),
+  orderIdx: index("inventory_movements_order_idx").on(t.orderId),
+  balanceCheck: check("inventory_movements_balance_check", sql`${t.newStock} = ${t.previousStock} + ${t.delta} AND ${t.newStock} >= 0`),
+}));
+
 /* ---------- pedidos ---------- */
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),

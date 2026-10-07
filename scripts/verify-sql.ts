@@ -22,12 +22,43 @@ async function main() {
   const dir = join(process.cwd(), "drizzle");
   const files = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
   for (const file of files) {
+    if (file.startsWith("0020_")) {
+      await db.exec(`
+        INSERT INTO categories (id, name, slug) VALUES (-1, 'Migración de inventario', 'migration-inventory-test');
+        INSERT INTO products (id, name, slug, category_id, price, stock, sizes)
+        VALUES (-1, 'Varias tallas', 'migration-many-test', -1, 10, 5, ARRAY['S','M']),
+               (-2, 'Talla única', 'migration-one-test', -1, 10, 3, ARRAY[]::text[]);
+      `);
+    }
     const sql = await readFile(join(dir, file), "utf8");
     for (const statement of sql.split("--> statement-breakpoint")) {
       const trimmed = statement.trim();
       if (trimmed) await db.exec(trimmed);
     }
     ok(`migración ${file}`);
+    if (file.startsWith("0020_")) {
+      const variants = await db.query<{ product_id: number; size: string; stock: number }>(
+        `SELECT product_id, size, stock FROM product_variants WHERE product_id < 0 ORDER BY product_id, position`,
+      );
+      if (JSON.stringify(variants.rows) !== JSON.stringify([
+        { product_id: -2, size: "", stock: 3 },
+        { product_id: -1, size: "S", stock: 3 },
+        { product_id: -1, size: "M", stock: 2 },
+      ])) fail("migración de stock por talla no conservó las unidades");
+      else ok("backfill conserva el total y distribuye provisionalmente las tallas");
+      await db.exec(`UPDATE products SET stock = 4 WHERE id = -1`);
+      const mirrored = await db.query<{ total: number }>(`SELECT sum(stock)::int AS total FROM product_variants WHERE product_id = -1`);
+      if (mirrored.rows[0]?.total === 4) ok("cambios de stock de la versión anterior se reflejan en tallas");
+      else fail("el stock legado quedó desincronizado");
+      await db.exec(`UPDATE product_variants SET stock = stock + 1 WHERE product_id = -1 AND size = 'S'; UPDATE products SET stock = 5 WHERE id = -1`);
+      const afterNewCode = await db.query<{ total: number; movements: number }>(`
+        SELECT (SELECT sum(stock)::int FROM product_variants WHERE product_id = -1) AS total,
+               (SELECT count(*)::int FROM inventory_movements WHERE product_id = -1 AND reason = 'adjustment') AS movements
+      `);
+      if (afterNewCode.rows[0]?.total === 5 && afterNewCode.rows[0]?.movements === 1) ok("el trigger no duplica cambios del código nuevo");
+      else fail("el trigger duplicó un cambio de inventario");
+      await db.exec(`DELETE FROM products WHERE id < 0; DELETE FROM categories WHERE id = -1`);
+    }
   }
 
   const tables = await db.query<{ table_name: string }>(
@@ -42,6 +73,8 @@ async function main() {
     "order_items",
     "orders",
     "product_images",
+    "product_variants",
+    "inventory_movements",
     "products",
     "site_settings",
   ];
