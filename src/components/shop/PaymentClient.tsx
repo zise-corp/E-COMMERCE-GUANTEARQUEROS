@@ -29,6 +29,7 @@ export type PaymentOrder = {
   number: number;
   total: string;
   paymentStatus: string;
+  financialStatus: string;
   subtotal: number | null;
   shipping: number | null;
   discount: number | null;
@@ -44,14 +45,17 @@ export type PaymentOrder = {
 };
 
 const POLL_MS = 4000;
+const EXPIRED_PAYMENT_MESSAGE = "Este pago superó el plazo de 10 minutos. Si ya pagaste, no vuelvas a pagar: seguimos esperando la confirmación de YoPago. Si no pagaste, vuelve a envío para iniciar un pedido nuevo.";
 
 export function PaymentClient({ order }: { order: PaymentOrder }) {
   const router = useRouter();
   const cart = useCart();
-  const [method, setMethod] = useState<Method | null>("qr");
+  const initiallyExpired = order.financialStatus === "abandoned" || order.financialStatus === "expired";
+  const [method, setMethod] = useState<Method | null>(initiallyExpired ? null : "qr");
   const [intent, setIntent] = useState<Intent | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [expired, setExpired] = useState(initiallyExpired);
+  const [error, setError] = useState<string | null>(initiallyExpired ? EXPIRED_PAYMENT_MESSAGE : null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveDestination, setLeaveDestination] = useState<string | null>(null);
@@ -65,7 +69,7 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
   /** El pago se genera solo al elegir método, sin botón extra. */
   const pick = useCallback(
     async (next: Method) => {
-      if (requestBusy.current) return;
+      if (requestBusy.current || expired) return;
       requestBusy.current = true;
       const requestId = ++requestSequence.current;
       setMethod(next);
@@ -83,7 +87,13 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
           | { ok: false; error: string };
         if (requestId !== requestSequence.current) return;
         if (!res.ok || !data.ok) {
-          setError(data.ok ? "No pudimos generar el pago." : data.error);
+          const message = data.ok ? "No pudimos generar el pago." : data.error;
+          if (message.includes("venció después de 10 minutos")) {
+            setExpired(true);
+            setError(EXPIRED_PAYMENT_MESSAGE);
+          } else {
+            setError(message);
+          }
           return;
         }
         setIntent(data.intent);
@@ -95,7 +105,7 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
         if (requestId === requestSequence.current) setLoading(false);
       }
     },
-    [order.publicId],
+    [order.publicId, expired],
   );
 
   // QR es la opción principal: se selecciona y genera al entrar, sin un clic extra.
@@ -107,7 +117,8 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
 
   /** Polling cada 4s. El webhook es la fuente de verdad; acá solo se lee. */
   useEffect(() => {
-    if (!intent) return;
+    // Después del vencimiento seguimos atentos a un callback tardío que confirme dinero.
+    if (!intent && !expired) return;
     let cancelled = false;
 
     const timer = setInterval(async () => {
@@ -133,6 +144,11 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
           setError("Este intento cambió o fue cancelado. Vuelve a seleccionar un método de pago.");
           setIntent(null);
           setMethod(null);
+        } else if (data.status === "abandoned" || data.status === "expired") {
+          setExpired(true);
+          setError(EXPIRED_PAYMENT_MESSAGE);
+          setIntent(null);
+          setMethod(null);
         }
       } catch {
         // Un fallo de red puntual no rompe el polling: se reintenta al próximo tick.
@@ -143,7 +159,7 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [intent, order.id, order.publicId, cart, router]);
+  }, [intent, expired, order.id, order.publicId, cart, router]);
 
   useEffect(() => {
     if (!intent) return;
@@ -262,6 +278,11 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
       <button
         type="button"
         onClick={() => {
+          if (expired) {
+            cart.setOrderId(null);
+            router.push("/checkout/envio");
+            return;
+          }
           if (intent) {
             setLeaveDestination(null);
             setLeaveError(null);
@@ -292,14 +313,14 @@ export function PaymentClient({ order }: { order: PaymentOrder }) {
               title="QR simple"
               detail="Cualquier banco · YoPago"
               onClick={() => pick("qr")}
-              disabled={loading || submitting}
+              disabled={loading || submitting || expired}
             />
             <MethodCard
               active={method === "card"}
               title="Tarjeta"
               detail="Débito / crédito · YoPago"
               onClick={() => pick("card")}
-              disabled={loading || submitting}
+              disabled={loading || submitting || expired}
             />
           </div>
 

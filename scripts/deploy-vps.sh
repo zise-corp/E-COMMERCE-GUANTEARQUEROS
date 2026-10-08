@@ -39,6 +39,9 @@ test -n "$container_id" || { echo 'App container was not created' >&2; exit 1; }
 for attempt in $(seq 1 24); do
   health=$(docker inspect --format '{{.State.Health.Status}}' "$container_id")
   if [ "$health" = healthy ]; then
+    # El proceso periódico arranca con la misma imagen y corrige también los
+    # pagos pendientes anteriores a este despliegue.
+    docker compose exec -T payment-expirer node scripts/expire-payments.mjs
     docker compose exec -T app node --input-type=module - < scripts/smoke-vps.mjs
     # Only unused images and build cache are removed; Docker protects running containers.
     docker image prune --all --force

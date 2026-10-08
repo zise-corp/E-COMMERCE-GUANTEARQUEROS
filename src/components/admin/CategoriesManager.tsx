@@ -29,7 +29,9 @@ type Editing = {
   kind: CategoryKind;
   slug: string | null;
   name: string;
+  originalName?: string;
   parentId: number | null;
+  originalParentId?: number | null;
   active: boolean;
   imagePath: string | null;
   imageFileId: string | null;
@@ -92,12 +94,12 @@ export function CategoriesManager({
 
   function editPrincipal(row: AdminCategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, parentId: null, active: row.active, imagePath: row.imagePath, imageFileId: row.imageFileId });
+    setForm({ id: row.id, kind: "principal", slug: row.slug, name: row.name, originalName: row.name, parentId: null, originalParentId: null, active: row.active, imagePath: row.imagePath, imageFileId: row.imageFileId });
   }
 
   function editSubcategory(row: SubcategoryRow) {
     setError(null);
-    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, parentId: row.parentId, active: row.active, imagePath: null, imageFileId: null });
+    setForm({ id: row.id, kind: "subcategoria", slug: row.slug, name: row.name, originalName: row.name, parentId: row.parentId, originalParentId: row.parentId, active: row.active, imagePath: null, imageFileId: null });
   }
 
   function save() {
@@ -192,6 +194,9 @@ function CategoryFormModal({ form, roots, pending, error, onChange, onClose, onS
           <div className={cn("grid items-start gap-5 p-4 sm:p-6", isPrincipal && "md:grid-cols-[1fr_0.9fr]")}>
             <div className="flex flex-col gap-3.5">
               <Input label={isPrincipal ? "Nombre de la categoría" : "Nombre de la subcategoría"} placeholder={isPrincipal ? "Ej. Accesorios" : "Ej. Entrenamiento"} value={form.name} disabled={isSystemCategory} className="bg-[#0E0E0D]" onChange={(event) => onChange({ ...form, name: event.target.value })} />
+              {form.id !== undefined && !isSystemCategory && ((form.name !== form.originalName && form.slug !== slugify(form.name)) || form.parentId !== form.originalParentId) ? (
+                <p className="text-[11px] leading-relaxed text-content-muted">Al guardar cambiará la URL pública de esta {isPrincipal ? "categoría" : "subcategoría"}.</p>
+              ) : null}
               {!isPrincipal ? (
                 <Select label="Ubicar dentro de" value={form.parentId === null ? "" : String(form.parentId)} className="bg-[#0E0E0D]" hint="Organizará los productos dentro de esta categoría." onChange={(event) => onChange({ ...form, parentId: event.target.value ? Number(event.target.value) : null })}>
                   <option value="">— Selecciona una categoría —</option>{roots.map((root) => <option key={root.id} value={root.id}>{root.name}</option>)}

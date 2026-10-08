@@ -114,18 +114,29 @@ export function OrderDetailDrawer({
     // Al cambiar de pedido, descartamos cualquier modal abierto del anterior.
     setPendingStatus(null);
     let cancelled = false;
-    setLoading(true);
-    void (async () => {
+    let fetching = false;
+    const refresh = async (initial: boolean) => {
+      if (fetching) return;
+      fetching = true;
+      if (initial) setLoading(true);
       try {
         const res = await fetch(`/api/admin/orders/${orderId}`, { cache: "no-store" });
         const data = (await res.json()) as { ok: boolean; order?: OrderSummary };
         if (!cancelled && data.ok && data.order) setOrder(data.order);
+      } catch {
+        // Una falla puntual no cierra el detalle; el siguiente ciclo reintenta.
       } finally {
-        if (!cancelled) setLoading(false);
+        fetching = false;
+        if (!cancelled && initial) setLoading(false);
       }
-    })();
+    };
+    void refresh(true);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh(false);
+    }, 20_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [orderId]);
 

@@ -53,6 +53,20 @@ services:
       - "traefik.http.middlewares.guantearqueros-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.guantearqueros-https-redirect.redirectscheme.permanent=true"
 
+  payment-expirer:
+    image: guantearqueros:local
+    command: ["node", "scripts/expire-payments.mjs", "--loop"]
+    env_file:
+      - .env
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - web
+    labels:
+      - "traefik.enable=false"
+
 networks:
   web:
     external: true

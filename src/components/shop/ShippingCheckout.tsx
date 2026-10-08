@@ -74,6 +74,8 @@ export function ShippingCheckout({ localDeliveryPrice, transportPrice }: { local
         if (data.order.financialStatus === "payment_created") {
           await fetch("/api/payments/yopago/abandon", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orderId: data.order.publicId }) });
           cart.setOrderId(null);
+        } else if (["abandoned", "expired", "cancelled"].includes(data.order.financialStatus)) {
+          cart.setOrderId(null);
         }
       })
       .catch(() => undefined);

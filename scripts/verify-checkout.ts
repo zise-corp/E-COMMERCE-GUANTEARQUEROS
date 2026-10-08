@@ -12,6 +12,7 @@ import { quoteOrderSchema } from "../src/lib/validators";
 import { checkoutHash, issueQuote, readQuote, requestHash } from "../src/lib/checkout-quote";
 import { calculateOrderPricing, createOrder, findCheckoutOrder, getOrder, listOrders, priceLines, setOrderStatus, updateOrder } from "../src/db/queries/orders";
 import { abandonYoPagoPayment, processYoPagoCallback, startYoPagoPayment } from "../src/db/queries/payments";
+import { expirePendingPaymentsIfDue } from "../src/db/queries/payment-expiry";
 import { changeAdminPassword, clearLoginAttempts, isAdminSessionCurrent, resetAdminPasswordBySuperAdmin, reserveLoginAttempt } from "../src/db/queries/auth";
 import { getCheckoutSettings, setCheckoutSettings } from "../src/db/queries/settings";
 import { paymentState } from "../src/lib/order-status";
@@ -327,6 +328,45 @@ async function main() {
     );
     assert.equal((await getOrder(flowOrder.id))?.financialStatus, "abandoned");
     console.log("ok generación de pago: YoPago fuera de la transacción, sin cobros en paralelo y respetando un abandono");
+
+    // El proceso periódico vence solo el intento vigente después de diez
+    // minutos. Un callback tardío todavía debe poder confirmar dinero y stock.
+    const now = Date.now();
+    const [expiredOrder, activeOrder, paidOrder, legacyOrder, switchedOrder] = await database.insert(schema.orders).values([
+      { number: 990001, customerName: "Pago vencido", customerPhone: "70000001", total: "10.05", financialStatus: "payment_created", transactionId: "EXP-1", companyCode: "TEST-COMPANY" },
+      { number: 990002, customerName: "Pago reciente", customerPhone: "70000002", total: "10.05", financialStatus: "payment_created", transactionId: "ACTIVE-1", companyCode: "TEST-COMPANY" },
+      { number: 990003, customerName: "Pago confirmado", customerPhone: "70000003", total: "10.05", financialStatus: "paid", paymentStatus: "pagado", transactionId: "PAID-1", companyCode: "TEST-COMPANY" },
+      { number: 990004, customerName: "Pago anterior", customerPhone: "70000004", total: "10.05", financialStatus: "payment_created", transactionId: "LEGACY-1", companyCode: "TEST-COMPANY" },
+      { number: 990005, customerName: "Cambio de método", customerPhone: "70000005", total: "10.05", financialStatus: "payment_created", transactionId: "SWITCH-NEW", companyCode: "TEST-COMPANY" },
+    ]).returning({ id: schema.orders.id });
+    await database.insert(schema.orderItems).values({ orderId: expiredOrder!.id, productId: product!.id, name: product!.name, size: "9", unitPrice: "10.05", quantity: 1 });
+    await database.insert(schema.paymentAttempts).values([
+      { orderId: expiredOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "EXP-1", transactionId: "EXP-1", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now - 1000) },
+      { orderId: activeOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "ACTIVE-1", transactionId: "ACTIVE-1", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now + 60_000) },
+      { orderId: paidOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "PAID-1", transactionId: "PAID-1", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now - 1000) },
+      { orderId: legacyOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "LEGACY-1", transactionId: "LEGACY-1", amount: "10.05", currency: "BOB", status: "created", createdAt: new Date(now - 11 * 60_000) },
+      { orderId: switchedOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "SWITCH-OLD", transactionId: "SWITCH-OLD", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now - 1000) },
+      { orderId: switchedOrder!.id, method: "card", companyCode: "TEST-COMPANY", transactionCode: "SWITCH-NEW", transactionId: "SWITCH-NEW", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now + 60_000) },
+    ]);
+    await expirePendingPaymentsIfDue(0);
+    assert.equal((await getOrder(expiredOrder!.id))?.financialStatus, "abandoned");
+    assert.equal((await getOrder(legacyOrder!.id))?.financialStatus, "abandoned");
+    assert.equal((await getOrder(activeOrder!.id))?.financialStatus, "payment_created");
+    assert.equal((await getOrder(paidOrder!.id))?.financialStatus, "paid");
+    assert.equal((await getOrder(switchedOrder!.id))?.financialStatus, "payment_created");
+    await expirePendingPaymentsIfDue(0);
+    assert.equal(await processYoPagoCallback({ transactionId: "EXP-1", companyCode: "TEST-COMPANY" }, "event-late-payment", "hash-late-payment"), "processed");
+    assert.equal((await getOrder(expiredOrder!.id))?.financialStatus, "paid");
+    const [expiredWindowOrder] = await database.insert(schema.orders).values({
+      number: 990006, customerName: "Cambio fuera de plazo", customerPhone: "70000006", total: "10.05",
+      financialStatus: "payment_created", transactionId: "WINDOW-1", companyCode: "TEST-COMPANY",
+    }).returning({ id: schema.orders.id });
+    await database.insert(schema.paymentAttempts).values({
+      orderId: expiredWindowOrder!.id, method: "qr", companyCode: "TEST-COMPANY", transactionCode: "WINDOW-1",
+      transactionId: "WINDOW-1", amount: "10.05", currency: "BOB", status: "created", expiresAt: new Date(now - 1000),
+    });
+    await assert.rejects(startYoPagoPayment(expiredWindowOrder!.id, "card"), /venció después de 10 minutos/);
+    console.log("ok vencimiento: diez minutos, pedidos pagados intactos, intento vigente y callback tardío");
 
     await database.update(schema.siteSettings).set({ value: { localDeliveryPrice: -99, transportPrice: 0, discounts: [] } }).where(eq(schema.siteSettings.key, "checkout"));
     await assert.rejects(getCheckoutSettings());

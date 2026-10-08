@@ -85,10 +85,13 @@ export async function saveCategoryAction(
 
   const values = parsed.data;
   const nextSlug = slugify(values.name);
+  if (!nextSlug) return { ok: false, error: "Usa letras o números en el nombre de la categoría." };
 
+  let currentCategory: typeof categories.$inferSelect | undefined;
   if (id !== undefined) {
-    const current = await db.query.categories.findFirst({ where: eq(categories.id, id) });
-    if (current && SYSTEM_CATEGORY_SLUGS.has(current.slug)) {
+    currentCategory = await db.query.categories.findFirst({ where: eq(categories.id, id) });
+    if (!currentCategory) return { ok: false, error: "La categoría ya no existe. Recarga la página." };
+    if (SYSTEM_CATEGORY_SLUGS.has(currentCategory.slug)) {
       await db.update(categories).set({ active: values.active }).where(eq(categories.id, id));
       revalidatePath("/admin/categorias");
       revalidatePath("/", "layout");
@@ -96,6 +99,11 @@ export async function saveCategoryAction(
       return { ok: true };
     }
   }
+  // Los slugs históricos del seed incluyen el nombre del padre. Una edición
+  // de visibilidad o imagen no debe cambiarles la URL accidentalmente.
+  const finalSlug = currentCategory && currentCategory.name === values.name && currentCategory.parentId === values.parentId
+    ? currentCategory.slug
+    : nextSlug;
   // Las subcategorías son navegación textual dentro de una categoría principal;
   // nunca conservan ni aceptan una imagen propia.
   const categoryImage = values.parentId === null
@@ -157,6 +165,16 @@ export async function saveCategoryAction(
   }
 
   try {
+    // La URL debe reflejar el nombre actual. Una subcategoría renombrada no
+    // puede seguir reservando el slug anterior y bloquear una categoría nueva.
+    if (id === undefined || currentCategory?.slug !== finalSlug) {
+      const [owner] = await db.select({ id: categories.id, name: categories.name, parentId: categories.parentId })
+        .from(categories).where(eq(categories.slug, finalSlug)).limit(1);
+      if (owner && owner.id !== id) {
+        const kind = owner.parentId === null ? "categoría" : "subcategoría";
+        return { ok: false, error: `Ya existe una ${kind} (“${owner.name}”) que usa la URL /${finalSlug}.` };
+      }
+    }
     if (id === undefined) {
       // Nueva: se agrega al final de sus hermanas (mismo nivel) y el slug sale
       // del nombre. El orden real después se ajusta arrastrando la fila.
@@ -166,19 +184,20 @@ export async function saveCategoryAction(
 
       await db.insert(categories).values({
         name: values.name,
-        slug: nextSlug,
+        slug: finalSlug,
         parentId: values.parentId,
         position: siblings?.n ?? 0,
         active: values.active,
         ...categoryImage,
       });
     } else {
-      // Editar: el nombre y la visibilidad cambian. El slug queda fijo para no
-      // romper la URL ya publicada, y el orden se toca solo arrastrando la fila.
+      // Al renombrar también cambia el slug; las referencias a productos usan
+      // IDs y siguen intactas. El orden se toca solo arrastrando la fila.
       await db
         .update(categories)
         .set({
           name: values.name,
+          slug: finalSlug,
           parentId: values.parentId,
           active: values.active,
           ...categoryImage,
@@ -187,7 +206,10 @@ export async function saveCategoryAction(
     }
   } catch (error) {
     console.error("[admin] saveCategory", error);
-    return { ok: false, error: "Ya existe una categoría con un nombre muy parecido. Prueba con otro nombre." };
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+      return { ok: false, error: `Ya existe una categoría o subcategoría que usa la URL /${finalSlug}.` };
+    }
+    return { ok: false, error: "No se pudo guardar la categoría. Intenta de nuevo." };
   }
 
   revalidatePath("/admin/categorias");

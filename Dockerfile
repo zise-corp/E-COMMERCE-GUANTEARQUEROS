@@ -39,6 +39,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/src/app/fonts ./src/app/fonts
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-inventory-migration.mjs ./scripts/apply-inventory-migration.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/expire-payments.mjs ./scripts/expire-payments.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/expire-payments.sql ./scripts/expire-payments.sql
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle/0020_lean_havok.sql ./drizzle/0020_lean_havok.sql
 
 USER nextjs

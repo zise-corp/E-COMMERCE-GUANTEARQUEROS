@@ -45,6 +45,7 @@ function acceptsNewPayment(order: OrderPaymentState): boolean {
 
 /** Un intento "pending" más reciente que esto sigue esperando a YoPago (su timeout es de 15 s). */
 const IN_FLIGHT_MS = 30_000;
+const PAYMENT_WINDOW_MS = 10 * 60_000;
 
 /**
  * Crea o reutiliza un intento de pago en tres pasos. La llamada a YoPago (hasta
@@ -59,6 +60,14 @@ export async function startYoPagoPayment(orderId: number, method: PaymentMethod)
     if (!order) throw new OrderError("El pedido no existe.");
     if (!acceptsNewPayment(order)) throw new OrderError("Este pedido ya no admite un nuevo pago.");
 
+    // Cambiar de QR a tarjeta no reinicia los diez minutos del pedido.
+    const [firstCreated] = await tx.select({ createdAt: paymentAttempts.createdAt, expiresAt: paymentAttempts.expiresAt })
+      .from(paymentAttempts).where(and(eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.status, "created")))
+      .orderBy(asc(paymentAttempts.createdAt), asc(paymentAttempts.id)).limit(1);
+    if (firstCreated && (firstCreated.expiresAt ?? new Date(firstCreated.createdAt.getTime() + PAYMENT_WINDOW_MS)).getTime() <= Date.now()) {
+      throw new OrderError("Este intento de pago venció después de 10 minutos. Vuelve a envío para crear un pedido nuevo.");
+    }
+
     const [latest] = await tx.select({
       ...paidAttemptSelection,
       status: paymentAttempts.status,
@@ -66,11 +75,15 @@ export async function startYoPagoPayment(orderId: number, method: PaymentMethod)
       qrData: paymentAttempts.qrData,
       cardUrl: paymentAttempts.cardUrl,
       createdAt: paymentAttempts.createdAt,
+      expiresAt: paymentAttempts.expiresAt,
     }).from(paymentAttempts).where(and(
       eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.method, method), inArray(paymentAttempts.status, ["pending", "created"]),
     )).orderBy(desc(paymentAttempts.id)).limit(1);
 
     if (latest?.status === "created" && latest.transactionId && (method === "qr" ? latest.qrData : latest.cardUrl)) {
+      if ((latest.expiresAt ?? new Date(latest.createdAt.getTime() + PAYMENT_WINDOW_MS)).getTime() <= Date.now()) {
+        throw new OrderError("Este intento de pago venció después de 10 minutos. Vuelve a envío para crear un pedido nuevo.");
+      }
       // El pedido refleja el pago que el cliente tiene en pantalla, como el sync de Tienda-Virtual.
       await tx.update(orders).set({ paymentMethod: method, transactionId: latest.transactionId, companyCode: latest.companyCode, codeTransaction: latest.transactionCode, updatedAt: new Date() }).where(eq(orders.id, order.id));
       return { kind: "reused" as const, intent: { transactionId: latest.transactionId, method, amount: latest.amount, qrImage: latest.qrData, checkoutUrl: latest.cardUrl } };
@@ -121,14 +134,20 @@ export async function startYoPagoPayment(orderId: number, method: PaymentMethod)
     const [current] = await tx.select({ status: orders.status, paymentStatus: orders.paymentStatus, financialStatus: orders.financialStatus }).from(orders).where(eq(orders.id, order.id)).for("update");
     const [attempt] = await tx.select({ status: paymentAttempts.status }).from(paymentAttempts).where(eq(paymentAttempts.id, attemptId)).for("update");
     const stillPending = attempt?.status === "pending";
+    const now = new Date();
+    const [firstCreated] = await tx.select({ createdAt: paymentAttempts.createdAt, expiresAt: paymentAttempts.expiresAt })
+      .from(paymentAttempts).where(and(eq(paymentAttempts.orderId, order.id), eq(paymentAttempts.status, "created")))
+      .orderBy(asc(paymentAttempts.createdAt), asc(paymentAttempts.id)).limit(1);
+    const expiresAt = firstCreated?.expiresAt ?? new Date((firstCreated?.createdAt ?? now).getTime() + PAYMENT_WINDOW_MS);
     await tx.update(paymentAttempts).set({
       transactionId, qrId, qrData: qrImage, cardUrl: checkoutUrl, providerStatus,
       ...(stillPending ? { status: "created" as const } : {}),
-      updatedAt: new Date(),
+      ...(stillPending ? { expiresAt } : {}),
+      updatedAt: now,
     }).where(eq(paymentAttempts.id, attemptId));
     if (!stillPending || !current || !acceptsNewPayment(current)) return false;
     // Queda en el pedido apenas se genera, se pague o no (como en Tienda-Virtual).
-    await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode: yoPagoCompanyCode(), codeTransaction, updatedAt: new Date() }).where(eq(orders.id, order.id));
+    await tx.update(orders).set({ financialStatus: "payment_created", paymentMethod: method, transactionId, companyCode: yoPagoCompanyCode(), codeTransaction, updatedAt: now }).where(eq(orders.id, order.id));
     return true;
   });
   if (!saved) throw new OrderError("Este pedido ya no admite un nuevo pago.");

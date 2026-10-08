@@ -25,6 +25,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
   // Un pedido ya pagado no vuelve al paso 2.
   if (order.paymentStatus === "pagado") redirect(`/checkout/confirmacion?pedido=${order.id}`);
   if (order.status === "cancelado" || order.paymentStatus === "reembolsado") redirect("/checkout/envio");
+  if (order.financialStatus === "cancelled") redirect("/checkout/envio");
 
   return (
     <PaymentClient
@@ -34,6 +35,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
         number: order.number,
         total: order.total,
         paymentStatus: order.paymentStatus,
+        financialStatus: order.financialStatus,
         subtotal: order.subtotal === null ? null : Number(order.subtotal),
         shipping: order.shippingAmount === null ? null : Number(order.shippingAmount),
         discount: order.discountAmount === null ? null : Number(order.discountAmount),

@@ -16,6 +16,8 @@ La orden se calcula en servidor. Cada solicitud de QR o tarjeta crea o reutiliza
 
 La ruta de retorno `/checkout/result` es solo informativa y nunca confirma dinero. El polling consulta exclusivamente el estado financiero mínimo mediante un UUID público y la sesión firmada.
 
+El intento de pago vence localmente diez minutos después de generar el primero del pedido. `payment-expirer` revisa cada 30 segundos los pendientes de Docker Compose y marca como abandonados el intento y el pedido; al iniciar procesa también los antiguos. Las lecturas del panel y del estado de pago hacen la misma comprobación como respaldo, incluso en desarrollo sin Docker. El vencimiento no cancela el cobro en YoPago: un callback autenticado posterior aún puede confirmarlo. Si queda stock, el pedido pasa a pagado y descuenta una sola vez; si no queda, pasa a `paid_inventory_review`. La pantalla de pago vencido sigue consultando la confirmación y avisa al comprador que no debe pagar de nuevo si ya realizó el pago.
+
 ## Operación
 
 - QR: `POST /api/checkout/qr`
@@ -31,7 +33,7 @@ En una base nueva, aplicar migraciones con `npm run db:migrate` en un despliegue
 
 Confirmar en documentación oficial las URLs, credenciales, firma de webhook sobre cuerpo crudo, referencias, importes, monedas, estados, consulta de transacciones, idempotencia, vencimiento, cancelación, QR y formulario de tarjeta. No asumir que los campos coinciden con otro proveedor.
 
-`payment_attempts` y `payment_events` ya conservan intentos y callbacks. Los intentos guardan pedido, proveedor, transacción externa, importe, moneda y estado; algunos campos previstos para vencimiento y fallos no implementan todavía una política completa de expiración o conciliación. Al ampliar el contrato, conservar intentos anteriores y definir identidad e idempotencia para cada evento del proveedor.
+`payment_attempts` y `payment_events` conservan intentos y callbacks. Los intentos guardan pedido, proveedor, transacción externa, importe, moneda, estado y vencimiento local. La caducidad automática no sustituye la expiración o cancelación confirmada por YoPago ni una conciliación posterior con el proveedor. Al ampliar el contrato, conservar intentos anteriores y definir identidad e idempotencia para cada evento del proveedor.
 
 El callback actual autentica credenciales y valida la referencia disponible (`transactionId` y `companyCode`) contra el intento guardado. Hay que confirmar con YoPago si puede entregar importe, moneda, firma o consulta de transacción para verificaciones adicionales. Los eventos repetidos y fuera de orden requieren reglas explícitas. Nunca marcar un pago por un parámetro de redirección del navegador.
 

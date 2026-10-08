@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrder } from "@/db/queries/orders";
 import { getAdminSession } from "@/lib/admin-auth";
+import { expirePendingPaymentsIfDue } from "@/db/queries/payment-expiry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "Id inválido." }, { status: 400 });
   }
 
+  await expirePendingPaymentsIfDue();
   const order = await getOrder(orderId);
   if (!order) {
     return NextResponse.json({ ok: false, error: "No encontrado." }, { status: 404 });

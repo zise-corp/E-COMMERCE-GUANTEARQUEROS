@@ -5,6 +5,7 @@ import type { ShippingOutput } from "@/lib/validators";
 import { toDbNumeric } from "@/lib/money";
 import { isLocalDepartment } from "@/lib/site";
 import { getCheckoutSettings } from "./settings";
+import { expirePendingPaymentsIfDue } from "./payment-expiry";
 
 export type OrderLineInput = { productId: number; size: string | null; personalization: string | null; quantity: number };
 
@@ -394,6 +395,7 @@ export async function getOrderByPublicId(publicId: string): Promise<OrderSummary
  * dato del cliente sin migrar nunca impide ver que el cobro se confirmó.
  */
 export async function getOrderPaymentStatus(publicId: string): Promise<Pick<OrderSummary, "id" | "financialStatus"> | null> {
+  await expirePendingPaymentsIfDue();
   const [row] = await db
     .select({ id: orders.id, financialStatus: orders.financialStatus })
     .from(orders)
@@ -405,6 +407,7 @@ export async function getOrderPaymentStatus(publicId: string): Promise<Pick<Orde
 /* ── Consultas del admin ──────────────────────────────────────────────────── */
 
 export async function listOrders(status?: OrderSummary["status"], localDate?: string) {
+  await expirePendingPaymentsIfDue();
   const dateWhere = localDate
     ? sql<boolean>`(${orders.createdAt} AT TIME ZONE 'America/La_Paz')::date = ${localDate}::date`
     : undefined;
