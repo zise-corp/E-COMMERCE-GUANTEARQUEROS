@@ -72,7 +72,9 @@ El directorio `drizzle/` contiene 21 migraciones, de `0000` a `0020`. La `0020` 
 
 ### Inventario por talla
 
-En **Admin → Productos**, cada talla tiene su propio campo de unidades. Si el producto no usa tallas, deja la fila **Talla única** y escribe un solo stock. El total se calcula automáticamente. Para reponer, abre el producto, incrementa las unidades de la talla correspondiente y guarda; el historial muestra fecha, administrador, talla, cantidad anterior y nueva. Si reduces unidades, escribe un motivo. Para quitar una talla con stock, primero déjala en cero y guarda; luego vuelve a abrir el producto y quítala. El historial conserva también las ventas confirmadas por YoPago.
+En **Admin → Productos**, al abrir un producto se muestra el total y las unidades de cada talla. **Configurar stock** abre un modal para agregar o quitar unidades de cada talla y crear otras tallas. Si el producto no usa tallas, utiliza **Talla única**. Las cantidades del modal se aplican al formulario; se registran en la base únicamente al pulsar **Guardar producto**. Al crear un producto, los movimientos se registran como **Stock inicial**. Al editarlo, elige **Reposición** o **Corrección de conteo**; quitar unidades selecciona la corrección automáticamente. **Ver historial de inventario** abre otro modal con fecha, administrador, talla, cantidad anterior y nueva; dentro de la configuración también se puede consultar el historial de una talla. Para quitar una talla con stock, primero deja sus unidades en cero y guarda; luego vuelve a abrir el producto y quítala. El historial conserva también las ventas confirmadas por YoPago.
+
+El modal muestra como máximo los 100 movimientos más recientes de cada producto. Los anteriores permanecen en la tabla `inventory_movements`, aunque el panel todavía no permite recorrerlos.
 
 La migración conserva el total anterior de cada producto. Cuando había varias tallas sin desglose, distribuye las unidades de forma provisional y lo señala en el historial. Revisa y corrige esas cantidades desde el panel antes de confiar en el inventario por talla. No vacíes la base mediante un seed si contiene pedidos reales.
 
@@ -221,4 +223,4 @@ Las búsquedas objetivo se expresan en los títulos, descripciones y textos visi
 
 Los handoffs HTML/Markdown son referencias históricas de diseño. [ANALISIS_PROYECTO.md](ANALISIS_PROYECTO.md) resume la revisión vigente; para comportamiento exacto rige el código.
 
-El stock es por producto, no por talla. No hay cuentas de clientes, emisión fiscal ni notificaciones automáticas. Algunas páginas y tablas todavía paginan en cliente; el rendimiento con grandes catálogos y las métricas por zona horaria requieren evaluación independiente.
+El stock se controla por talla y el total del producto se calcula con sus variantes. No hay cuentas de clientes, emisión fiscal ni notificaciones automáticas. Algunas páginas y tablas todavía paginan en cliente; el rendimiento con grandes catálogos y las métricas por zona horaria requieren evaluación independiente.
