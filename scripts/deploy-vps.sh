@@ -34,8 +34,20 @@ elif [ "$migration_state" != ready ]; then
 fi
 docker compose up -d --no-build --remove-orphans
 
+expected_image=$(docker image inspect --format '{{.Id}}' guantearqueros:local)
+for service in app payment-expirer; do
+  service_id=$(docker compose ps -q "$service")
+  test -n "$service_id" || { echo "$service container was not started" >&2; exit 1; }
+  running=$(docker inspect --format '{{.State.Running}}' "$service_id")
+  actual_image=$(docker inspect --format '{{.Image}}' "$service_id")
+  test "$running" = true || { echo "$service container is not running" >&2; exit 1; }
+  test "$actual_image" = "$expected_image" || {
+    echo "$service is still running an older image; deployment is incomplete" >&2
+    exit 1
+  }
+done
+
 container_id=$(docker compose ps -q app)
-test -n "$container_id" || { echo 'App container was not created' >&2; exit 1; }
 for attempt in $(seq 1 24); do
   health=$(docker inspect --format '{{.State.Health.Status}}' "$container_id")
   if [ "$health" = healthy ]; then
