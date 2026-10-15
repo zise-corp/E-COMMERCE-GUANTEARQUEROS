@@ -493,12 +493,9 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
         const previous = old?.stock ?? 0;
         const delta = next.stock - previous;
         if (delta !== 0) {
-          if (id !== undefined && delta < 0 && v.inventoryReason !== "adjustment") {
-            throw new Error("Para quitar stock, selecciona «Corrección de conteo».");
-          }
           await tx.insert(inventoryMovements).values({ productId: target, productName: v.name, size: next.size,
             previousStock: previous, delta, newStock: next.stock,
-            reason: id === undefined ? "initial" : v.inventoryReason,
+            reason: id === undefined ? "initial" : delta > 0 ? "restock" : "adjustment",
             note: null, adminUserId: session.uid });
         }
       }

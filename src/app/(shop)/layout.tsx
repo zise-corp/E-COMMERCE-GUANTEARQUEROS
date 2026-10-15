@@ -6,7 +6,7 @@ import { FloatingWhatsapp } from "@/components/shop/FloatingWhatsapp";
 import { Header } from "@/components/shop/Header";
 import { StoreIntro } from "@/components/shop/StoreIntro";
 import { ToastProvider } from "@/components/ui/Toast";
-import { getNavCategories } from "@/db/queries/catalog";
+import { getBrands, getNavCategories } from "@/db/queries/catalog";
 import { getContactSettings } from "@/db/queries/settings";
 import { absoluteUrl, serializeJsonLd } from "@/lib/seo";
 import { site, STORE_LOCATIONS } from "@/lib/site";
@@ -14,7 +14,7 @@ import { site, STORE_LOCATIONS } from "@/lib/site";
 export const revalidate = 300;
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const [categories, contact] = await Promise.all([getNavCategories(), getContactSettings()]);
+  const [categories, brands, contact] = await Promise.all([getNavCategories(), getBrands(), getContactSettings()]);
   const phone = contact.supportWhatsapp;
 
   const jsonLd = {
@@ -78,7 +78,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <div className="shop-frame flex min-h-dvh flex-col">
             <Header categories={categories} />
             <main className="flex-1">{children}</main>
-            <Footer categories={categories} phone={phone} />
+            <Footer categories={categories} brands={brands} phone={phone} />
           </div>
           <CartDrawer />
           <FloatingWhatsapp phone={phone} />

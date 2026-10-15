@@ -220,7 +220,6 @@ export const productSchema = z.object({
       ctx.addIssue({ code: "custom", message: "El stock total supera 100.000 unidades." });
     }
   }),
-  inventoryReason: z.enum(["restock", "adjustment"]).default("restock"),
   attributes: z.array(attributeSchema).max(40).default([]),
   customizable: z.boolean().default(false),
   images: z

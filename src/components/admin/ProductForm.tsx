@@ -15,7 +15,6 @@ import { ImageKitDropzone, type ProductImageValue } from "./ImageKitDropzone";
 
 export type CategoryOption = { id: number; name: string; parentId: number | null };
 export type BrandOption = { id: number; name: string; isOwnBrand: boolean };
-type InventoryReason = "restock" | "adjustment";
 
 type FormState = {
   name: string;
@@ -26,7 +25,6 @@ type FormState = {
   price: string;
   compareAtPrice: string;
   variants: { size: string; stock: string; expectedStock: number | null }[];
-  inventoryReason: InventoryReason;
   attributes: { name: string; value: string }[];
   customizable: boolean;
   images: ProductImageValue[];
@@ -46,7 +44,6 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
       price: "",
       compareAtPrice: "",
       variants: [{ size: "", stock: "0", expectedStock: null }],
-      inventoryReason: "restock",
       attributes: [{ name: "", value: "" }],
       customizable: false,
       images: [],
@@ -64,7 +61,6 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     price: product.price,
     compareAtPrice: product.compareAtPrice ?? "",
     variants: product.variants.map((variant) => ({ ...variant, stock: String(variant.stock), expectedStock: variant.stock })),
-    inventoryReason: "restock",
     attributes: product.attributes.length > 0 ? product.attributes : [{ name: "", value: "" }],
     customizable: product.customizable,
     images: product.images,
@@ -105,7 +101,13 @@ function InventoryHistoryModal({ product, sizeFilter, onClose }: { product: Admi
             {movements.length ? movements.map((movement) => (
               <div key={movement.id} className="border-b border-line pb-3 text-xs leading-relaxed text-content-dim">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className="font-bold text-content">{movement.reason === "adjustment" && movement.note ? "Ajuste" : labels[movement.reason] ?? movement.reason} · {movement.size || "Talla única"}</span>
+                  <span className="font-bold text-content">{
+                    movement.reason === "adjustment" && movement.note
+                      ? "Ajuste"
+                      : movement.reason === "adjustment" && movement.delta > 0
+                        ? "Reposición"
+                        : labels[movement.reason] ?? movement.reason
+                  } · {movement.size || "Talla única"}</span>
                   <time dateTime={movement.createdAt}>{new Date(movement.createdAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}</time>
                 </div>
                 <p className="mt-1">
@@ -132,7 +134,6 @@ type InventoryVariant = FormState["variants"][number];
 
 function StockConfigModal({
   variants: initialVariants,
-  initialReason,
   product,
   historyOpen,
   onClose,
@@ -140,20 +141,23 @@ function StockConfigModal({
   onHistory,
 }: {
   variants: InventoryVariant[];
-  initialReason: InventoryReason;
   product: AdminProductDetail | null;
   historyOpen: boolean;
   onClose: () => void;
-  onApply: (variants: InventoryVariant[], reason: InventoryReason) => void;
+  onApply: (variants: InventoryVariant[]) => void;
   onHistory: (size: string, trigger: HTMLButtonElement) => void;
 }) {
-  const ref = useDialog(true, onClose, historyOpen);
   const [variants, setVariants] = useState(() => initialVariants.map((variant) => ({ ...variant })));
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [sizeDraft, setSizeDraft] = useState("");
-  const [reason, setReason] = useState<InventoryReason>(initialReason);
   const [error, setError] = useState<string | null>(null);
+  const [unappliedWarningOpen, setUnappliedWarningOpen] = useState(false);
+  const ref = useDialog(true, onClose, historyOpen || unappliedWarningOpen);
+  const warningRef = useDialog(unappliedWarningOpen, () => setUnappliedWarningOpen(false));
   const total = variants.reduce((sum, variant) => sum + Number(variant.stock), 0);
+  const unappliedSizes = variants
+    .filter((variant) => (amounts[variant.size] ?? "").trim() !== "")
+    .map((variant) => variant.size || "Talla única");
 
   function changeStock(index: number, direction: 1 | -1) {
     const variant = variants[index];
@@ -174,7 +178,6 @@ function StockConfigModal({
       return;
     }
     setVariants((current) => current.map((row, position) => position === index ? { ...row, stock: String(next) } : row));
-    if (direction < 0 && product) setReason("adjustment");
     setAmounts((current) => ({ ...current, [variant.size]: "" }));
     setError(null);
   }
@@ -215,11 +218,11 @@ function StockConfigModal({
   }
 
   function apply() {
-    if (product && reason === "restock" && variants.some((variant) => variant.expectedStock !== null && Number(variant.stock) < variant.expectedStock)) {
-      setError("Para quitar unidades, selecciona «Corrección de conteo».");
+    if (unappliedSizes.length > 0) {
+      setUnappliedWarningOpen(true);
       return;
     }
-    onApply(variants, reason);
+    onApply(variants);
   }
 
   return (
@@ -228,9 +231,9 @@ function StockConfigModal({
         <div
           ref={ref}
           role="dialog"
-          aria-modal={!historyOpen}
-          aria-hidden={historyOpen}
-          inert={historyOpen}
+          aria-modal={!historyOpen && !unappliedWarningOpen}
+          aria-hidden={historyOpen || unappliedWarningOpen}
+          inert={historyOpen || unappliedWarningOpen}
           aria-labelledby="stock-config-title"
           tabIndex={-1}
           className={`admin-modal w-full border border-line-strong bg-ink-850 animate-rise outline-none ${variants.length === 1 ? "max-w-[400px]" : variants.length === 2 ? "max-w-[620px]" : "max-w-[880px]"}`}
@@ -295,20 +298,6 @@ function StockConfigModal({
               <p className="mt-2 text-[11px] text-content-faint">Sin tallas se usa una sola opción «Talla única».</p>
             </div>
 
-            {product ? (
-              <fieldset>
-                <legend className="label-xs mb-2 text-content-dim">Tipo de movimiento</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {([{ value: "restock", label: "Reposición" }, { value: "adjustment", label: "Corrección de conteo" }] as const).map((option) => (
-                    <label key={option.value} className={`flex cursor-pointer items-center gap-2 border px-4 py-3 text-xs font-bold transition-colors ${reason === option.value ? "border-brand bg-brand/10 text-brand" : "border-line-strong bg-ink-950 text-content-dim hover:border-brand"}`}>
-                      <input type="radio" name="inventory-reason" value={option.value} checked={reason === option.value} onChange={() => { setReason(option.value); setError(null); }} className="accent-brand" />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-                <p className="mt-2 text-[11px] text-content-dim">Si quitas unidades, se selecciona «Corrección de conteo». El movimiento se registra al guardar.</p>
-              </fieldset>
-            ) : <p className="border border-line-strong bg-ink-950 px-4 py-3 text-xs text-content-dim">Tipo de movimiento: <strong className="text-brand">Stock inicial</strong></p>}
             {error ? <p role="alert" className="border-l-[3px] border-alert bg-alert/10 px-3 py-2.5 text-xs text-alert-soft">{error}</p> : null}
           </div>
 
@@ -321,6 +310,27 @@ function StockConfigModal({
           </div>
         </div>
       </div>
+      {unappliedWarningOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#040404]/[0.84] p-3 backdrop-blur-[3px] sm:p-6">
+          <div
+            ref={warningRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="unapplied-stock-title"
+            aria-describedby="unapplied-stock-description"
+            tabIndex={-1}
+            className="admin-modal w-full max-w-[440px] border border-line-strong bg-ink-850 p-5 animate-rise outline-none sm:p-6"
+          >
+            <h3 id="unapplied-stock-title" className="font-display text-2xl uppercase skew-fast-6">Cantidad sin aplicar</h3>
+            <p id="unapplied-stock-description" className="mt-3 text-sm leading-relaxed text-content-dim">
+              {unappliedSizes.length === 1
+                ? `La cantidad escrita en ${unappliedSizes[0]} todavía no modificó el stock.`
+                : `Las cantidades escritas en ${unappliedSizes.join(", ")} todavía no modificaron el stock.`} Pulsa «+ Agregar stock» o «− Quitar stock» en cada talla antes de aplicar al formulario.
+            </p>
+            <button type="button" onClick={() => setUnappliedWarningOpen(false)} className="mt-5 bg-brand px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.08em] text-ink-950 hover:bg-brand-hot">Entendido</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -454,7 +464,6 @@ export function ProductForm({
       price,
       compareAtPrice: compareAt,
       variants: form.variants.map((variant) => ({ ...variant, stock: Number(variant.stock) })),
-      inventoryReason: form.inventoryReason,
       // Las filas vacías no se guardan: el admin puede dejar una a mano abierta.
       attributes: form.attributes.filter((a) => a.name.trim() && a.value.trim()),
       customizable: form.customizable,
@@ -765,12 +774,11 @@ export function ProductForm({
       {stockOpen ? (
         <StockConfigModal
           variants={form.variants}
-          initialReason={form.inventoryReason}
           product={product}
           historyOpen={historyOpen}
           onClose={closeStock}
-          onApply={(variants, inventoryReason) => {
-            setForm((current) => ({ ...current, variants, inventoryReason }));
+          onApply={(variants) => {
+            setForm((current) => ({ ...current, variants }));
             closeStock();
           }}
           onHistory={(size, trigger) => openHistory(size, trigger)}

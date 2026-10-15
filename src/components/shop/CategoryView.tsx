@@ -60,8 +60,10 @@ export async function CategoryView({
 
   const parent = subcategorySlug ? root : null;
   if (subcategorySlug && !parent) notFound();
-  const categoryIntro = fixedBrandName
+  const categoryIntro = fixedBrandSlug === "drei"
     ? "Camisetas, uniformes y calzas DREI Athletic para arqueros y equipos de fútbol en Bolivia."
+    : fixedBrandName
+      ? `Explora los productos de ${fixedBrandName} disponibles en Guante Arqueros Bolivia.`
     : category
       ? categorySearchContent(category.name, category.slug, parent?.name).intro
       : "";

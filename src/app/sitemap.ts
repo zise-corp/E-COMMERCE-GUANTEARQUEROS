@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getCategoryTree, getSitemapProducts } from "@/db/queries/catalog";
+import { getBrands, getCategoryTree, getSitemapProducts } from "@/db/queries/catalog";
 import { imageKitUrl } from "@/lib/images";
 import { site } from "@/lib/site";
 
@@ -8,8 +8,9 @@ import { site } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [tree, products] = await Promise.all([
+  const [tree, brands, products] = await Promise.all([
     getCategoryTree(),
+    getBrands(),
     getSitemapProducts(),
   ]);
 
@@ -37,11 +38,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : {}),
   }));
 
+  const brandUrls = brands.filter((brand) => brand.slug !== "drei").map((brand) => ({
+    url: `${site.url}/marcas/${brand.slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
   return [
     { url: site.url, changeFrequency: "daily", priority: 1 },
     { url: `${site.url}/drei`, changeFrequency: "weekly" as const, priority: 0.8 },
     ...categories,
     ...subcategories,
+    ...brandUrls,
     ...productUrls,
   ];
 }

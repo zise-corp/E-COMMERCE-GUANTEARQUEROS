@@ -73,7 +73,7 @@ export function StoreIntro() {
         <div className="store-intro__loading">
           <span>Preparando el arco</span>
           <span className="store-intro__loading-track"><span /></span>
-          <span>Bolivia · Desde 2015</span>
+          <span>Bolivia · Desde 2011</span>
         </div>
       </div>
     </div>

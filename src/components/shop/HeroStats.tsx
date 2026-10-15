@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const STATS = [
   { value: 60, prefix: "+", suffix: " mil", label: "Seguidores en redes" },
-  { value: 10, prefix: "+", suffix: "", label: "Años de atención" },
+  { value: 15, prefix: "+", suffix: "", label: "Años de atención" },
   { value: 9, prefix: "", suffix: "", label: "Departamentos con envío" },
 ] as const;
 

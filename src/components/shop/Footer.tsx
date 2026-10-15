@@ -5,7 +5,11 @@ import { FacebookIcon, InstagramIcon, TiktokIcon, WhatsappIcon } from "@/compone
 import { site, whatsappLink } from "@/lib/site";
 import type { NavCategory } from "./Header";
 
-export function Footer({ categories, phone }: { categories: NavCategory[]; phone: string }) {
+export function Footer({ categories, brands, phone }: {
+  categories: NavCategory[];
+  brands: { id: number; name: string; slug: string }[];
+  phone: string;
+}) {
   const year = new Date().getFullYear();
 
   return (
@@ -64,21 +68,16 @@ export function Footer({ categories, phone }: { categories: NavCategory[]; phone
           items={categories.map((c) => ({ label: c.name, href: `/${c.slug}` }))}
         />
         <FooterColumn
-          title="Ayuda"
-          items={[
-            { label: "Guía de tallas", href: "/ayuda/tallas" },
-            { label: "Envíos y transporte", href: "/ayuda/envios" },
-            { label: "Cambios", href: "/ayuda/cambios" },
-            { label: "Contacto", href: whatsappLink("Hola, quisiera información sobre sus productos.", phone), external: true },
-          ]}
+          title="Marcas"
+          items={brands.map((brand) => ({
+            label: brand.name,
+            href: brand.slug === "drei" ? "/drei" : `/marcas/${brand.slug}`,
+          }))}
         />
         <FooterColumn
-          title="Marcas"
+          title="Ayuda"
           items={[
-            { label: "Buffon", href: "/guantes" },
-            { label: "Uhlsport", href: "/guantes" },
-            { label: "HO Soccer", href: "/guantes" },
-            { label: "DREI Athletic", href: "/drei" },
+            { label: "Contacto", href: whatsappLink("Hola, quisiera información sobre sus productos.", phone), external: true },
           ]}
         />
       </div>
