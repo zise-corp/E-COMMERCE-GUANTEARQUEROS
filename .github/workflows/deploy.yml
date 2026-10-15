@@ -73,7 +73,9 @@ jobs:
         run: |
           set -euo pipefail
           printf -v quoted_path '%q' "$VPS_PROJECT_PATH"
+          # Guardar primero el script remoto: Docker Compose puede leer stdin y
+          # consumir las órdenes siguientes si Bash ejecuta directamente desde stdin.
           ssh -i "$HOME/.ssh/id_ed25519" -p "$VPS_SSH_PORT" \
             -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" \
-            "bash -se -- $quoted_path $GITHUB_SHA" < scripts/deploy-vps.sh
+            "set -eu; deploy_script=\$(mktemp /tmp/guantearqueros-deploy.XXXXXX); trap 'rm -f \"\$deploy_script\"' EXIT; cat > \"\$deploy_script\"; bash \"\$deploy_script\" $quoted_path $GITHUB_SHA" < scripts/deploy-vps.sh
