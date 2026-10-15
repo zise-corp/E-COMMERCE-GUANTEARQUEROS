@@ -27,12 +27,15 @@ try {
   const xml = await sitemap.text();
   const paths = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((match) => new URL(match[1].replaceAll("&amp;", "&")).pathname);
+  if (!paths.includes("/") || !paths.includes("/drei")) {
+    throw new Error("El sitemap no contiene las páginas permanentes de la tienda");
+  }
   const urls = paths.filter((path) => path !== "/" && !path.startsWith("/p/"));
   const categoryPaths = urls.filter((path) => path !== "/drei");
-  if (categoryPaths.length === 0) throw new Error("El sitemap no contiene categorías");
 
   for (const path of new Set(urls)) await check(path);
-  await check(`${categoryPaths[0]}?hasta=100`);
+  // Un catálogo recién entregado puede no tener categorías ni productos.
+  await check(`${categoryPaths[0] ?? "/drei"}?hasta=100`);
 
   const products = paths.filter((path) => path.startsWith("/p/"));
   for (const path of products.slice(0, 3)) await check(path);
