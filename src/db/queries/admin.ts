@@ -9,6 +9,7 @@ import {
   orderItems,
   orders,
   productImages,
+  productExtraSubcategories,
   productVariants,
   inventoryMovements,
   products,
@@ -291,6 +292,11 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
     byCategory.set(c.categoryId, (byCategory.get(c.categoryId) ?? 0) + c.n);
     if (c.subcategoryId !== null) bySub.set(c.subcategoryId, (bySub.get(c.subcategoryId) ?? 0) + c.n);
   }
+  const extraCounts = await db
+    .select({ subcategoryId: productExtraSubcategories.subcategoryId, n: sql<number>`count(*)::int` })
+    .from(productExtraSubcategories)
+    .groupBy(productExtraSubcategories.subcategoryId);
+  for (const c of extraCounts) bySub.set(c.subcategoryId, (bySub.get(c.subcategoryId) ?? 0) + c.n);
 
   const [offerCountRow] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -406,6 +412,7 @@ export type AdminProductDetail = {
   description: string;
   categoryId: number;
   subcategoryId: number | null;
+  subcategoryIds: number[];
   brandId: number | null;
   price: string;
   compareAtPrice: string | null;
@@ -425,7 +432,7 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
   const [row] = await db.select().from(products).where(eq(products.id, id)).limit(1);
   if (!row) return null;
 
-  const [images, variants, history] = await Promise.all([db
+  const [images, variants, history, extraSubcategories] = await Promise.all([db
     .select({ publicId: productImages.publicId, fileId: productImages.fileId, alt: productImages.alt })
     .from(productImages)
     .where(eq(productImages.productId, id))
@@ -441,6 +448,10 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
       .leftJoin(orders, eq(orders.id, inventoryMovements.orderId))
       .where(eq(inventoryMovements.productId, id)).orderBy(desc(inventoryMovements.createdAt), desc(inventoryMovements.id))
       .limit(100),
+    db.select({ subcategoryId: productExtraSubcategories.subcategoryId })
+      .from(productExtraSubcategories)
+      .where(eq(productExtraSubcategories.productId, id))
+      .orderBy(asc(productExtraSubcategories.subcategoryId)),
   ]);
 
   return {
@@ -450,6 +461,8 @@ export async function getAdminProduct(id: number): Promise<AdminProductDetail | 
     description: row.description,
     categoryId: row.categoryId,
     subcategoryId: row.subcategoryId,
+    subcategoryIds: [row.subcategoryId, ...extraSubcategories.map((item) => item.subcategoryId)]
+      .filter((value): value is number => value !== null),
     brandId: row.brandId,
     price: row.price,
     compareAtPrice: row.compareAtPrice,

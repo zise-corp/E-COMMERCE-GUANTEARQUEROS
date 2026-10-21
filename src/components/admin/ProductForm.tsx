@@ -20,7 +20,7 @@ type FormState = {
   name: string;
   description: string;
   categoryId: number | null;
-  subcategoryId: number | null;
+  subcategoryIds: number[];
   brandId: number | null;
   price: string;
   compareAtPrice: string;
@@ -39,7 +39,7 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
       name: "",
       description: "",
       categoryId: defaultCategoryId,
-      subcategoryId: null,
+      subcategoryIds: [],
       brandId: null,
       price: "",
       compareAtPrice: "",
@@ -56,7 +56,7 @@ function toForm(product: AdminProductDetail | null, defaultCategoryId: number | 
     name: product.name,
     description: product.description,
     categoryId: product.categoryId,
-    subcategoryId: product.subcategoryId,
+    subcategoryIds: product.subcategoryIds,
     brandId: product.brandId,
     price: product.price,
     compareAtPrice: product.compareAtPrice ?? "",
@@ -396,6 +396,22 @@ export function ProductForm({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  function toggleSubcategory(id: number) {
+    setForm((f) => ({
+      ...f,
+      subcategoryIds: f.subcategoryIds.includes(id)
+        ? f.subcategoryIds.filter((selected) => selected !== id)
+        : [...f.subcategoryIds, id],
+    }));
+  }
+
+  function makePrimarySubcategory(id: number) {
+    setForm((f) => ({
+      ...f,
+      subcategoryIds: [id, ...f.subcategoryIds.filter((selected) => selected !== id)],
+    }));
+  }
+
   function setAttribute(index: number, key: "name" | "value", next: string) {
     setForm((f) => {
       const attributes = f.attributes.slice();
@@ -446,8 +462,8 @@ export function ProductForm({
       setError("Elige una categoría.");
       return;
     }
-    if (subs.length > 0 && form.subcategoryId === null) {
-      setError("Elige una subcategoría para clasificar el producto.");
+    if (subs.length > 0 && form.subcategoryIds.length === 0) {
+      setError("Elige al menos una subcategoría para clasificar el producto.");
       return;
     }
     if (form.images.length === 0) {
@@ -459,7 +475,8 @@ export function ProductForm({
       name: form.name.trim(),
       description: form.description.trim(),
       categoryId: form.categoryId,
-      subcategoryId: form.subcategoryId,
+      subcategoryId: form.subcategoryIds[0] ?? null,
+      additionalSubcategoryIds: form.subcategoryIds.slice(1),
       brandId: form.brandId,
       price,
       compareAtPrice: compareAt,
@@ -523,7 +540,7 @@ export function ProductForm({
                 onChange={(e) => set("name", e.target.value)}
               />
 
-              <div className={subs.length > 0 ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
+              <div className="grid gap-3">
                 <Select
                   label="Categoría principal"
                   value={form.categoryId === null ? "" : String(form.categoryId)}
@@ -532,7 +549,7 @@ export function ProductForm({
                     setForm((f) => ({
                       ...f,
                       categoryId: e.target.value ? Number(e.target.value) : null,
-                      subcategoryId: null,
+                      subcategoryIds: [],
                     }))
                   }
                 >
@@ -545,18 +562,26 @@ export function ProductForm({
                 </Select>
 
                 {subs.length > 0 ? (
-                  <Select
-                    label="Subcategoría"
-                    value={form.subcategoryId === null ? "" : String(form.subcategoryId)}
-                    className="bg-[#0E0E0D]"
-                    hint="Obligatoria para esta categoría."
-                    onChange={(e) => set("subcategoryId", e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">— Selecciona dónde clasificarlo —</option>
-                    {subs.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
+                  <fieldset className="border border-line-strong bg-[#0E0E0D] px-4 py-3">
+                    <legend className="px-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-content-muted">Subcategorías</legend>
+                    <p className="mb-2 text-[11px] text-content-dim">Elige una o varias. La principal aparece en la ficha y sus migas de pan.</p>
+                    <div className="max-h-44 space-y-1 overflow-y-auto">
+                      {subs.map((subcategory) => {
+                        const selected = form.subcategoryIds.includes(subcategory.id);
+                        const primary = form.subcategoryIds[0] === subcategory.id;
+                        return (
+                          <div key={subcategory.id} className="flex items-center justify-between gap-2 py-1">
+                            <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[13px] text-content">
+                              <input type="checkbox" checked={selected} onChange={() => toggleSubcategory(subcategory.id)} className="size-4 accent-brand" />
+                              <span className="truncate">{subcategory.name}</span>
+                            </label>
+                            {primary ? <span className="text-[10px] font-bold uppercase text-brand">Principal</span>
+                              : selected ? <button type="button" onClick={() => makePrimarySubcategory(subcategory.id)} className="shrink-0 text-[10px] font-bold text-content-dim hover:text-brand">Hacer principal</button> : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
                 ) : null}
               </div>
 

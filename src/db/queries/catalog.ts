@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { db, withFallback } from "../index";
-import { brands, categories, productImages, productVariants, products } from "../schema";
+import { brands, categories, productExtraSubcategories, productImages, productVariants, products } from "../schema";
 import { PUBLIC_CATALOG_CACHE_TAG } from "@/lib/cache-tags";
 import type { HomeSettings } from "./settings";
 
@@ -12,6 +12,14 @@ const parentCategory = alias(categories, "cat");
 const childCategory = alias(categories, "sub");
 
 const CATALOG_REVALIDATE_SECONDS = 300;
+
+/** Evita duplicar tarjetas cuando una subcategoría figura más de una vez. */
+function productInSubcategory(id: number) {
+  return or(
+    eq(products.subcategoryId, id),
+    sql`EXISTS (SELECT 1 FROM ${productExtraSubcategories} extra WHERE extra.product_id = ${products.id} AND extra.subcategory_id = ${id})`,
+  );
+}
 
 /* Modelos de vista: los componentes no dependen de la forma de las filas de Drizzle. */
 
@@ -237,9 +245,9 @@ function toCard(row: CardRow): ProductCard {
 
 /** Árbol de dos niveles con el conteo de productos publicados de cada rama. */
 async function queryCategoryTree(): Promise<CategoryNode[]> {
-    // Las tres lecturas son independientes. Al ejecutarlas juntas solo pagamos
+    // Las cuatro lecturas son independientes. Al ejecutarlas juntas solo pagamos
     // una ronda de red hacia la base remota.
-    const [rows, counts, specialCounts] = await Promise.all([
+    const [rows, counts, extraCounts, specialCounts] = await Promise.all([
       db
       .select({
         id: categories.id,
@@ -264,6 +272,12 @@ async function queryCategoryTree(): Promise<CategoryNode[]> {
       .where(eq(products.published, true))
       .groupBy(products.categoryId, products.subcategoryId),
 
+      db.select({ subcategoryId: productExtraSubcategories.subcategoryId, n: sql<number>`count(*)::int` })
+        .from(productExtraSubcategories)
+        .innerJoin(products, eq(products.id, productExtraSubcategories.productId))
+        .where(eq(products.published, true))
+        .groupBy(productExtraSubcategories.subcategoryId),
+
       db
       .select({
         offers: sql<number>`count(*) filter (where ${products.compareAtPrice} is not null and ${products.compareAtPrice} > ${products.price})::int`,
@@ -282,6 +296,9 @@ async function queryCategoryTree(): Promise<CategoryNode[]> {
       if (c.subcategoryId !== null) {
         bySubcategory.set(c.subcategoryId, (bySubcategory.get(c.subcategoryId) ?? 0) + c.n);
       }
+    }
+    for (const c of extraCounts) {
+      bySubcategory.set(c.subcategoryId, (bySubcategory.get(c.subcategoryId) ?? 0) + c.n);
     }
 
     const roots: CategoryNode[] = [];
@@ -322,7 +339,7 @@ async function queryCategoryTree(): Promise<CategoryNode[]> {
 
 const getCachedCategoryTree = unstable_cache(
   queryCategoryTree,
-  ["public-category-tree-v2"],
+  ["public-category-tree-v3"],
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
 );
 
@@ -493,7 +510,7 @@ async function queryProductsByCategory(
           ? eq(products.isNew, true)
         : cat.parentId === null
         ? eq(products.categoryId, cat.id)
-        : eq(products.subcategoryId, cat.id);
+        : productInSubcategory(cat.id);
 
     const where = [eq(products.published, true), scope];
     if (filters.brandNames?.length) where.push(inArray(brands.name, filters.brandNames));
@@ -518,7 +535,7 @@ async function queryProductsByCategory(
 
 const getCachedProductsByCategory = unstable_cache(
   queryProductsByCategory,
-  ["public-products-by-category-v1"],
+  ["public-products-by-category-v2"],
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
 );
 
@@ -558,7 +575,7 @@ async function queryCategoryFacets(
             ? eq(products.isNew, true)
           : cat.parentId === null
           ? eq(products.categoryId, cat.id)
-          : eq(products.subcategoryId, cat.id);
+          : productInSubcategory(cat.id);
 
       const rows = await db
         .select({
@@ -587,7 +604,7 @@ async function queryCategoryFacets(
 
 const getCachedCategoryFacets = unstable_cache(
   queryCategoryFacets,
-  ["public-category-facets-v1"],
+  ["public-category-facets-v2"],
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [PUBLIC_CATALOG_CACHE_TAG] },
 );
 

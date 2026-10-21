@@ -39,9 +39,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/src/app/fonts ./src/app/fonts
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-inventory-migration.mjs ./scripts/apply-inventory-migration.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-product-subcategories-migration.mjs ./scripts/apply-product-subcategories-migration.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/expire-payments.mjs ./scripts/expire-payments.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/expire-payments.sql ./scripts/expire-payments.sql
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle/0020_lean_havok.sql ./drizzle/0020_lean_havok.sql
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle/0021_powerful_thunderbolts.sql ./drizzle/0021_powerful_thunderbolts.sql
 
 USER nextjs
 EXPOSE 3000

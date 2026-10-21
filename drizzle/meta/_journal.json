@@ -148,6 +148,13 @@
       "when": 1791391480048,
       "tag": "0020_lean_havok",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792620658045,
+      "tag": "0021_powerful_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

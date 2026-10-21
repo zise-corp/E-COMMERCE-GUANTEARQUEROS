@@ -23,7 +23,7 @@ src/app/admin/           login, resumen, catálogo, pedidos, inicio y ajustes
 src/app/admin/actions.ts escrituras administrativas autenticadas
 src/app/api/             búsqueda, carrito, descuentos, pedidos y pagos
 src/components/         shop, admin, ui y brand
-src/db/schema.ts        once tablas
+src/db/schema.ts        tablas de catálogo, inventario, administración y pedidos
 src/db/queries/         catálogo, pedidos, pagos, ajustes y autenticación
 src/lib/                validadores, sesiones, cotizaciones y configuración
 drizzle/                migraciones SQL y snapshots versionados
@@ -68,7 +68,13 @@ Cada clave debe tener al menos diez caracteres. La entrada por stdin evita coloc
 
 ### Actualización de una instalación existente
 
-El directorio `drizzle/` contiene 21 migraciones, de `0000` a `0020`. La `0020` añade stock por talla e historial de movimientos. En una base nueva, aplica `npm run db:migrate` antes de servir el código. En la base existente, el despliegue de ALPHA VPS aplica únicamente la `0020` mediante `scripts/apply-inventory-migration.mjs`; las anteriores ya forman parte del esquema existente aunque su historial de Drizzle no esté reconciliado. No ejecutes `db:migrate` o `db:push` a ciegas contra esa base.
+El directorio `drizzle/` contiene 22 migraciones, de `0000` a `0021`. La `0020` añade stock por talla e historial de movimientos; la `0021` crea una tabla vacía para las subcategorías adicionales. En una base nueva, aplica `npm run db:migrate` antes de servir el código. En la base existente, el despliegue de ALPHA VPS comprueba y aplica únicamente las migraciones `0020` y `0021` mediante `scripts/apply-inventory-migration.mjs` y `scripts/apply-product-subcategories-migration.mjs`; las anteriores ya forman parte del esquema existente aunque su historial de Drizzle no esté reconciliado. No ejecutes `db:migrate` o `db:push` a ciegas contra esa base.
+
+### Varias subcategorías por producto
+
+En **Admin → Productos**, selecciona una o varias subcategorías de la misma categoría principal. La primera es la principal para la ficha, sus migas de pan y SEO; **Hacer principal** permite cambiarla. La URL `/p/slug` del producto permanece igual. El producto aparece en cada subcategoría elegida sin duplicarse en la categoría principal. Las clasificaciones actuales siguen en `products.subcategory_id`; `product_extra_subcategories` solo guarda las adicionales, sin reescribir productos, stock ni pedidos. Al guardar, las asociaciones adicionales se actualizan en la misma transacción que el producto. Una pestaña antigua del panel conserva las adicionales si guarda sin cambiar la categoría. La migración `0021` debe existir antes de abrir esta versión del panel en desarrollo.
+
+Para probar este cambio con datos existentes, usa una copia de la base en PostgreSQL local y apunta el `.env.local` ignorado a `localhost`. En una copia restaurada de producción, aplica solo `scripts/apply-product-subcategories-migration.mjs`; no ejecutes `db:migrate`, `db:push` ni el seed porque el historial de migraciones de esa base no está reconciliado. Usa un secreto de sesión distinto del de producción, `YOPAGO_MODE=disabled`, URLs base locales y credenciales de subida ImageKit vacías. Las imágenes existentes seguirán cargando mediante su endpoint público, pero las subidas estarán deshabilitadas hasta configurar una cuenta de pruebas. Los respaldos privados de estas pruebas van en `.local-backups/`, excluido de Git; contienen datos y deben mantenerse confidenciales. Las cuentas del panel para pruebas se crean en la copia local y no se trasladan a producción.
 
 ### Inventario por talla
 

@@ -203,6 +203,8 @@ export const productSchema = z.object({
   description: z.string().trim().max(4000).default(""),
   categoryId: z.number().int().positive(),
   subcategoryId: z.number().int().positive().nullable().default(null),
+  // Opcional para aceptar formularios que estaban abiertos antes del despliegue.
+  additionalSubcategoryIds: z.array(z.number().int().positive()).max(40).optional(),
   brandId: z.number().int().positive().nullable().default(null),
   price: z.number().nonnegative().max(1_000_000),
   compareAtPrice: z.number().nonnegative().max(1_000_000).nullable().default(null),

@@ -32,6 +32,16 @@ elif [ "$migration_state" != ready ]; then
   echo "Unexpected inventory migration state: $migration_state" >&2
   exit 1
 fi
+
+# Es una tabla nueva y vacía: el código anterior puede seguir atendiendo
+# mientras se crea, y ninguna clasificación existente necesita reescritura.
+subcategory_migration_state=$(docker compose run --rm --no-deps --entrypoint node app scripts/apply-product-subcategories-migration.mjs --check | tail -n 1)
+if [ "$subcategory_migration_state" = pending ]; then
+  docker compose run --rm --no-deps --entrypoint node app scripts/apply-product-subcategories-migration.mjs
+elif [ "$subcategory_migration_state" != ready ]; then
+  echo "Unexpected product subcategory migration state: $subcategory_migration_state" >&2
+  exit 1
+fi
 docker compose up -d --no-build --remove-orphans
 
 expected_image=$(docker image inspect --format '{{.Id}}' guantearqueros:local)

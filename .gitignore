@@ -15,6 +15,7 @@ next-env.d.ts
 # entorno — nunca commitear credenciales
 .env*
 !.env.example
+/.local-backups/
 
 # debug
 npm-debug.log*

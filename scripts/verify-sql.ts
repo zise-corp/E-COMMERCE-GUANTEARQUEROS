@@ -73,6 +73,7 @@ async function main() {
     "order_items",
     "orders",
     "product_images",
+    "product_extra_subcategories",
     "product_variants",
     "inventory_movements",
     "products",
@@ -103,6 +104,37 @@ async function main() {
   `);
   ok("insert de catálogo con sizes text[] y attributes jsonb");
 
+  await db.exec(`
+    INSERT INTO categories (name, slug, parent_id, position)
+      VALUES ('Gama alta', 'gama-alta', 1, 1), ('Corte híbrido', 'corte-hibrido', 1, 2);
+    INSERT INTO product_extra_subcategories (product_id, subcategory_id)
+      VALUES (1, 3), (1, 4);
+  `);
+  const classification = await db.query<{ subcategory_id: number }>(`
+    SELECT subcategory_id FROM products WHERE id = 1
+    UNION ALL
+    SELECT subcategory_id FROM product_extra_subcategories WHERE product_id = 1
+    ORDER BY subcategory_id
+  `);
+  if (JSON.stringify(classification.rows.map((row) => row.subcategory_id)) === JSON.stringify([2, 3, 4])) {
+    ok("un producto conserva su subcategoría principal y admite otras dos");
+  } else fail("se perdieron clasificaciones del producto");
+  const listings = await db.query<{ subcategory_id: number; total: number }>(`
+    SELECT c.id AS subcategory_id, count(p.id)::int AS total
+    FROM categories c JOIN products p ON p.category_id = c.parent_id
+    WHERE c.id IN (2, 3, 4) AND (p.subcategory_id = c.id OR EXISTS (
+      SELECT 1 FROM product_extra_subcategories extra
+      WHERE extra.product_id = p.id AND extra.subcategory_id = c.id
+    ))
+    GROUP BY c.id ORDER BY c.id
+  `);
+  if (JSON.stringify(listings.rows) === JSON.stringify([
+    { subcategory_id: 2, total: 1 },
+    { subcategory_id: 3, total: 1 },
+    { subcategory_id: 4, total: 1 },
+  ])) ok("cada subcategoría lista el producto una sola vez");
+  else fail("listado duplicado o incompleto por subcategoría");
+
   const attrs = await db.query<{ attributes: { name: string; value: string }[] }>(
     `SELECT attributes FROM products WHERE id = 1`,
   );
@@ -127,6 +159,11 @@ async function main() {
 
   // 5. El pedido histórico sobrevive al borrado del producto.
   await db.exec(`DELETE FROM products WHERE id = 1`);
+  const [remainingClassifications] = (await db.query<{ count: number }>(
+    `SELECT count(*)::int AS count FROM product_extra_subcategories WHERE product_id = 1`,
+  )).rows;
+  if (remainingClassifications?.count === 0) ok("al borrar el producto se limpian sus subcategorías adicionales");
+  else fail("quedaron subcategorías adicionales huérfanas");
   const survivor = await db.query<{
     product_id: number | null;
     name: string;

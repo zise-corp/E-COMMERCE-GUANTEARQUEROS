@@ -88,6 +88,15 @@ export const products = pgTable("products", {
   publishedNewIdx: index("products_published_new_idx").on(t.published, t.isNew),
 }));
 
+/** Clasificaciones adicionales; products.subcategory_id conserva la principal. */
+export const productExtraSubcategories = pgTable("product_extra_subcategories", {
+  productId: integer("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
+  subcategoryId: integer("subcategory_id").references(() => categories.id, { onDelete: "restrict" }).notNull(),
+}, (t) => ({
+  productSubcategoryUq: uniqueIndex("product_extra_subcategories_product_subcategory_uq").on(t.productId, t.subcategoryId),
+  subcategoryIdx: index("product_extra_subcategories_subcategory_idx").on(t.subcategoryId),
+}));
+
 export const productImages = pgTable("product_images", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),

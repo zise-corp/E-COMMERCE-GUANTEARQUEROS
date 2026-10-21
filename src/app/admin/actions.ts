@@ -4,7 +4,7 @@ import { eq, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/index";
-import { brands, categories, inventoryMovements, productImages, productVariants, products } from "@/db/schema";
+import { brands, categories, inventoryMovements, productExtraSubcategories, productImages, productVariants, products } from "@/db/schema";
 import { getHeroCarouselProducts } from "@/db/queries/catalog";
 import { changeAdminPassword } from "@/db/queries/auth";
 import { OrderError, setOrderStatus } from "@/db/queries/orders";
@@ -109,6 +109,14 @@ export async function saveCategoryAction(
   const categoryImage = values.parentId === null
     ? { imagePath: values.imagePath, imageFileId: values.imageFileId }
     : { imagePath: null, imageFileId: null };
+
+  if (currentCategory?.parentId !== null && currentCategory?.parentId !== undefined && currentCategory.parentId !== values.parentId) {
+    const [assigned] = await db.select({ id: products.id }).from(products)
+      .where(or(eq(products.subcategoryId, currentCategory.id),
+        sql`EXISTS (SELECT 1 FROM ${productExtraSubcategories} extra WHERE extra.subcategory_id = ${currentCategory.id} AND extra.product_id = ${products.id})`))
+      .limit(1);
+    if (assigned) return { ok: false, error: "Mueve primero los productos de esta subcategoría antes de cambiarla de categoría principal." };
+  }
 
   if (values.parentId === null && isReservedCategorySlug(nextSlug)) {
     return {
@@ -270,7 +278,12 @@ export async function deleteCategoryAction(id: number): Promise<ActionResult> {
     .where(or(eq(products.categoryId, id), eq(products.subcategoryId, id)))
     .limit(1);
 
-  if (used) {
+  const [extraUsed] = await db.select({ productId: productExtraSubcategories.productId })
+    .from(productExtraSubcategories)
+    .where(eq(productExtraSubcategories.subcategoryId, id))
+    .limit(1);
+
+  if (used || extraUsed) {
     return {
       ok: false,
       error: "Hay productos en esta categoría. Muévelos antes de borrarla.",
@@ -413,13 +426,14 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     .from(categories)
     .where(eq(categories.parentId, v.categoryId));
   if (children.length > 0 && v.subcategoryId === null) {
-    return { ok: false, error: "Esta categoría requiere elegir una subcategoría." };
+    return { ok: false, error: "Esta categoría requiere elegir al menos una subcategoría." };
   }
-  if (
-    v.subcategoryId !== null &&
-    !children.some((subcategory) => subcategory.id === v.subcategoryId)
-  ) {
-    return { ok: false, error: "La subcategoría no pertenece a la categoría seleccionada." };
+  const requestedSubcategories = [v.subcategoryId, ...(v.additionalSubcategoryIds ?? [])]
+    .filter((subcategoryId): subcategoryId is number => subcategoryId !== null);
+  if (new Set(requestedSubcategories).size !== requestedSubcategories.length ||
+      (v.subcategoryId === null && requestedSubcategories.length > 0) ||
+      requestedSubcategories.some((subcategoryId) => !children.some((child) => child.id === subcategoryId))) {
+    return { ok: false, error: "Selecciona subcategorías distintas de la categoría principal elegida." };
   }
 
   const values = {
@@ -444,6 +458,7 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
     const slug = await db.transaction(async (tx) => {
       let target = id;
       let finalSlug: string;
+      let replaceExtraSubcategories = true;
 
       if (target === undefined) {
         // Nuevo: el slug (la URL /p/...) sale del nombre.
@@ -459,12 +474,16 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
         // Editar: el slug queda fijo para no romper la ficha ya publicada,
         // aunque el nombre cambie.
         const [existing] = await tx
-          .select({ slug: products.slug })
+          .select({ slug: products.slug, categoryId: products.categoryId, subcategoryId: products.subcategoryId })
           .from(products)
           .where(eq(products.id, target))
           .limit(1).for("update");
         if (!existing) throw new Error("producto no encontrado");
         finalSlug = existing.slug;
+        // Una pestaña antigua del panel no envía este campo. Conserva las
+        // asociaciones si no modificó la categoría ni la subcategoría principal.
+        replaceExtraSubcategories = v.additionalSubcategoryIds !== undefined ||
+          existing.categoryId !== v.categoryId || existing.subcategoryId !== v.subcategoryId;
       }
 
       const current = await tx.select({ id: productVariants.id, size: productVariants.size, stock: productVariants.stock })
@@ -500,6 +519,15 @@ export async function saveProductAction(input: unknown, id?: number): Promise<Ac
         }
       }
       await tx.update(products).set(values).where(eq(products.id, target));
+
+      if (replaceExtraSubcategories) {
+        await tx.delete(productExtraSubcategories).where(eq(productExtraSubcategories.productId, target));
+        if (v.additionalSubcategoryIds?.length) {
+          await tx.insert(productExtraSubcategories).values(v.additionalSubcategoryIds.map((subcategoryId) => ({
+            productId: target as number, subcategoryId,
+          })));
+        }
+      }
 
       // Las imágenes se reemplazan enteras: el formulario manda la lista final.
       await tx.delete(productImages).where(eq(productImages.productId, target));
