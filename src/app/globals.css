@@ -218,7 +218,8 @@
     will-change: transform;
   }
 
-  .brand-marquee:hover .brand-marquee__track {
+  .brand-marquee:hover .brand-marquee__track,
+  .brand-marquee:focus-within .brand-marquee__track {
     animation-play-state: paused;
   }
 
@@ -246,7 +247,8 @@
     transition: color 180ms ease, text-shadow 180ms ease, transform 180ms ease;
   }
 
-  .brand-marquee__item:hover {
+  .brand-marquee__item:hover,
+  .brand-marquee__item:focus-visible {
     color: #f5f3f0;
     text-shadow: 0 0 22px rgb(245 243 240 / 16%);
     transform: skewX(-7deg) translateY(-2px);

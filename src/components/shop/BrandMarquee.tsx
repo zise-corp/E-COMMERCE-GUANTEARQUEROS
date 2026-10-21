@@ -1,15 +1,23 @@
+import Link from "next/link";
+
 type Brand = {
   id: number;
   name: string;
+  slug: string;
 };
 
 function BrandSequence({ brands, duplicate = false }: { brands: Brand[]; duplicate?: boolean }) {
   return (
     <div className="brand-marquee__sequence" aria-hidden={duplicate || undefined}>
       {brands.map((brand) => (
-        <span className="brand-marquee__item" key={`${duplicate ? "copy-" : ""}${brand.id}`}>
+        <Link
+          className="brand-marquee__item"
+          href={brand.slug === "drei" ? "/drei" : `/marcas/${brand.slug}`}
+          key={`${duplicate ? "copy-" : ""}${brand.id}`}
+          tabIndex={duplicate ? -1 : undefined}
+        >
           <span>{brand.name}</span>
-        </span>
+        </Link>
       ))}
     </div>
   );
