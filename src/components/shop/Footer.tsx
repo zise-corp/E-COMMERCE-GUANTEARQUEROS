@@ -24,8 +24,10 @@ export function Footer({ categories, brands, phone }: {
         aria-hidden
       />
 
-      <div className="container-shop grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div>
+      {/* En móvil: marca a todo el ancho, Tienda y Ayuda en dos columnas y
+          Marcas al final con su lista en dos columnas, para no apilar todo. */}
+      <div className="container-shop grid grid-cols-2 gap-x-6 gap-y-7 py-8 sm:gap-8 sm:py-12 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="col-span-2 sm:col-span-1">
           <div className="flex items-center gap-0">
             <Escudo width={26} height={31} />
             <Wordmark size={22} withBolivia className="ml-[2px]" />
@@ -33,7 +35,7 @@ export function Footer({ categories, brands, phone }: {
           <p className="mt-3.5 max-w-[300px] text-[13.5px] leading-relaxed text-content-dim">
             Guantes de arquero, indumentaria DREI Athletic, botines, pelotas y accesorios. Envíos a toda Bolivia.
           </p>
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <div className="mt-5 grid grid-cols-[auto_auto] justify-start gap-x-6 gap-y-5 sm:mt-6 sm:grid-cols-2 sm:justify-normal lg:grid-cols-1 xl:grid-cols-2">
             <SocialGroup title={site.shortName} label={`Redes sociales de ${site.name}`}>
               <SocialLink href={site.social.facebook} label={`Facebook de ${site.name}`}>
                 <FacebookIcon size={18} />
@@ -69,6 +71,8 @@ export function Footer({ categories, brands, phone }: {
         />
         <FooterColumn
           title="Marcas"
+          className="max-sm:order-last max-sm:col-span-2"
+          listClassName="max-sm:columns-2 max-sm:gap-x-6"
           items={brands.map((brand) => ({
             label: brand.name,
             href: brand.slug === "drei" ? "/drei" : `/marcas/${brand.slug}`,
@@ -135,7 +139,7 @@ function SocialLink({
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="flex size-10 items-center justify-center border border-line-strong text-content-dim transition-colors duration-150 hover:border-brand hover:bg-brand/[0.08] hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      className="flex size-9 items-center sm:size-10 justify-center border border-line-strong text-content-dim transition-colors duration-150 hover:border-brand hover:bg-brand/[0.08] hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
     >
       {children}
     </a>
@@ -145,14 +149,18 @@ function SocialLink({
 function FooterColumn({
   title,
   items,
+  className,
+  listClassName,
 }: {
   title: string;
   items: { label: string; href: string; external?: boolean }[];
+  className?: string;
+  listClassName?: string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <h2 className="label-xs mb-3.5 tracking-[0.18em] text-content">{title}</h2>
-      <ul>
+      <ul className={listClassName}>
         {items.map((it) => (
           <li key={it.label}>
             {it.external ? (
