@@ -22,7 +22,7 @@ export function PaginatedProductGrid({ products }: { products: ProductCardData[]
 
   return (
     <div ref={topRef} className="min-w-0 scroll-mt-28">
-      <ProductGrid products={visible} columns={3} aspect="4/3" />
+      <ProductGrid products={visible} columns={3} aspect="1/1" />
       {pages > 1 ? (
         <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación de productos">
           <PageButton disabled={safePage === 1} onClick={() => change(safePage - 1)}>Anterior</PageButton>
