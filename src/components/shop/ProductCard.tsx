@@ -52,8 +52,17 @@ export function ProductCard({
               {product.isNew ? <span className="bg-[#39BDF8] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-ink-950">Nuevo</span> : null}
               {off !== null ? <DiscountBadge percent={off} /> : null}
             </div>
-            {low ? <LowStockBar stock={product.stock} /> : null}
           </div>
+
+          {/* Stock bajo al pie de la foto. Cuando aparece "Agregar al carrito"
+              (h-11: hover/foco en escritorio, siempre en tablet) sube con él
+              para quedar encima en vez de quedar tapado. */}
+          {low ? (
+            <LowStockBar
+              stock={product.stock}
+              className="absolute inset-x-0 bottom-0 hidden transition-transform duration-150 sm:block group-hover:-translate-y-11 group-has-[button:focus-visible]:-translate-y-11 max-lg:-translate-y-11"
+            />
+          ) : null}
 
           {product.isDrei ? (
             <DreiTag className="absolute right-2.5 top-2.5" />
