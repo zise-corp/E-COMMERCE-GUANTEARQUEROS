@@ -42,6 +42,15 @@ elif [ "$subcategory_migration_state" != ready ]; then
   echo "Unexpected product subcategory migration state: $subcategory_migration_state" >&2
   exit 1
 fi
+
+# Solo inserta Nuevos/Ofertas si faltan; el código anterior ya sabe mostrarlas.
+system_categories_state=$(docker compose run --rm --no-deps --entrypoint node app scripts/apply-system-categories.mjs --check | tail -n 1)
+if [ "$system_categories_state" = pending ]; then
+  docker compose run --rm --no-deps --entrypoint node app scripts/apply-system-categories.mjs
+elif [ "$system_categories_state" != ready ]; then
+  echo "Unexpected system categories state: $system_categories_state" >&2
+  exit 1
+fi
 docker compose up -d --no-build --remove-orphans
 
 expected_image=$(docker image inspect --format '{{.Id}}' guantearqueros:local)

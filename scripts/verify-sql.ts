@@ -194,6 +194,23 @@ async function main() {
   `);
   ok("site_settings admite upsert por clave");
 
+  // 8. Nuevos/Ofertas: el mismo SQL que aplica el despliegue, sobre un catálogo
+  // con productos. Repetirlo no duplica ni reactiva una categoría oculta.
+  const ensureSystemCategories = await readFile(join(process.cwd(), "scripts", "ensure-system-categories.sql"), "utf8");
+  const productsBefore = (await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM products`)).rows[0]?.count;
+  await db.exec(ensureSystemCategories);
+  await db.exec(`UPDATE categories SET active = false WHERE slug = 'ofertas'`);
+  await db.exec(ensureSystemCategories);
+  const systemCategories = await db.query<{ slug: string; parent_id: number | null; position: number; active: boolean; highlighted: boolean }>(
+    `SELECT slug, parent_id, position, active, highlighted FROM categories WHERE slug IN ('nuevos', 'ofertas') ORDER BY position`,
+  );
+  const productsAfter = (await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM products`)).rows[0]?.count;
+  if (JSON.stringify(systemCategories.rows) === JSON.stringify([
+    { slug: "nuevos", parent_id: null, position: -2, active: true, highlighted: true },
+    { slug: "ofertas", parent_id: null, position: -1, active: false, highlighted: true },
+  ]) && productsBefore === productsAfter) ok("Nuevos y Ofertas se crean una vez, sin tocar productos ni su visibilidad");
+  else fail("categorías del sistema duplicadas, faltantes o modificadas");
+
   await db.close();
   console.log(process.exitCode ? "\nHay fallas." : "\nTodo en orden.");
 }
